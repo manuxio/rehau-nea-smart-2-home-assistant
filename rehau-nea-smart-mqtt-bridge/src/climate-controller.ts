@@ -499,7 +499,8 @@ class ClimateController {
     
     const installationMode = (systemSupportsCooling && isActivelyCooling) ? 'cool' : 'heat';
     
-    // Update outside temperature
+    // Re-publish outside temperature sensor discovery and state
+    this.publishOutsideTemperatureSensor(install);
     if (install.outside_temp !== undefined) {
       const tempC = this.convertTemp(install.outside_temp);
       if (tempC !== null) {
@@ -509,6 +510,11 @@ class ClimateController {
           { retain: true }
         );
       }
+    }
+    
+    // Re-publish installation mode control discovery
+    if (zones.length > 0) {
+      this.publishInstallationModeControl(install, installationMode);
     }
     
     if (install.groups && install.groups.length > 0) {
@@ -523,6 +529,16 @@ class ClimateController {
               if (!state) {
                 return;
               }
+              
+              // Re-publish zone discovery configs to ensure they persist
+              const zoneInfo: ZoneInfo = {
+                zoneId: zone._id,
+                zoneName: zone.name,
+                zoneNumber: zone.number,
+                installName: install.name
+              };
+              this.publishDiscoveryConfig(zoneInfo, installId, installationMode);
+              this.publishZoneSensors(zoneInfo, installId, install.name);
               
               const channel = zone.channels[0];
               
