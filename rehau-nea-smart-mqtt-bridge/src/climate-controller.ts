@@ -960,7 +960,8 @@ class ClimateController {
       );
       this.mqttBridge.publishToHomeAssistant(
         `${baseTopic}_pump/state`,
-        mcData.pumpOn === 1 ? 'ON' : 'OFF'
+        mcData.pumpOn === 1 ? 'ON' : 'OFF',
+        { retain: true }
       );
       
       // Publish setpoint temperature
@@ -983,7 +984,8 @@ class ClimateController {
       );
       this.mqttBridge.publishToHomeAssistant(
         `${baseTopic}_setpoint/state`,
-        (mcData.mixed_circuit1_setpoint / 10).toFixed(1)
+        (mcData.mixed_circuit1_setpoint / 10).toFixed(1),
+        { retain: true }
       );
       
       // Publish supply temperature
@@ -1006,7 +1008,8 @@ class ClimateController {
       );
       this.mqttBridge.publishToHomeAssistant(
         `${baseTopic}_supply/state`,
-        (mcData.mixed_circuit1_supply / 10).toFixed(1)
+        (mcData.mixed_circuit1_supply / 10).toFixed(1),
+        { retain: true }
       );
       
       // Publish return temperature
@@ -1029,7 +1032,8 @@ class ClimateController {
       );
       this.mqttBridge.publishToHomeAssistant(
         `${baseTopic}_return/state`,
-        (mcData.mixed_circuit1_return / 10).toFixed(1)
+        (mcData.mixed_circuit1_return / 10).toFixed(1),
+        { retain: true }
       );
       
       // Publish valve opening percentage
@@ -1052,7 +1056,8 @@ class ClimateController {
       );
       this.mqttBridge.publishToHomeAssistant(
         `${baseTopic}_opening/state`,
-        mcData.mixed_circuit1_opening.toString()
+        mcData.mixed_circuit1_opening.toString(),
+        { retain: true }
       );
       
       logger.debug(`Published ${mcKey} sensors: pump=${mcData.pumpOn}, setpoint=${mcData.mixed_circuit1_setpoint/10}°C`);
@@ -1094,7 +1099,8 @@ class ClimateController {
         );
         this.mqttBridge.publishToHomeAssistant(
           `${baseTopic}/state`,
-          state ? 'ON' : 'OFF'
+          state ? 'ON' : 'OFF',
+          { retain: true }
         );
       });
       
@@ -1120,7 +1126,8 @@ class ClimateController {
         );
         this.mqttBridge.publishToHomeAssistant(
           `${baseTopic}/state`,
-          state ? 'ON' : 'OFF'
+          state ? 'ON' : 'OFF',
+          { retain: true }
         );
       });
       
