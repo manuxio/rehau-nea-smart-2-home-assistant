@@ -206,6 +206,9 @@ class ClimateController {
     
     // Publish outside temperature sensor
     this.publishOutsideTemperatureSensor(install);
+    
+    // Print MQTT structure tree
+    this.printMQTTStructure(install);
   }
 
   private subscribeToZoneCommands(installId: string, zoneNumber: number): void {
@@ -589,6 +592,129 @@ class ClimateController {
         }
       });
     }
+    
+    // Print MQTT structure tree after update
+    this.printMQTTStructure(install);
+  }
+
+  private printMQTTStructure(install: IInstall): void {
+    const installId = install.unique;
+    const installName = install.name;
+    
+    logger.info('');
+    logger.info('═══════════════════════════════════════════════════════════════');
+    logger.info('📊 Home Assistant MQTT Discovery Structure');
+    logger.info('═══════════════════════════════════════════════════════════════');
+    logger.info('');
+    
+    // Get all zones for this installation
+    const zones: Array<{ zoneNumber: number; zoneName: string; groupName: string; state: ClimateState }> = [];
+    this.installations.forEach((state) => {
+      if (state.installId === installId) {
+        // Find zone info from install data
+        let groupName = '';
+        if (install.groups) {
+          for (const group of install.groups) {
+            const zone = group.zones.find(z => z.number === state.zoneNumber);
+            if (zone) {
+              groupName = group.name;
+              break;
+            }
+          }
+        }
+        zones.push({
+          zoneNumber: state.zoneNumber,
+          zoneName: state.zoneName,
+          groupName: groupName,
+          state: state
+        });
+      }
+    });
+    
+    // Sort zones by number
+    zones.sort((a, b) => a.zoneNumber - b.zoneNumber);
+    
+    // Count entities
+    const climateCount = zones.length + 1; // zones + mode control
+    const sensorCount = zones.length * 2 + 1; // temp + humidity per zone + outside temp
+    const totalCount = climateCount + sensorCount;
+    
+    logger.info(`Installation: ${installName} (${installId})`);
+    logger.info(`Total Entities: ${totalCount} (${climateCount} climate + ${sensorCount} sensors)`);
+    logger.info(`USE_GROUP_IN_NAMES: ${USE_GROUP_IN_NAMES}`);
+    logger.info('');
+    logger.info('homeassistant/');
+    logger.info('│');
+    
+    // Climate entities
+    logger.info('├─ climate/                                    [Climate Entities]');
+    zones.forEach((zone, idx) => {
+      const isLast = idx === zones.length;
+      const prefix = isLast ? '│  └─' : '│  ├─';
+      const displayName = USE_GROUP_IN_NAMES && zone.groupName 
+        ? `${zone.groupName} - ${zone.zoneName}` 
+        : zone.zoneName;
+      
+      logger.info(`${prefix} rehau_${installId}_zone_${zone.zoneNumber}/`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ config                               → "${displayName}"`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ availability                         → "online"`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ current_temperature                  → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ target_temperature                   → ${zone.state.targetTemperature?.toFixed(1) ?? 'N/A'}°C`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ current_humidity                     → ${zone.state.humidity ?? 'N/A'}%`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ mode                                 → "${zone.state.mode}"`);
+      if (zone.state.preset) {
+        logger.info(`${isLast ? '│     ' : '│  │  '}├─ preset                               → "${zone.state.preset}"`);
+      }
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ mode_command                         ← [subscribed]`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ preset_command                       ← [subscribed]`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}└─ temperature_command                  ← [subscribed]`);
+    });
+    
+    // Installation mode control
+    logger.info('│  │');
+    logger.info(`│  └─ rehau_${installId}_mode_control/`);
+    logger.info('│     ├─ config                               → "Mode Control"');
+    logger.info('│     ├─ availability                         → "online"');
+    logger.info('│     ├─ mode_command                         ← [subscribed]');
+    logger.info('│     └─ temperature_command                  ← [subscribed]');
+    logger.info('│');
+    
+    // Sensor entities
+    logger.info('└─ sensor/                                     [Sensor Entities]');
+    zones.forEach((zone, idx) => {
+      const isLast = idx === zones.length - 1;
+      const prefix = isLast ? '   └─' : '   ├─';
+      const sanitizedInstall = installName.toLowerCase().replace(/\s+/g, '_');
+      const sanitizedZone = zone.zoneName.toLowerCase().replace(/\s+/g, '_');
+      
+      // Temperature sensor
+      logger.info(`${prefix} rehau_${sanitizedInstall}_${sanitizedZone}_temperature/`);
+      logger.info(`${isLast ? '      ' : '   │  '}├─ config                               → "${zone.zoneName} Temperature"`);
+      logger.info(`${isLast ? '      ' : '   │  '}├─ availability                         → "online"`);
+      logger.info(`${isLast ? '      ' : '   │  '}└─ state                                → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
+      
+      // Humidity sensor
+      logger.info(`${isLast ? '   ' : '   │'}`);
+      logger.info(`${isLast ? '   └─' : '   ├─'} rehau_${sanitizedInstall}_${sanitizedZone}_humidity/`);
+      logger.info(`${isLast ? '      ' : '   │  '}├─ config                               → "${zone.zoneName} Humidity"`);
+      logger.info(`${isLast ? '      ' : '   │  '}├─ availability                         → "online"`);
+      logger.info(`${isLast ? '      ' : '   │  '}└─ state                                → ${zone.state.humidity ?? 'N/A'}%`);
+      
+      if (!isLast) {
+        logger.info('   │');
+      }
+    });
+    
+    // Outside temperature sensor
+    logger.info('');
+    logger.info(`   └─ rehau_${installId}_outside_temp/`);
+    logger.info('      ├─ config                               → "Outside Temperature"');
+    logger.info('      ├─ availability                         → "online"');
+    logger.info(`      └─ state                                → ${install.outsideTemperature.celsius?.toFixed(1) ?? 'N/A'}°C`);
+    
+    logger.info('');
+    logger.info('═══════════════════════════════════════════════════════════════');
+    logger.info('');
   }
 
   private updateZoneFromChannel(zoneKey: string, state: ClimateState, channel: IChannel, installationMode: 'heat' | 'cool'): void {
