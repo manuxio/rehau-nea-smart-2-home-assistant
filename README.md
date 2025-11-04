@@ -81,6 +81,85 @@ After starting the add-on, you'll see:
 - **Mode control**: `climate.rehau_<installation>_mode_control` for heat/cool switching
 - **LIVE sensors** (diagnostic): Mixed circuits, pumps, digital I/O - visible in device diagnostics page
 
+## Debugging
+
+### Enabling Debug Mode
+
+To enable detailed logging for troubleshooting:
+
+1. Go to the add-on **Configuration** tab
+2. Set `log_level: "debug"`
+3. Restart the add-on
+4. Check the **Log** tab for detailed output
+
+**⚠️ IMPORTANT - Debug Mode Warning:**
+
+When debug mode is enabled, the add-on will log **detailed information** including:
+- Full MQTT messages
+- HTTP requests and responses
+- Authentication tokens and session data
+- Installation details
+
+**Sensitive data is automatically redacted** in debug logs:
+- ✅ Passwords → `[REDACTED]`
+- ✅ Tokens → First 2 and last 2 characters shown (e.g., `ey...PM`)
+- ✅ Email addresses → Partially masked (e.g., `ma...et`)
+- ✅ Installation addresses → `[REDACTED]`
+- ✅ GPS coordinates → `[REDACTED]`
+
+However, **other personal information may still be visible**:
+- Installation names
+- Zone names
+- Temperature values
+- System configuration
+
+### Sharing Logs Safely
+
+When sharing logs on GitHub issues or public forums:
+
+1. **Always review logs before sharing** - even with redaction enabled
+2. **Check for personal information**:
+   - Installation names (e.g., "John's House")
+   - Zone names (e.g., "Master Bedroom")
+   - Any other identifying information
+3. **Use debug mode only when needed** - switch back to `info` level after troubleshooting
+4. **Copy only relevant sections** - don't share entire log files
+5. **Use code blocks** when pasting logs in GitHub issues:
+   ````
+   ```text
+   [paste your log excerpt here]
+   ```
+   ````
+
+### Common Debug Scenarios
+
+**Connection Issues:**
+```yaml
+log_level: "debug"
+```
+Look for:
+- MQTT connection messages
+- Authentication errors
+- Network timeouts
+
+**Missing Sensors:**
+```yaml
+log_level: "debug"
+```
+Look for:
+- LIVE_EMU and LIVE_DIDO responses
+- Sensor discovery messages
+- MQTT publish confirmations
+
+**Temperature/Control Issues:**
+```yaml
+log_level: "debug"
+```
+Look for:
+- Zone update messages
+- Command messages to REHAU
+- Temperature conversion logs
+
 ## Troubleshooting
 
 ### Add-on won't start
@@ -101,8 +180,8 @@ After starting the add-on, you'll see:
 ## Documentation
 
 For detailed information:
-- **Add-on README**: [`rehau-nea-smart-mqtt-bridge/README.md`](rehau-nea-smart-mqtt-bridge/README.md) - Full configuration and debugging guide
-- **CHANGELOG**: [`rehau-nea-smart-mqtt-bridge/CHANGELOG.md`](rehau-nea-smart-mqtt-bridge/CHANGELOG.md) - Version history and changes
+- **[Complete Add-on Documentation](rehau-nea-smart-mqtt-bridge/README.md)** - Full configuration, debugging guide, and advanced features
+- **[CHANGELOG](rehau-nea-smart-mqtt-bridge/CHANGELOG.md)** - Version history and release notes
 
 ## Support
 
