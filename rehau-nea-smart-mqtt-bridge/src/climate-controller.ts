@@ -226,19 +226,28 @@ class ClimateController {
   private publishDiscoveryConfig(zone: ExtendedZoneInfo, installId: string, systemMode: 'heat' | 'cool'): void {
     const zoneKey = `${installId}_zone_${zone.zoneNumber}`;
     
-    // Build zone name with optional group prefix
-    const zoneName = USE_GROUP_IN_NAMES 
-      ? `${zone.groupName} - ${zone.zoneName}`
+    // Sanitize names for IDs (lowercase, replace spaces with underscores)
+    const installNameSanitized = zone.installName.toLowerCase().replace(/\s+/g, '_');
+    const groupNameSanitized = zone.groupName.toLowerCase().replace(/\s+/g, '_');
+    const zoneNameSanitized = zone.zoneName.toLowerCase().replace(/\s+/g, '_');
+    
+    // Build object_id and display name based on USE_GROUP_IN_NAMES
+    const objectId = USE_GROUP_IN_NAMES && zone.groupName
+      ? `rehau_${installNameSanitized}_${groupNameSanitized}_${zoneNameSanitized}`
+      : `rehau_${installNameSanitized}_${zoneNameSanitized}`;
+    
+    const displayName = USE_GROUP_IN_NAMES && zone.groupName
+      ? `${zone.groupName} ${zone.zoneName}`
       : zone.zoneName;
-    const installName = zone.installName;
     
     // MQTT Discovery configuration for Home Assistant
     const config = {
-      name: zoneName,
-      unique_id: `rehau_${installId}_zone_${zone.zoneNumber}`,
+      name: displayName,
+      object_id: objectId,  // Controls entity_id: climate.rehau_install_group_zone
+      unique_id: `rehau_${zone.zoneId}`,
       device: {
         identifiers: [`rehau_${installId}`],
-        name: `REHAU ${installName}`,
+        name: `REHAU ${zone.installName}`,
         manufacturer: 'REHAU',
         model: 'NEA SMART 2.0',
         sw_version: '1.0.0'
@@ -285,7 +294,7 @@ class ClimateController {
     this.mqttBridge.publishToHomeAssistant(discoveryTopic, config, { retain: true });
     
     // Log the full config for debugging
-    logger.debug(`Discovery config for ${zoneName}:`);
+    logger.debug(`Discovery config for ${displayName}:`);
     logger.debug(`Topic: ${discoveryTopic}`);
     logger.debug(`Config: ${JSON.stringify(config, null, 2)}`);
     
@@ -299,7 +308,7 @@ class ClimateController {
     // Subscribe to command topics
     this.subscribeToCommands(zoneKey);
     
-    logger.info(`Published discovery config for ${installName} - ${zoneName}`);
+    logger.info(`Published discovery config for ${zone.installName} - ${displayName}`);
   }
 
   private publishZoneSensors(zone: ExtendedZoneInfo, installId: string, installName: string): void {
@@ -663,12 +672,23 @@ class ClimateController {
     zones.forEach((zone, idx) => {
       const isLast = idx === zones.length;
       const prefix = isLast ? '│  └─' : '│  ├─';
+      
+      // Sanitize names for object_id
+      const installNameSanitized = installName.toLowerCase().replace(/\s+/g, '_');
+      const groupNameSanitized = zone.groupName.toLowerCase().replace(/\s+/g, '_');
+      const zoneNameSanitized = zone.zoneName.toLowerCase().replace(/\s+/g, '_');
+      
+      const objectId = USE_GROUP_IN_NAMES && zone.groupName
+        ? `rehau_${installNameSanitized}_${groupNameSanitized}_${zoneNameSanitized}`
+        : `rehau_${installNameSanitized}_${zoneNameSanitized}`;
+      
       const displayName = USE_GROUP_IN_NAMES && zone.groupName 
-        ? `${zone.groupName} - ${zone.zoneName}` 
+        ? `${zone.groupName} ${zone.zoneName}` 
         : zone.zoneName;
       
       logger.info(`${prefix} rehau_${installId}_zone_${zone.zoneNumber}/`);
       logger.info(`${isLast ? '│     ' : '│  │  '}├─ config                               → "${displayName}"`);
+      logger.info(`${isLast ? '│     ' : '│  │  '}├─ object_id                            → "${objectId}"`);
       logger.info(`${isLast ? '│     ' : '│  │  '}├─ availability                         → "online"`);
       logger.info(`${isLast ? '│     ' : '│  │  '}├─ current_temperature                  → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
       logger.info(`${isLast ? '│     ' : '│  │  '}├─ target_temperature                   → ${zone.state.targetTemperature?.toFixed(1) ?? 'N/A'}°C`);
