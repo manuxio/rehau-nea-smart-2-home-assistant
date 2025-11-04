@@ -261,32 +261,57 @@ class RehauMQTTBridge {
   private handleHomeAssistantCommand(topic: string, payload: string): void {
     // Extract installation ID and command type from topic
     // Format: homeassistant/climate/rehau_{installId}_zone_{zoneNumber}/mode_command
+    // Format: homeassistant/light/rehau_{zoneId}_ring_light/command
     logger.debug(`HA Command received: topic=${topic}, payload=${payload}`);
     
-    const match = topic.match(/rehau_([^/]+)_zone_(\d+)\/(.+)_command/);
-    if (!match) {
-      logger.warn('Unknown command topic format:', topic);
+    // Try climate command format first
+    let match = topic.match(/rehau_([^/]+)_zone_(\d+)\/(.+)_command/);
+    if (match) {
+      const [, installId, zoneNumber, commandType] = match;
+      logger.info(`Command: ${commandType} = ${payload} for zone ${zoneNumber}`);
+      
+      // Emit command event for climate controller to handle
+      this.messageHandlers.forEach(handler => {
+        try {
+          const command: HACommand = {
+            type: 'ha_command',
+            installId,
+            zoneNumber: parseInt(zoneNumber),
+            commandType: commandType as 'mode' | 'preset' | 'temperature',
+            payload
+          };
+          handler(command);
+        } catch (error) {
+          // Ignore errors from handlers that don't expect this format
+        }
+      });
       return;
     }
     
-    const [, installId, zoneNumber, commandType] = match;
-    logger.info(`Command: ${commandType} = ${payload} for zone ${zoneNumber}`);
+    // Try light command format (using zone ID)
+    match = topic.match(/light\/rehau_([^/]+)_ring_light\/command/);
+    if (match) {
+      const [, zoneId] = match;
+      logger.info(`Ring light command: ${payload} for zone ${zoneId}`);
+      
+      // Need to find zone number from zone ID
+      // Emit as a special command that climate controller will handle
+      this.messageHandlers.forEach(handler => {
+        try {
+          const command = {
+            type: 'ring_light_command',
+            zoneId,
+            payload
+          };
+          handler(command as any);
+        } catch (error) {
+          // Ignore errors from handlers that don't expect this format
+        }
+      });
+      return;
+    }
     
-    // Emit command event for climate controller to handle
-    this.messageHandlers.forEach(handler => {
-      try {
-        const command: HACommand = {
-          type: 'ha_command',
-          installId,
-          zoneNumber: parseInt(zoneNumber),
-          commandType: commandType as 'mode' | 'preset' | 'temperature',
-          payload
-        };
-        handler(command);
-      } catch (error) {
-        // Ignore errors from handlers that don't expect this format
-      }
-    });
+    logger.warn('Unknown command topic format:', topic);
   }
 
   onMessage(handler: MessageHandler): void {

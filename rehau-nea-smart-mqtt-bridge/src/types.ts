@@ -129,7 +129,7 @@ export interface HACommand {
   type: 'ha_command';
   installId: string;
   zoneNumber: number;
-  commandType: 'mode' | 'preset' | 'temperature';
+  commandType: 'mode' | 'preset' | 'temperature' | 'ring_light';
   payload: string;
 }
 
