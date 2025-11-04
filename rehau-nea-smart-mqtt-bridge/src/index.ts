@@ -1,11 +1,13 @@
 import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
+
+// Load environment variables FIRST before importing logger
+dotenv.config();
+
 import logger from './logger';
 import RehauAuthPersistent from './rehau-auth';
 import RehauMQTTBridge from './mqtt-bridge';
 import ClimateController from './climate-controller';
-
-dotenv.config();
 
 const app: Express = express();
 app.use(express.json());
