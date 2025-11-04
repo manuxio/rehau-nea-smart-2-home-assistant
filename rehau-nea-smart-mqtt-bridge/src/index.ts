@@ -187,10 +187,42 @@ app.post('/api/climate/:installId/mode', async (req: Request, res: Response) => 
   }
 });
 
-// Start the application
-async function start(): Promise<void> {
+// Start application
+async function start() {
   try {
-    logger.info('Starting REHAU NEA SMART 2.0 MQTT Bridge (TypeScript)...');
+    // Print debug mode warning if enabled
+    const logLevel = process.env.LOG_LEVEL || 'info';
+    if (logLevel === 'debug') {
+      logger.warn('═══════════════════════════════════════════════════════════════');
+      logger.warn('⚠️  DEBUG MODE ENABLED - DETAILED LOGGING ACTIVE');
+      logger.warn('═══════════════════════════════════════════════════════════════');
+      logger.warn('');
+      logger.warn('Debug mode logs contain:');
+      logger.warn('  • Full MQTT message dumps');
+      logger.warn('  • Complete API responses');
+      logger.warn('  • System configuration details');
+      logger.warn('');
+      logger.warn('⚠️  SECURITY WARNING:');
+      logger.warn('  While sensitive data is redacted, logs may still contain:');
+      logger.warn('  • Partial email addresses');
+      logger.warn('  • Installation names and IDs');
+      logger.warn('  • Zone names and configuration');
+      logger.warn('  • System structure and behavior');
+      logger.warn('');
+      logger.warn('📋 Before sharing logs:');
+      logger.warn('  1. Review all output carefully');
+      logger.warn('  2. Check for any personal information');
+      logger.warn('  3. Verify redaction is working correctly');
+      logger.warn('  4. Look for [DUMP] markers for detailed data');
+      logger.warn('');
+      logger.warn('💡 Debug logs are useful for:');
+      logger.warn('  • Troubleshooting connection issues');
+      logger.warn('  • Understanding message formats');
+      logger.warn('  • Sharing with developers for parser improvements');
+      logger.warn('');
+      logger.warn('═══════════════════════════════════════════════════════════════');
+      logger.warn('');
+    }
     
     // Authenticate with REHAU
     logger.info('Authenticating with REHAU...');
