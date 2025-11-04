@@ -257,7 +257,6 @@ class RehauAuthPersistent {
       // Log HTTP response details
       logger.info(`getUserData HTTP Response: status=${response.status}`);
       logger.debug('Response headers:', response.headers);
-      logger.debug('Response body keys:', Object.keys(response.data || {}));
       
       debugDump('getUserData API Response', response.data);
 
@@ -394,7 +393,6 @@ class RehauAuthPersistent {
       // Log HTTP response details
       logger.info(`getInstallationData HTTP Response: status=${response.status}`);
       logger.debug('Response headers:', response.headers);
-      logger.debug('Response body keys:', Object.keys(response.data || {}));
       
       debugDump('getInstallationData API Response', response.data);
 

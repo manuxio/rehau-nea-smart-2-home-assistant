@@ -1,6 +1,6 @@
 import mqtt, { MqttClient, IClientOptions, IClientPublishOptions } from 'mqtt';
 import LZString from 'lz-string';
-import logger, { debugDump } from './logger';
+import logger, { debugDump, redactSensitiveData } from './logger';
 import RehauAuthPersistent from './rehau-auth';
 import { MQTTConfig, RehauMQTTMessage, ReferentialEntry, ReferentialsMap, HACommand } from './types';
 
@@ -328,7 +328,9 @@ class RehauMQTTBridge {
       if (err) {
         logger.error('Failed to publish to REHAU:', err);
       } else {
-        logger.debug('Published to REHAU:', { topic, payload });
+        // Redact sensitive data before logging
+        const redactedPayload = typeof payload === 'object' ? redactSensitiveData(payload) : payload;
+        debugDump(`Published to REHAU [${topic}]`, redactedPayload);
       }
     });
   }
