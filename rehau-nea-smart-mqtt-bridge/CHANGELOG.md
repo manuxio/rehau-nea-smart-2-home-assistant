@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.2.4] - 2025-11-05
+
+### Fixed
+- **Critical**: Fixed MQTT reconnection subscription handling
+  - Subscriptions now properly restored after reconnection
+  - Previously lost messages after MQTT broker reconnects
+  - Both REHAU and Home Assistant MQTT affected
+- Enhanced reconnection logging with emojis for better visibility
+  - ✅ Initial connection vs 🔄 Reconnection clearly distinguished
+  - 📊 Shows subscription count on close/reconnect
+  - 📴 Added offline event detection
+  - ⚠️ Connection state changes clearly logged
+
+### Added
+- MQTT ping/keepalive test results documentation
+- Verified both brokers support standard MQTT keepalive (60s interval)
+- Added offline event handlers for better connection monitoring
+
 ## [2.2.3] - 2025-11-05
 
 ### Fixed
