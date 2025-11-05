@@ -80,38 +80,52 @@ class RehauMQTTBridge {
 
       this.rehauClient = mqtt.connect(rehauUrl, options);
 
-      this.rehauClient.on('connect', () => {
-        logger.info('Connected to REHAU MQTT broker');
+      const handleRehauConnect = () => {
+        const isReconnect = this.rehauSubscriptions.size > 0;
+        
+        if (isReconnect) {
+          logger.info('🔄 Reconnected to REHAU MQTT broker');
+          logger.info(`📋 Re-subscribing to ${this.rehauSubscriptions.size} REHAU topics...`);
+        } else {
+          logger.info('✅ Connected to REHAU MQTT broker');
+        }
         
         // Subscribe to user topic
         const userTopic = `client/${this.rehauAuth.getEmail()}`;
         this.rehauClient!.subscribe(userTopic, (err) => {
           if (!err) {
-            logger.info(`Subscribed to REHAU user topic: ${userTopic}`);
+            if (isReconnect) {
+              logger.info(`✅ Re-subscribed to REHAU user topic: ${userTopic}`);
+            } else {
+              logger.info(`✅ Subscribed to REHAU user topic: ${userTopic}`);
+            }
             this.rehauSubscriptions.add(userTopic);
           } else {
-            logger.error('Failed to subscribe to REHAU user topic:', err);
+            logger.error('❌ Failed to subscribe to REHAU user topic:', err);
           }
         });
         
-        // Re-subscribe to all previously subscribed topics (for reconnection)
-        if (this.rehauSubscriptions.size > 1) {
-          logger.info(`Re-subscribing to ${this.rehauSubscriptions.size - 1} REHAU topics...`);
+        // Re-subscribe to all installation topics
+        if (this.rehauSubscriptions.size > 1 || isReconnect) {
           this.rehauSubscriptions.forEach(topic => {
             if (topic !== userTopic) {
               this.rehauClient!.subscribe(topic, (err) => {
                 if (!err) {
-                  logger.debug(`Re-subscribed to REHAU topic: ${topic}`);
+                  logger.info(`✅ Re-subscribed to REHAU topic: ${topic}`);
                 } else {
-                  logger.error(`Failed to re-subscribe to ${topic}:`, err);
+                  logger.error(`❌ Failed to re-subscribe to ${topic}:`, err);
                 }
               });
             }
           });
         }
         
-        resolve();
-      });
+        if (!isReconnect) {
+          resolve();
+        }
+      };
+      
+      this.rehauClient.on('connect', handleRehauConnect);
 
       this.rehauClient.on('message', (topic, message) => {
         this.handleRehauMessage(topic, message);
@@ -124,7 +138,8 @@ class RehauMQTTBridge {
       });
 
       this.rehauClient.on('close', () => {
-        logger.warn('REHAU MQTT connection closed');
+        logger.warn('⚠️  REHAU MQTT connection closed');
+        logger.info(`📊 Subscriptions to restore: ${this.rehauSubscriptions.size}`);
         logger.debug('Connection details:', {
           username,
           clientId: this.rehauAuth.getClientId(),
@@ -133,7 +148,11 @@ class RehauMQTTBridge {
       });
 
       this.rehauClient.on('reconnect', () => {
-        logger.info('Reconnecting to REHAU MQTT...');
+        logger.info('🔄 Attempting to reconnect to REHAU MQTT...');
+      });
+      
+      this.rehauClient.on('offline', () => {
+        logger.warn('📴 REHAU MQTT client went offline');
       });
     });
   }
@@ -158,25 +177,35 @@ class RehauMQTTBridge {
       
       this.haClient = mqtt.connect(haUrl, options);
 
-      this.haClient.on('connect', () => {
-        logger.info('Connected to Home Assistant MQTT broker');
+      const handleHAConnect = () => {
+        const isReconnect = this.haSubscriptions.size > 0;
         
-        // Re-subscribe to all previously subscribed topics (for reconnection)
+        if (isReconnect) {
+          logger.info('🔄 Reconnected to Home Assistant MQTT broker');
+          logger.info(`📋 Re-subscribing to ${this.haSubscriptions.size} HA topics...`);
+        } else {
+          logger.info('✅ Connected to Home Assistant MQTT broker');
+        }
+        
+        // Re-subscribe to all previously subscribed topics
         if (this.haSubscriptions.size > 0) {
-          logger.info(`Re-subscribing to ${this.haSubscriptions.size} Home Assistant topics...`);
           this.haSubscriptions.forEach(topic => {
             this.haClient!.subscribe(topic, (err) => {
               if (!err) {
-                logger.debug(`Re-subscribed to HA topic: ${topic}`);
+                logger.info(`✅ Re-subscribed to HA topic: ${topic}`);
               } else {
-                logger.error(`Failed to re-subscribe to ${topic}:`, err);
+                logger.error(`❌ Failed to re-subscribe to ${topic}:`, err);
               }
             });
           });
         }
         
-        resolve();
-      });
+        if (!isReconnect) {
+          resolve();
+        }
+      };
+      
+      this.haClient.on('connect', handleHAConnect);
 
       this.haClient.on('message', (topic, message) => {
         this.handleHomeAssistantMessage(topic, message);
@@ -188,11 +217,16 @@ class RehauMQTTBridge {
       });
 
       this.haClient.on('close', () => {
-        logger.warn('Home Assistant MQTT connection closed');
+        logger.warn('⚠️  Home Assistant MQTT connection closed');
+        logger.info(`📊 Subscriptions to restore: ${this.haSubscriptions.size}`);
       });
 
       this.haClient.on('reconnect', () => {
-        logger.info('Reconnecting to Home Assistant MQTT...');
+        logger.info('🔄 Attempting to reconnect to Home Assistant MQTT...');
+      });
+      
+      this.haClient.on('offline', () => {
+        logger.warn('📴 Home Assistant MQTT client went offline');
       });
     });
   }
