@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.2.7] - 2025-11-05
+
+### Improved
+- Added verbose debug logging to API response parsers
+- UserDataParserV2 now logs detailed parsing steps in debug mode
+  - User information (ID, email, language, roles)
+  - Geofencing data
+  - Each installation being parsed with name and connection state
+- InstallationDataParserV2 now logs detailed parsing steps in debug mode
+  - User information
+  - Total installations in response
+  - Each installation with groups, zones, controllers, and mixed circuits
+  - Filtering operations when targeting specific installations
+- All parser logs use 🔍 emoji for easy identification
+- Helps troubleshoot API response parsing issues
+
 ## [2.2.6] - 2025-11-05
 
 ### Improved

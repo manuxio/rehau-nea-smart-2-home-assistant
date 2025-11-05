@@ -17,6 +17,10 @@
  * ```
  */
 
+import logger from '../logger';
+
+const isDebug = process.env.LOG_LEVEL === 'debug';
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -286,6 +290,8 @@ export class UserDataParserV2 {
    * @throws Error if response is invalid
    */
   parse(response: unknown): IUserData {
+    if (isDebug) logger.debug('🔍 [UserDataParserV2] Starting parse...');
+    
     // Validate response structure
     if (!this.isValidResponse(response)) {
       throw new Error('Invalid getUserData response: missing required fields');
@@ -294,18 +300,36 @@ export class UserDataParserV2 {
     const apiResponse = response as UserDataApiResponseV2;
     const userData = apiResponse.data!.user!;
 
+    if (isDebug) {
+      logger.debug(`🔍 [UserDataParserV2] User ID: ${userData._id}`);
+      logger.debug(`🔍 [UserDataParserV2] Email: ${userData.email}`);
+      logger.debug(`🔍 [UserDataParserV2] Language: ${userData.language}`);
+      logger.debug(`🔍 [UserDataParserV2] Roles: ${Array.isArray(userData.roles) ? userData.roles.join(', ') : 'none'}`);
+    }
+
     // Parse geofencing
+    if (isDebug) logger.debug('🔍 [UserDataParserV2] Parsing geofencing...');
     const geofencing = this.parseGeofencing(userData.geofencing);
+    if (isDebug && geofencing) {
+      logger.debug(`🔍 [UserDataParserV2] Geofencing: ${geofencing.installs.length} installs, lat=${geofencing.lat}, long=${geofencing.long}`);
+    }
 
     // Parse installations
+    if (isDebug) logger.debug(`🔍 [UserDataParserV2] Parsing ${Array.isArray(userData.installs) ? userData.installs.length : 0} installations...`);
     const installations: IInstallationInfo[] = [];
     if (Array.isArray(userData.installs)) {
-      for (const install of userData.installs) {
+      for (let i = 0; i < userData.installs.length; i++) {
+        const install = userData.installs[i];
         if (typeof install === 'object' && install !== null) {
-          installations.push(this.parseInstallation(install as Record<string, unknown>));
+          if (isDebug) logger.debug(`🔍 [UserDataParserV2] Parsing installation ${i + 1}/${userData.installs.length}...`);
+          const parsed = this.parseInstallation(install as Record<string, unknown>);
+          if (isDebug) logger.debug(`🔍 [UserDataParserV2]   - Name: ${parsed.name}, Unique: ${parsed.unique}, Connected: ${parsed.connectionState}`);
+          installations.push(parsed);
         }
       }
     }
+
+    if (isDebug) logger.debug(`🔍 [UserDataParserV2] Parse complete. Total installations: ${installations.length}`);
 
     return {
       id: userData._id || '',

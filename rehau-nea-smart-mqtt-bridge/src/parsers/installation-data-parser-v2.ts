@@ -31,6 +31,10 @@
  * ```
  */
 
+import logger from '../logger';
+
+const isDebug = process.env.LOG_LEVEL === 'debug';
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -408,6 +412,11 @@ export class InstallationDataParserV2 {
    * @throws Error if response is invalid
    */
   parse(response: unknown, targetUnique?: string): IUser {
+    if (isDebug) {
+      logger.debug('🔍 [InstallationDataParserV2] Starting parse...');
+      if (targetUnique) logger.debug(`🔍 [InstallationDataParserV2] Filtering for installation: ${targetUnique}`);
+    }
+    
     // Validate response structure
     if (!this.isValidResponse(response)) {
       throw new Error('Invalid getInstallationData response: missing required fields');
@@ -416,22 +425,41 @@ export class InstallationDataParserV2 {
     const apiResponse = response as InstallationDataApiResponseV2;
     const userData = apiResponse.data!.user!;
 
+    if (isDebug) {
+      logger.debug(`🔍 [InstallationDataParserV2] User ID: ${userData._id}`);
+      logger.debug(`🔍 [InstallationDataParserV2] Email: ${userData.email}`);
+      logger.debug(`🔍 [InstallationDataParserV2] Total installations in response: ${Array.isArray(userData.installs) ? userData.installs.length : 0}`);
+    }
+
     // Parse geofencing
+    if (isDebug) logger.debug('🔍 [InstallationDataParserV2] Parsing geofencing...');
     const geofencing = this.parseGeofencing(userData.geofencing);
 
     // Parse installations
     const installs: IInstall[] = [];
     if (Array.isArray(userData.installs)) {
-      for (const install of userData.installs) {
+      for (let i = 0; i < userData.installs.length; i++) {
+        const install = userData.installs[i];
         if (typeof install === 'object' && install !== null) {
           const installObj = install as Record<string, unknown>;
           
           // Filter by targetUnique if specified
           if (targetUnique && installObj.unique !== targetUnique) {
+            if (isDebug) logger.debug(`🔍 [InstallationDataParserV2] Skipping installation ${installObj.unique} (not matching target)`);
             continue;
           }
           
-          installs.push(this.parseInstallation(installObj, response));
+          if (isDebug) logger.debug(`🔍 [InstallationDataParserV2] Parsing installation ${i + 1}/${userData.installs.length}: ${installObj.name}`);
+          const parsed = this.parseInstallation(installObj, response);
+          if (isDebug) {
+            logger.debug(`🔍 [InstallationDataParserV2]   - Groups: ${parsed.groups.length}`);
+            parsed.groups.forEach((group, gi) => {
+              logger.debug(`🔍 [InstallationDataParserV2]     [${gi + 1}] ${group.name}: ${group.zones.length} zones`);
+            });
+            logger.debug(`🔍 [InstallationDataParserV2]   - Controllers: ${parsed.controllers.length}`);
+            logger.debug(`🔍 [InstallationDataParserV2]   - Mixed circuits: ${parsed.mixedCircuits.length}`);
+          }
+          installs.push(parsed);
         }
       }
     }
@@ -440,6 +468,8 @@ export class InstallationDataParserV2 {
     if (targetUnique && installs.length === 0) {
       throw new Error(`Installation with unique ID "${targetUnique}" not found`);
     }
+
+    if (isDebug) logger.debug(`🔍 [InstallationDataParserV2] Parse complete. Parsed ${installs.length} installation(s)`);
 
     return {
       id: userData._id || '',
