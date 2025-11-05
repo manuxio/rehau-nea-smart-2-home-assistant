@@ -2,9 +2,34 @@
 
 TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems.
 
-> **⚠️ IMPORTANT:** Version 2.0+ introduces breaking changes. See [BREAKING CHANGES](#️-breaking-changes) below and [CHANGELOG](CHANGELOG.md#220---2025-11-05) for full details.
+> **⚠️ IMPORTANT:** Version 2.0+ introduces breaking changes. Version 2.3.0 fixes critical bugs. See [BREAKING CHANGES](#️-breaking-changes) below and [CHANGELOG](CHANGELOG.md) for full details.
 
 ## ⚠️ BREAKING CHANGES
+
+### Version 2.3.0 - Critical Bug Fix (November 2025)
+
+**🔴 MQTT Topics Changed - Affects Multi-Group Installations**
+
+If you have multiple groups (e.g., Upstairs/Downstairs), MQTT topics have changed to fix a critical bug where zones were overwriting each other.
+
+**What Changed:**
+- MQTT topics now use unique channel IDs instead of zone numbers
+- **Before**: `homeassistant/climate/rehau_6ba0..._zone_0/`
+- **After**: `homeassistant/climate/rehau_6595d1d5cceecee9ce9772e1/`
+
+**Migration Steps:**
+1. **Delete old MQTT integration** in Home Assistant (Settings → Devices & Services → MQTT)
+2. **Restart the add-on** - New topics will be auto-discovered
+3. **Update automations/scripts** that reference REHAU entities (entity IDs remain the same, only MQTT topics changed)
+
+**Why This Change:**
+- Fixed bug where zones with same number in different groups overwrote each other
+- Example: "Upstairs Zone 0" and "Downstairs Zone 0" now both visible (previously only one appeared)
+- All zones now have globally unique MQTT topics
+
+---
+
+### Version 2.0+ - Entity ID Structure
 
 **Version 2.0+ introduces new entity IDs for better consistency and future compatibility.**
 
@@ -45,6 +70,56 @@ The `USE_GROUP_IN_NAMES` environment variable controls display names (friendly n
 ## About
 
 This add-on connects your REHAU NEA SMART 2.0 heating system to Home Assistant via MQTT, creating climate entities for each zone with full control capabilities.
+
+## MQTT Topic Structure
+
+Understanding how topics and entity IDs are generated:
+
+### Example Installation
+- **Installation**: MyHouse (`6ba02d11303856504e329dbc27165454`)
+- **Groups**: Upstairs, Downstairs
+- **Zones**: 9 zones across 2 groups
+
+### Topic & Entity ID Table
+
+| Group | Zone | Zone# | Channel ID | HA Entity ID | MQTT Discovery Topic | MQTT State Topics |
+|-------|------|-------|------------|--------------|---------------------|-------------------|
+| Upstairs | Landing | 0 | `6595d1d5...` | `climate.rehau_myhouse_upstairs_landing` | `homeassistant/climate/rehau_6595d1d5.../config` | `.../rehau_6595d1d5.../mode`<br>`.../rehau_6595d1d5.../temperature_command` |
+| Upstairs | Kids Bedroom | 2 | `6595d1d7...` | `climate.rehau_myhouse_upstairs_kids_bedroom` | `homeassistant/climate/rehau_6595d1d7.../config` | `.../rehau_6595d1d7.../mode`<br>`.../rehau_6595d1d7.../temperature_command` |
+| Downstairs | Kitchen | 0 | `6595d1e1...` | `climate.rehau_myhouse_downstairs_kitchen` | `homeassistant/climate/rehau_6595d1e1.../config` | `.../rehau_6595d1e1.../mode`<br>`.../rehau_6595d1e1.../temperature_command` |
+| Downstairs | Bedroom 5 | 0 | `6618fa32...` | `climate.rehau_myhouse_downstairs_bedroom_5` | `homeassistant/climate/rehau_6618fa32.../config` | `.../rehau_6618fa32.../mode`<br>`.../rehau_6618fa32.../temperature_command` |
+
+### Key Points
+
+✅ **Entity IDs** are human-readable and include group + zone names  
+✅ **MQTT Topics** use unique channel IDs to prevent collisions  
+✅ **Zone numbers** can repeat across groups (both have Zone 0)  
+✅ **Channel IDs** are globally unique (no collisions possible)
+
+### Full Topic Examples
+
+**Climate Entity:**
+```
+Discovery: homeassistant/climate/rehau_6595d1d5cceecee9ce9772e1/config
+State:     homeassistant/climate/rehau_6595d1d5cceecee9ce9772e1/mode
+           homeassistant/climate/rehau_6595d1d5cceecee9ce9772e1/current_temperature
+           homeassistant/climate/rehau_6595d1d5cceecee9ce9772e1/target_temperature
+Commands:  homeassistant/climate/rehau_6595d1d5cceecee9ce9772e1/mode_command
+           homeassistant/climate/rehau_6595d1d5cceecee9ce9772e1/preset_command
+           homeassistant/climate/rehau_6595d1d5cceecee9ce9772e1/temperature_command
+```
+
+**Sensor Entities:**
+```
+Temperature: homeassistant/sensor/rehau_6595d1d5cceecee9ce9772e1_temperature/config
+Humidity:    homeassistant/sensor/rehau_6595d1d5cceecee9ce9772e1_humidity/config
+```
+
+**Lock & Light:**
+```
+Lock:       homeassistant/lock/rehau_6595d1d5cceecee9ce9772e1_lock/config
+Ring Light: homeassistant/light/rehau_6595d1d5cceecee9ce9772e1_ring_light/config
+```
 
 ## Prerequisites
 
