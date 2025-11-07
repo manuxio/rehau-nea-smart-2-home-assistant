@@ -1,6 +1,6 @@
 import mqtt, { MqttClient, IClientOptions, IClientPublishOptions } from 'mqtt';
 import LZString from 'lz-string';
-import logger, { debugDump, redactSensitiveData } from './logger';
+import logger, { debugDump, redactSensitiveData, registerObfuscation } from './logger';
 import RehauAuthPersistent from './rehau-auth';
 import { MQTTConfig, RehauMQTTMessage, ReferentialEntry, ReferentialsMap, HACommand } from './types';
 
@@ -19,6 +19,8 @@ class RehauMQTTBridge {
   private rehauSubscriptions: Set<string> = new Set();
   private haSubscriptions: Set<string> = new Set();
   private installations: string[] = [];
+  private channelToZoneName: Map<string, string> = new Map(); // channelId -> zoneName
+  private channelToGroupName: Map<string, string> = new Map(); // channelId -> groupName
 
   constructor(rehauAuth: RehauAuthPersistent, mqttConfig: MQTTConfig) {
     this.rehauAuth = rehauAuth;
@@ -26,6 +28,9 @@ class RehauMQTTBridge {
   }
 
   async connect(): Promise<void> {
+    // Register email for obfuscation
+    registerObfuscation('email', this.rehauAuth.getEmail());
+    
     // Connect to REHAU MQTT
     await this.connectToRehau();
     
@@ -257,7 +262,15 @@ class RehauMQTTBridge {
         const channelData = (payload as any).data?.data;
         const channelId = (payload as any).data?.channel;
         const installId = (payload as any).data?.unique;
-        logger.info(`📨 REHAU: channel_update for channel ${channelId} (install: ${installId?.substring(0, 8)}...)`);
+        const zoneName = this.channelToZoneName.get(channelId) || 'Unknown';
+        const groupName = this.channelToGroupName.get(channelId) || 'Unknown';
+        
+        logger.info(`📨 REHAU MQTT Update:`);
+        logger.info(`   Channel: ${channelId}`);
+        logger.info(`   Group: ${groupName}`);
+        logger.info(`   Zone: ${zoneName}`);
+        logger.info(`   Install: ${installId?.substring(0, 8)}...`);
+        
         if (channelData) {
           const updates: string[] = [];
           
@@ -313,7 +326,18 @@ class RehauMQTTBridge {
         logger.info(`📨 REHAU: ${payload.type} with ${zones?.length || 0} zone(s)`);
       } else if (payload.type === 'live_data') {
         const dataType = (payload as any).data?.type;
-        logger.info(`📨 REHAU: live_data (${dataType})`);
+        const installId = (payload as any).data?.unique;
+        logger.info(`📨 REHAU LIVE Data Response:`);
+        logger.info(`   Type: ${dataType}`);
+        logger.info(`   Install: ${installId?.substring(0, 8)}...`);
+        
+        if (dataType === 'LIVE_EMU') {
+          const circuits = Object.keys((payload as any).data?.data || {});
+          logger.info(`   Mixed Circuits: ${circuits.join(', ')}`);
+        } else if (dataType === 'LIVE_DIDO') {
+          const controllers = Object.keys((payload as any).data?.data || {});
+          logger.info(`   Controllers: ${controllers.join(', ')}`);
+        }
       } else if (payload.type === 'LIVE_EMU' || payload.type === 'LIVE_DIDO') {
         logger.info(`📨 REHAU: ${payload.type} data received`);
       } else {
@@ -635,6 +659,13 @@ class RehauMQTTBridge {
 
   getReferentials(): ReferentialsMap | null {
     return this.referentials;
+  }
+
+  registerZoneName(channelId: string, zoneName: string, groupName?: string): void {
+    this.channelToZoneName.set(channelId, zoneName);
+    if (groupName) {
+      this.channelToGroupName.set(channelId, groupName);
+    }
   }
 }
 

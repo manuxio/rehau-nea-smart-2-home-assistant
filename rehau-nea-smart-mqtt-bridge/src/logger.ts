@@ -67,6 +67,138 @@ export function redactSensitiveData(obj: any): any {
 }
 
 /**
+ * Obfuscation registry for consistent name replacement
+ */
+class ObfuscationRegistry {
+  private installationMap: Map<string, string> = new Map();
+  private groupMap: Map<string, string> = new Map();
+  private zoneMap: Map<string, string> = new Map();
+  private emailMap: Map<string, string> = new Map();
+  
+  private installationCounter = 0;
+  private groupCounter = 0;
+  private zoneCounter = 0;
+  private emailCounter = 0;
+  
+  obfuscateInstallation(name: string): string {
+    if (!this.installationMap.has(name)) {
+      this.installationCounter++;
+      this.installationMap.set(name, `Installation_${this.installationCounter}`);
+    }
+    return this.installationMap.get(name)!;
+  }
+  
+  obfuscateGroup(name: string): string {
+    if (!this.groupMap.has(name)) {
+      this.groupCounter++;
+      this.groupMap.set(name, `Group_${this.groupCounter}`);
+    }
+    return this.groupMap.get(name)!;
+  }
+  
+  obfuscateZone(name: string): string {
+    if (!this.zoneMap.has(name)) {
+      this.zoneCounter++;
+      this.zoneMap.set(name, `Zone_${this.zoneCounter}`);
+    }
+    return this.zoneMap.get(name)!;
+  }
+  
+  obfuscateEmail(email: string): string {
+    if (!this.emailMap.has(email)) {
+      this.emailCounter++;
+      this.emailMap.set(email, `user${this.emailCounter}@example.com`);
+    }
+    return this.emailMap.get(email)!;
+  }
+  
+  /**
+   * Obfuscate a string by replacing known names with placeholders
+   */
+  obfuscateString(text: string): string {
+    let result = text;
+    
+    // Replace emails first
+    this.emailMap.forEach((placeholder, original) => {
+      result = result.replace(new RegExp(this.escapeRegex(original), 'g'), placeholder);
+    });
+    
+    // Replace installation names
+    this.installationMap.forEach((placeholder, original) => {
+      result = result.replace(new RegExp(this.escapeRegex(original), 'gi'), placeholder);
+    });
+    
+    // Replace group names
+    this.groupMap.forEach((placeholder, original) => {
+      result = result.replace(new RegExp(this.escapeRegex(original), 'gi'), placeholder);
+    });
+    
+    // Replace zone names
+    this.zoneMap.forEach((placeholder, original) => {
+      result = result.replace(new RegExp(this.escapeRegex(original), 'gi'), placeholder);
+    });
+    
+    return result;
+  }
+  
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  
+  clear(): void {
+    this.installationMap.clear();
+    this.groupMap.clear();
+    this.zoneMap.clear();
+    this.emailMap.clear();
+    this.installationCounter = 0;
+    this.groupCounter = 0;
+    this.zoneCounter = 0;
+    this.emailCounter = 0;
+  }
+}
+
+// Global obfuscation registry
+const obfuscationRegistry = new ObfuscationRegistry();
+
+/**
+ * Register names for obfuscation
+ */
+export function registerObfuscation(type: 'installation' | 'group' | 'zone' | 'email', name: string): void {
+  switch (type) {
+    case 'installation':
+      obfuscationRegistry.obfuscateInstallation(name);
+      break;
+    case 'group':
+      obfuscationRegistry.obfuscateGroup(name);
+      break;
+    case 'zone':
+      obfuscationRegistry.obfuscateZone(name);
+      break;
+    case 'email':
+      obfuscationRegistry.obfuscateEmail(name);
+      break;
+  }
+}
+
+/**
+ * Obfuscate a string by replacing all known names with placeholders
+ * Only active at info level, debug level shows original
+ */
+export function obfuscate(text: string): string {
+  if (logLevel === 'debug') {
+    return text;
+  }
+  return obfuscationRegistry.obfuscateString(text);
+}
+
+/**
+ * Clear obfuscation registry (useful for testing)
+ */
+export function clearObfuscation(): void {
+  obfuscationRegistry.clear();
+}
+
+/**
  * Safe JSON stringify that handles circular references
  */
 function safeStringify(obj: any, indent: number = 2): string {
@@ -119,7 +251,13 @@ const logger = winston.createLogger({
     }),
     winston.format.errors({ stack: true }),
     winston.format.printf(({ timestamp, level, message, ...meta }) => {
-      let msg = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+      // Apply obfuscation at info level
+      let finalMessage = String(message);
+      if (level === 'info' && logLevel !== 'debug') {
+        finalMessage = obfuscationRegistry.obfuscateString(finalMessage);
+      }
+      
+      let msg = `[${timestamp}] [${level.toUpperCase()}] ${finalMessage}`;
       
       // Add metadata if present
       if (Object.keys(meta).length > 0) {

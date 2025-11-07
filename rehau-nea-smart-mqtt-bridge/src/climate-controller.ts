@@ -1,4 +1,4 @@
-import logger from './logger';
+import logger, { registerObfuscation } from './logger';
 import RehauMQTTBridge from './mqtt-bridge';
 import RehauAuthPersistent from './rehau-auth';
 import {
@@ -29,11 +29,13 @@ class ClimateController {
   private mqttBridge: RehauMQTTBridge;
   private installations: Map<string, ClimateState>;
   private installationNames: Map<string, string>; // Map installId -> installName
+  private installationData: Map<string, IInstall>; // Map installId -> IInstall data
 
   constructor(mqttBridge: RehauMQTTBridge, _rehauApi: RehauAuthPersistent) {
     this.mqttBridge = mqttBridge;
     this.installations = new Map<string, ClimateState>();
     this.installationNames = new Map<string, string>();
+    this.installationData = new Map<string, IInstall>();
     
     // Listen to REHAU messages and HA commands
     this.mqttBridge.onMessage((topicOrCommand, payload?) => {
@@ -63,8 +65,12 @@ class ClimateController {
     const installId = install.unique;
     const installName = install.name;
     
-    // Store installation name for later use
+    // Store installation name and data for later use
     this.installationNames.set(installId, installName);
+    this.installationData.set(installId, install);
+    
+    // Register installation name for obfuscation
+    registerObfuscation('installation', installName);
     
     // Get zones from groups
     const zones: ExtendedZoneInfo[] = [];
@@ -116,6 +122,15 @@ class ClimateController {
     // Initialize state for each zone
     zones.forEach(zone => {
       const zoneKey = `${installId}_zone_${zone.zoneNumber}`;
+      
+      // Register names for obfuscation
+      registerObfuscation('group', zone.groupName);
+      registerObfuscation('zone', zone.zoneName);
+      
+      // Register zone name and group name for better logging
+      if (zone.channels && zone.channels[0]) {
+        this.mqttBridge.registerZoneName(zone.channels[0].id, zone.zoneName, zone.groupName);
+      }
       
       // Get initial values from zone data if available
       let currentTemp: number | null = null;
@@ -625,6 +640,8 @@ class ClimateController {
     // Update zones with fresh data from HTTP API
     const installId = install.unique;
     
+    logger.info(`🌐 HTTPS Update received for installation: ${install.name}`);
+    
     // Get zones from groups
     if (install.groups && install.groups.length > 0) {
       install.groups.forEach((group: IGroup) => {
@@ -728,6 +745,11 @@ class ClimateController {
               this.publishZoneSensors(zoneInfo, installId, install.name);
               
               const channel = zone.channels[0];
+              
+              logger.info(`🌐 HTTPS Update:`);
+              logger.info(`   Group: ${group.name}`);
+              logger.info(`   Zone: ${zone.name}`);
+              logger.info(`   Processing channel data...`);
               
               // Update all values
               this.updateZoneFromChannel(zoneKey, state, channel, installationMode);
@@ -852,18 +874,18 @@ class ClimateController {
       
       // Temperature sensor
       logger.info(`${prefix} rehau_${zone.state.zoneId}_temperature/`);
-      logger.info(`${isLast ? '      ' : '   │  '}├─ config                               → "${displayName} Temperature"`);
-      logger.info(`${isLast ? '      ' : '   │  '}├─ object_id                            → "${objectIdBase}_temperature"`);
-      logger.info(`${isLast ? '      ' : '   │  '}├─ availability                         → "online"`);
-      logger.info(`${isLast ? '      ' : '   │  '}└─ state                                → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
+      logger.info(`   │  ├─ config                               → "${displayName} Temperature"`);
+      logger.info(`   │  ├─ object_id                            → "${objectIdBase}_temperature"`);
+      logger.info(`   │  ├─ availability                         → "online"`);
+      logger.info(`   │  └─ state                                → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
       
       // Humidity sensor
-      logger.info(`${isLast ? '   ' : '   │'}`);
-      logger.info(`${isLast ? '   └─' : '   ├─'} rehau_${zone.state.zoneId}_humidity/`);
-      logger.info(`${isLast ? '      ' : '   │  '}├─ config                               → "${displayName} Humidity"`);
-      logger.info(`${isLast ? '      ' : '   │  '}├─ object_id                            → "${objectIdBase}_humidity"`);
-      logger.info(`${isLast ? '      ' : '   │  '}├─ availability                         → "online"`);
-      logger.info(`${isLast ? '      ' : '   │  '}└─ state                                → ${zone.state.humidity ?? 'N/A'}%`);
+      logger.info(`   │`);
+      logger.info(`   ├─ rehau_${zone.state.zoneId}_humidity/`);
+      logger.info(`   │  ├─ config                               → "${displayName} Humidity"`);
+      logger.info(`   │  ├─ object_id                            → "${objectIdBase}_humidity"`);
+      logger.info(`   │  ├─ availability                         → "online"`);
+      logger.info(`   │  └─ state                                → ${zone.state.humidity ?? 'N/A'}%`);
       
       if (!isLast) {
         logger.info('   │');
@@ -871,7 +893,7 @@ class ClimateController {
     });
     
     // Outside temperature sensor
-    logger.info('');
+    logger.info('   │');
     logger.info(`   └─ rehau_${installId}_outside_temp/`);
     logger.info('      ├─ config                               → "Outside Temperature"');
     logger.info('      ├─ availability                         → "online"');
@@ -969,6 +991,11 @@ class ClimateController {
           return;
         }
         
+        const groupName = this.getGroupNameForZone(installId, zoneNumber);
+        logger.info(`📨 Processing MQTT channel_update:`);
+        logger.info(`   Group: ${groupName}`);
+        logger.info(`   Zone: ${state.zoneName}`);
+        
         // Handle raw MQTT channel data
         this.updateZoneFromRawChannel(zoneKey, state, channelData, state.installationMode);
       }
@@ -985,8 +1012,13 @@ class ClimateController {
         
         if (zoneData.channels && zoneData.channels[0]) {
           const channel = zoneData.channels[0];
+          const groupName = this.getGroupNameForZone(installId, zoneNumber);
+          
+          logger.info(`📨 Processing MQTT realtime update:`);
+          logger.info(`   Group: ${groupName}`);
+          logger.info(`   Zone: ${state.zoneName}`);
+          
           this.updateZoneFromRawChannel(zoneKey, state, channel, state.installationMode);
-          logger.info(`Updated zone ${state.zoneName} from MQTT realtime`);
         }
       });
     }
@@ -1097,20 +1129,50 @@ class ClimateController {
     return actionMap[rehauAction] || 'idle';
   }
 
+  private getGroupNameForZone(installId: string, zoneNumber: number): string {
+    // Get group name for a zone from installation data
+    const install = this.installationData.get(installId);
+    if (!install || !install.groups) {
+      return 'Unknown';
+    }
+    
+    for (const group of install.groups) {
+      const zone = group.zones.find(z => z.number === zoneNumber);
+      if (zone) {
+        return group.name;
+      }
+    }
+    
+    return 'Unknown';
+  }
+
   private publishCurrentTemperature(zoneKey: string, temperature: number): void {
     const state = this.installations.get(zoneKey);
     if (!state) return;
     
+    // Get group name from installation data
+    const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
+    
+    const topic1 = `homeassistant/climate/rehau_${state.zoneId}/current_temperature`;
+    const topic2 = `homeassistant/sensor/rehau_${state.zoneId}_temperature/state`;
+    
+    logger.info(`📤 MQTT Publish:`);
+    logger.info(`   Topic: ${topic1}`);
+    logger.info(`   Group: ${groupName}`);
+    logger.info(`   Zone: ${state.zoneName}`);
+    logger.info(`   Entity: current_temperature`);
+    logger.info(`   Value: ${temperature}°C`);
+    
     // Publish to climate entity
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/climate/rehau_${state.zoneId}/current_temperature`,
+      topic1,
       temperature.toString(),
       { retain: true }
     );
     
     // Also publish to separate temperature sensor (using zone ID)
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/sensor/rehau_${state.zoneId}_temperature/state`,
+      topic2,
       temperature.toString(),
       { retain: true }
     );
@@ -1120,8 +1182,18 @@ class ClimateController {
     const state = this.installations.get(zoneKey);
     if (!state) return;
     
+    const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
+    const topic = `homeassistant/climate/rehau_${state.zoneId}/target_temperature`;
+    
+    logger.info(`📤 MQTT Publish:`);
+    logger.info(`   Topic: ${topic}`);
+    logger.info(`   Group: ${groupName}`);
+    logger.info(`   Zone: ${state.zoneName}`);
+    logger.info(`   Entity: target_temperature`);
+    logger.info(`   Value: ${temperature}°C`);
+    
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/climate/rehau_${state.zoneId}/target_temperature`,
+      topic,
       temperature.toString(),
       { retain: true }
     );
@@ -1131,8 +1203,18 @@ class ClimateController {
     const state = this.installations.get(zoneKey);
     if (!state) return;
     
+    const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
+    const topic = `homeassistant/climate/rehau_${state.zoneId}/mode`;
+    
+    logger.info(`📤 MQTT Publish:`);
+    logger.info(`   Topic: ${topic}`);
+    logger.info(`   Group: ${groupName}`);
+    logger.info(`   Zone: ${state.zoneName}`);
+    logger.info(`   Entity: mode`);
+    logger.info(`   Value: ${mode}`);
+    
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/climate/rehau_${state.zoneId}/mode`,
+      topic,
       mode,
       { retain: true }
     );
@@ -1144,16 +1226,27 @@ class ClimateController {
     const state = this.installations.get(zoneKey);
     if (!state) return;
     
+    const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
+    const topic1 = `homeassistant/climate/rehau_${state.zoneId}/current_humidity`;
+    const topic2 = `homeassistant/sensor/rehau_${state.zoneId}_humidity/state`;
+    
+    logger.info(`📤 MQTT Publish:`);
+    logger.info(`   Topic: ${topic1}`);
+    logger.info(`   Group: ${groupName}`);
+    logger.info(`   Zone: ${state.zoneName}`);
+    logger.info(`   Entity: humidity`);
+    logger.info(`   Value: ${humidity}%`);
+    
     // Publish to climate entity
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/climate/rehau_${state.zoneId}/current_humidity`,
+      topic1,
       humidity.toString(),
       { retain: true }
     );
     
     // Also publish to separate humidity sensor (using zone ID)
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/sensor/rehau_${state.zoneId}_humidity/state`,
+      topic2,
       humidity.toString(),
       { retain: true }
     );
@@ -1163,9 +1256,18 @@ class ClimateController {
     const state = this.installations.get(zoneKey);
     if (!state) return;
     
-    logger.debug(`publishPreset called: zoneKey=${zoneKey}, preset=${preset}`);
+    const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
+    const topic = `homeassistant/climate/rehau_${state.zoneId}/preset`;
+    
+    logger.info(`📤 MQTT Publish:`);
+    logger.info(`   Topic: ${topic}`);
+    logger.info(`   Group: ${groupName}`);
+    logger.info(`   Zone: ${state.zoneName}`);
+    logger.info(`   Entity: preset`);
+    logger.info(`   Value: ${preset}`);
+    
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/climate/rehau_${state.zoneId}/preset`,
+      topic,
       preset,
       { retain: true }
     );
@@ -1173,8 +1275,22 @@ class ClimateController {
 
   private publishRingLightState(zoneId: string, ringActivation: boolean): void {
     const state = ringActivation ? 'ON' : 'OFF';
+    const topic = `homeassistant/light/rehau_${zoneId}_ring_light/state`;
+    
+    // Find zone info for logging
+    const zoneState = Array.from(this.installations.values()).find(s => s.zoneId === zoneId);
+    if (zoneState) {
+      const groupName = this.getGroupNameForZone(zoneState.installId, zoneState.zoneNumber);
+      logger.info(`📤 MQTT Publish:`);
+      logger.info(`   Topic: ${topic}`);
+      logger.info(`   Group: ${groupName}`);
+      logger.info(`   Zone: ${zoneState.zoneName}`);
+      logger.info(`   Entity: ring_light`);
+      logger.info(`   Value: ${state}`);
+    }
+    
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/light/rehau_${zoneId}_ring_light/state`,
+      topic,
       state,
       { retain: true }
     );
@@ -1182,8 +1298,22 @@ class ClimateController {
 
   private publishLockState(zoneId: string, locked: boolean): void {
     const state = locked ? 'LOCKED' : 'UNLOCKED';
+    const topic = `homeassistant/lock/rehau_${zoneId}_lock/state`;
+    
+    // Find zone info for logging
+    const zoneState = Array.from(this.installations.values()).find(s => s.zoneId === zoneId);
+    if (zoneState) {
+      const groupName = this.getGroupNameForZone(zoneState.installId, zoneState.zoneNumber);
+      logger.info(`📤 MQTT Publish:`);
+      logger.info(`   Topic: ${topic}`);
+      logger.info(`   Group: ${groupName}`);
+      logger.info(`   Zone: ${zoneState.zoneName}`);
+      logger.info(`   Entity: lock`);
+      logger.info(`   Value: ${state}`);
+    }
+    
     this.mqttBridge.publishToHomeAssistant(
-      `homeassistant/lock/rehau_${zoneId}_lock/state`,
+      topic,
       state,
       { retain: true }
     );
@@ -1392,7 +1522,9 @@ class ClimateController {
     const installName = this.installationNames.get(installId) || installId;
     const circuits = data.data.data;
     
-    logger.info(`Processing LIVE_EMU data for installation ${installName}`);
+    logger.info(`🔌 LIVE_EMU Data Received:`);
+    logger.info(`   Installation: ${installName}`);
+    logger.info(`   Circuits: ${Object.keys(circuits).length}`);
     
     Object.entries(circuits).forEach(([mcKey, mcData]) => {
       // Skip if circuit is not present (supply temp = 32767 indicates not present)
@@ -1400,6 +1532,19 @@ class ClimateController {
         logger.debug(`Skipping ${mcKey} - not present`);
         return;
       }
+      
+      const setpointC = this.convertTemp(mcData.mixed_circuit1_setpoint);
+      const supplyC = this.convertTemp(mcData.mixed_circuit1_supply);
+      const returnC = this.convertTemp(mcData.mixed_circuit1_return);
+      const opening = mcData.mixed_circuit1_opening;
+      const pumpState = mcData.pumpOn === 1 ? 'ON' : 'OFF';
+      
+      logger.info(`🔌 ${mcKey} Data:`);
+      logger.info(`   Pump: ${pumpState}`);
+      logger.info(`   Setpoint: ${setpointC}°C`);
+      logger.info(`   Supply: ${supplyC}°C`);
+      logger.info(`   Return: ${returnC}°C`);
+      logger.info(`   Valve Opening: ${opening}%`);
       
       const mcNumber = mcKey.replace('MC', '');
       const baseTopic = `homeassistant/sensor/rehau_${installId}_${mcKey.toLowerCase()}`;
@@ -1448,7 +1593,6 @@ class ClimateController {
           }
         })
       );
-      const setpointC = this.convertTemp(mcData.mixed_circuit1_setpoint);
       if (setpointC !== null) {
         this.mqttBridge.publishToHomeAssistant(
           `${baseTopic}_setpoint/state`,
@@ -1476,7 +1620,6 @@ class ClimateController {
           }
         })
       );
-      const supplyC = this.convertTemp(mcData.mixed_circuit1_supply);
       if (supplyC !== null) {
         this.mqttBridge.publishToHomeAssistant(
           `${baseTopic}_supply/state`,
@@ -1504,7 +1647,6 @@ class ClimateController {
           }
         })
       );
-      const returnC = this.convertTemp(mcData.mixed_circuit1_return);
       if (returnC !== null) {
         this.mqttBridge.publishToHomeAssistant(
           `${baseTopic}_return/state`,
@@ -1538,8 +1680,9 @@ class ClimateController {
         { retain: true }
       );
       
-      const setpointForLog = this.convertTemp(mcData.mixed_circuit1_setpoint);
-      logger.debug(`Published ${mcKey} sensors: pump=${mcData.pumpOn}, setpoint=${setpointForLog}°C`);
+      logger.info(`📤 Published ${mcKey} to HA:`);
+      logger.info(`   Topics: pump, setpoint, supply, return, opening`);
+      logger.info(`   Base: ${baseTopic}`);
     });
   }
 
@@ -1551,12 +1694,28 @@ class ClimateController {
     const installName = this.installationNames.get(installId) || installId;
     const controllers = data.data.data;
     
-    logger.info(`Processing LIVE_DIDO data for installation ${installName}`);
-    logger.debug(`LIVE_DIDO controllers:`, Object.keys(controllers));
+    logger.info(`🔌 LIVE_DIDO Data Received:`);
+    logger.info(`   Installation: ${installName}`);
+    logger.info(`   Controllers: ${Object.keys(controllers).length}`);
     
     Object.entries(controllers).forEach(([controllerKey, controllerData]) => {
       const controllerNumber = controllerKey.replace(/\D/g, '');
-      logger.debug(`Processing ${controllerKey}:`, { hasDI: !!controllerData.DI, hasDO: !!controllerData.DO });
+      const diCount = controllerData.DI?.length || 0;
+      const doCount = controllerData.DO?.length || 0;
+      
+      logger.info(`🔌 ${controllerKey}:`);
+      logger.info(`   Digital Inputs: ${diCount}`);
+      logger.info(`   Digital Outputs: ${doCount}`);
+      
+      if (controllerData.DI && controllerData.DI.length > 0) {
+        const diStates = controllerData.DI.map((state, idx) => `DI${idx}=${state ? 'ON' : 'OFF'}`).join(', ');
+        logger.info(`   DI States: ${diStates}`);
+      }
+      
+      if (controllerData.DO && controllerData.DO.length > 0) {
+        const doStates = controllerData.DO.map((state, idx) => `DO${idx}=${state ? 'ON' : 'OFF'}`).join(', ');
+        logger.info(`   DO States: ${doStates}`);
+      }
       
       // Publish Digital Inputs
       if (controllerData.DI && Array.isArray(controllerData.DI)) {
@@ -1618,9 +1777,9 @@ class ClimateController {
         });
       }
       
-      const diCount = controllerData.DI?.length || 0;
-      const doCount = controllerData.DO?.length || 0;
-      logger.debug(`Published ${controllerKey} sensors: ${diCount} DI, ${doCount} DO`);
+      logger.info(`📤 Published ${controllerKey} to HA:`);
+      logger.info(`   Topics: ${diCount} DI + ${doCount} DO binary sensors`);
+      logger.info(`   Base: homeassistant/binary_sensor/rehau_${installId}_${controllerKey.toLowerCase()}`);
     });
   }
 }

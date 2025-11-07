@@ -1,6 +1,6 @@
 import axios, { AxiosResponse } from 'axios';
-import crypto from 'crypto';
-import logger, { debugDump } from './logger';
+import * as crypto from 'crypto';
+import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
 
@@ -86,6 +86,9 @@ class RehauAuthPersistent {
    */
   async login(): Promise<boolean> {
     try {
+      // Register email for obfuscation before logging
+      registerObfuscation('email', this.email);
+      
       logger.info('Authenticating with form-based flow...');
       logger.info(`Email: ${this.email}`);
       

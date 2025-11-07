@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 // Load environment variables FIRST before importing logger
 dotenv.config();
 
-import logger from './logger';
+import logger, { registerObfuscation } from './logger';
 import RehauAuthPersistent from './rehau-auth';
 import RehauMQTTBridge from './mqtt-bridge';
 import ClimateController from './climate-controller';
@@ -231,9 +231,14 @@ async function start() {
     await auth.ensureValidToken();
     logger.info('✅ Authentication successful');
     
-    // Get installations
+    // Get installations and register for obfuscation
     const installs = auth.getInstalls();
     logger.info(`📍 Found ${installs.length} installation(s)`);
+    
+    // Register installation names for obfuscation before logging them
+    installs.forEach(install => {
+      registerObfuscation('installation', install.name);
+    });
     
     // Connect to MQTT
     logger.info('🔌 Connecting to MQTT...');

@@ -1,5 +1,77 @@
 # Changelog
 
+## [2.3.1] - 2025-11-07
+
+### Improved
+- **Enhanced MQTT Logging** - Comprehensive logging for all data flows
+  - Added detailed logging when updates are received from REHAU MQTT
+  - Added detailed logging when updates are received from REHAU HTTPS API
+  - Added detailed logging when publishing updates to Home Assistant MQTT
+  - All logs now include: MQTT Topic, Group Name, Zone Name, Entity Type, and Value
+  - Easy to track data flow: REHAU → Bridge → Home Assistant
+  - Improved debugging capabilities for specific zones or groups
+- **Enhanced LIVE Data Logging** - Detailed visibility for system monitoring
+  - LIVE_EMU (Mixed Circuits): Shows pump state, setpoint, supply/return temps, valve opening
+  - LIVE_DIDO (Digital I/O): Shows all DI/DO states with ON/OFF values
+  - Installation name, circuit/controller counts, and all sensor values logged
+  - Clear indication when data is received and published to Home Assistant
+- **Group Name Tracking**
+  - REHAU MQTT messages now display group name alongside zone name
+  - Group names stored and retrieved for all logging operations
+  - Better context for multi-group installations
+- **Privacy Protection at Info Level**
+  - Comprehensive obfuscation system with consistent name replacement
+  - Email addresses: `manu@cappelleri.net` → `user1@example.com`
+  - Installation names: `My Home` → `Installation_1`
+  - Group names: `Ground Floor` → `Group_1`
+  - Zone names: `Living Room` → `Zone_1`
+  - All occurrences replaced consistently throughout logs
+  - Full details visible at debug level for troubleshooting
+  - Safer to share logs without exposing personal information
+
+### Fixed
+- Fixed entity tree formatting - vertical lines now consistent for all sensors
+
+### Example Logs (Info Level - Obfuscated)
+```
+📨 REHAU MQTT Update:
+   Channel: abc123def456
+   Group: Group_1
+   Zone: Zone_1
+   Install: 9f8e7d6c...
+   Updates: temp=21.5°C, humidity=45%
+
+📤 MQTT Publish:
+   Topic: homeassistant/climate/rehau_abc123/current_temperature
+   Group: Group_1
+   Zone: Zone_1
+   Entity: current_temperature
+   Value: 21.5°C
+
+🔌 LIVE_EMU Data Received:
+   Installation: Installation_1
+   Circuits: 2
+🔌 MC1 Data:
+   Pump: ON
+   Setpoint: 35.0°C
+   Supply: 34.5°C
+   Return: 32.0°C
+   Valve Opening: 75%
+📤 Published MC1 to HA:
+   Topics: pump, setpoint, supply, return, opening
+
+🔌 LIVE_DIDO Data Received:
+   Installation: Installation_1
+   Controllers: 1
+🔌 Controller1:
+   Digital Inputs: 5
+   Digital Outputs: 6
+   DI States: DI0=OFF, DI1=ON, DI2=OFF, DI3=OFF, DI4=ON
+   DO States: DO0=ON, DO1=OFF, DO2=ON, DO3=OFF, DO4=OFF, DO5=ON
+
+📨 REHAU: errorMessagesSettingsSearch message on client/user1@example.com
+```
+
 ## [2.3.0] - 2025-11-05
 
 ### 🔴 **Critical Bug Fix**
