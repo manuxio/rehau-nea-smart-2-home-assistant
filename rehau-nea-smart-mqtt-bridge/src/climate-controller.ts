@@ -1141,6 +1141,9 @@ class ClimateController {
         state.mode = 'off';
         state.preset = null;
         this.publishMode(zoneKey, 'off');
+        // Publish "None" for preset and target_temperature when OFF
+        this.publishPresetNone(zoneKey);
+        this.publishTargetTemperatureNone(zoneKey);
       } else {
         // Zone is on
         state.mode = installationMode || state.mode;
@@ -1379,6 +1382,48 @@ class ClimateController {
     this.mqttBridge.publishToHomeAssistant(
       topic,
       preset,
+      { retain: true }
+    );
+  }
+
+  private publishPresetNone(zoneKey: string): void {
+    const state = this.installations.get(zoneKey);
+    if (!state) return;
+    
+    const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
+    const topic = `homeassistant/climate/rehau_${state.zoneId}/preset`;
+    
+    logger.info(`📤 MQTT Publish:`);
+    logger.info(`   Topic: ${topic}`);
+    logger.info(`   Group: ${groupName}`);
+    logger.info(`   Zone: ${state.zoneName}`);
+    logger.info(`   Entity: preset`);
+    logger.info(`   Value: None (zone is OFF)`);
+    
+    this.mqttBridge.publishToHomeAssistant(
+      topic,
+      'None',
+      { retain: true }
+    );
+  }
+
+  private publishTargetTemperatureNone(zoneKey: string): void {
+    const state = this.installations.get(zoneKey);
+    if (!state) return;
+    
+    const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
+    const topic = `homeassistant/climate/rehau_${state.zoneId}/target_temperature`;
+    
+    logger.info(`📤 MQTT Publish:`);
+    logger.info(`   Topic: ${topic}`);
+    logger.info(`   Group: ${groupName}`);
+    logger.info(`   Zone: ${state.zoneName}`);
+    logger.info(`   Entity: target_temperature`);
+    logger.info(`   Value: None (zone is OFF)`);
+    
+    this.mqttBridge.publishToHomeAssistant(
+      topic,
+      'None',
       { retain: true }
     );
   }
@@ -1635,14 +1680,43 @@ class ClimateController {
         }
         
       } else if (commandType === 'temperature') {
-        // Temperature command
+        // Temperature command - must set the correct setpoint based on mode and preset
         const tempCelsius = parseFloat(payload);
         const tempF10 = Math.round((tempCelsius * 10) * 1.8 + 320);
-        logger.info(`Command: temperature = ${tempCelsius} for zone ${zoneId}`);
+        
+        // Determine which setpoint to update based on installation mode and zone preset
+        const referentials = this.mqttBridge.getReferentials();
+        let setpointKey: string;
+        let setpointName: string;
+        
+        if (state.installationMode === 'heat') {
+          // Heating system
+          if (state.preset === 'away') {
+            setpointKey = referentials?.['setpoint_h_reduced'] || '17';
+            setpointName = 'setpoint_h_reduced (heating away)';
+          } else {
+            setpointKey = referentials?.['setpoint_h_normal'] || '16';
+            setpointName = 'setpoint_h_normal (heating comfort)';
+          }
+        } else {
+          // Cooling system
+          if (state.preset === 'away') {
+            setpointKey = referentials?.['setpoint_c_reduced'] || '20';
+            setpointName = 'setpoint_c_reduced (cooling away)';
+          } else {
+            setpointKey = referentials?.['setpoint_c_normal'] || '19';
+            setpointName = 'setpoint_c_normal (cooling comfort)';
+          }
+        }
+        
+        logger.info(`Command: temperature = ${tempCelsius}°C for zone ${zoneId}`);
         logger.info(`  Zone name: ${state.zoneName} (zoneNumber=${state.zoneNumber})`);
+        logger.info(`  Installation mode: ${state.installationMode}, Preset: ${state.preset}`);
+        logger.info(`  Target setpoint: ${setpointName} (key=${setpointKey})`);
         logger.info(`  Routing: channelZone=${state.channelZone}, controller=${state.controllerNumber}`);
-        this.sendRehauCommand(installId, state.channelZone, state.controllerNumber, { "2": tempF10 });
-        logger.info(`Set zone ${state.zoneName} temperature to ${tempCelsius}°C (${tempF10})`);
+        
+        this.sendRehauCommand(installId, state.channelZone, state.controllerNumber, { [setpointKey]: tempF10 });
+        logger.info(`Set zone ${state.zoneName} ${setpointName} to ${tempCelsius}°C (${tempF10})`);
       } else if (commandType === 'ring_light') {
         // Get referentials to use proper key for ring light
         const referentials = this.mqttBridge.getReferentials();
