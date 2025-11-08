@@ -1061,17 +1061,7 @@ class ClimateController {
       this.publishHumidity(zoneKey, rawChannel.humidity);
     }
     
-    // Target temperature
-    const setpoint = rawChannel.setpoint_h_normal || rawChannel.setpoint_c_normal;
-    if (setpoint) {
-      const targetTemp = this.convertTemp(setpoint);
-      if (targetTemp !== null && targetTemp !== state.targetTemperature) {
-        state.targetTemperature = targetTemp;
-        this.publishTargetTemperature(zoneKey, targetTemp);
-      }
-    }
-    
-    // Mode and Preset based on mode_used
+    // Mode and Preset based on mode_used (process BEFORE setpoint)
     if (rawChannel.mode_used !== undefined) {
       if (rawChannel.mode_used === 2 || rawChannel.mode_used === 3) {
         // OFF or STANDBY
@@ -1090,6 +1080,22 @@ class ClimateController {
         state.preset = (rawChannel.mode_used in presetMap) ? presetMap[rawChannel.mode_used] : 'comfort';
         if (state.preset) {
           this.publishPreset(zoneKey, state.preset);
+        }
+      }
+    }
+    
+    // Target temperature (process AFTER mode to know which setpoint to use)
+    // Only publish if zone is not off
+    if (state.mode !== 'off') {
+      const setpoint = installationMode === 'heat' 
+        ? rawChannel.setpoint_h_normal 
+        : rawChannel.setpoint_c_normal;
+      
+      if (setpoint !== undefined) {
+        const targetTemp = this.convertTemp(setpoint);
+        if (targetTemp !== null && targetTemp !== state.targetTemperature) {
+          state.targetTemperature = targetTemp;
+          this.publishTargetTemperature(zoneKey, targetTemp);
         }
       }
     }
