@@ -1,5 +1,52 @@
 # Changelog
 
+## [2.4.0] - 2025-11-08
+
+### 🔧 Fixed - CRITICAL: REHAU Command Message Structure
+
+**This version fixes a critical bug in how commands are sent to the REHAU system.**
+
+#### What Was Wrong
+Commands were using incorrect zone and controller identifiers:
+- Used `zone.number` (zone's position in group) instead of `channel.channelZone` (actual channel zone number)
+- Controller number was always `undefined` or defaulting to `0`
+
+#### What's Fixed Now
+Commands now correctly use:
+- **Key "36" (zone):** `channel.channelZone` - the actual channel's zone number (e.g., 0, 1, 2)
+- **Key "35" (controller):** `channel.controllerNumber` - the actual controller number (e.g., 0)
+
+#### Message Structure
+```json
+{
+  "11": "REQ_TH",
+  "36": <channelZone>,      // ✅ Correct channel zone number
+  "35": <controllerNumber>, // ✅ Correct controller number
+  "12": {
+    "<command_key>": <value>
+  }
+}
+```
+
+### Changed
+- **Ring Light & Lock Commands**
+  - Ring light uses `ring_function` referential (index 34): `1` = ON, `0` = OFF
+  - Lock uses `loc_activation` referential (index 31): `true` = LOCKED, `false` = UNLOCKED
+  - Both use dynamic referential lookup with fallback values
+  
+- **Improved Logging**
+  - Added `convertMessageToTextualKeys()` function
+  - Logs now show human-readable referential names instead of numeric keys
+  - Example: `"type": "REQ_TH"` instead of `"11": "REQ_TH"`
+  - Full command messages logged at info level for debugging
+
+### Technical Details
+- Updated `ClimateState` and `ExtendedZoneInfo` interfaces
+- Added `channelZone` and `controllerNumber` fields
+- Extract values from `channel.channelZone` and `channel.controllerNumber`
+- Updated all command types: mode, preset, temperature, ring_light, lock
+- `RehauCommandData` now accepts boolean values
+
 ## [2.3.5] - 2025-11-07
 
 ### Fixed
