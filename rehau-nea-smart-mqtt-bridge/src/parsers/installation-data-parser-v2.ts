@@ -653,16 +653,22 @@ export class InstallationDataParserV2 {
     const ccConfigBits = channel.cc_config_bits as Record<string, unknown> | undefined;
     const channelConfig = channel.channel_config as Record<string, unknown> | undefined;
 
-    // Warn if channel_zone is missing - this will cause command routing issues
+    // Parse channel_zone - default to 0 if missing
     const channelZone = typeof channel.channel_zone === 'number' ? channel.channel_zone : 0;
-    if (typeof channel.channel_zone !== 'number') {
-      console.warn(`⚠️  Channel ${channel._id} is missing channel_zone field - defaulting to 0 (may cause command routing issues)`);
+    
+    // Parse controllerNumber - can be string or number in API response
+    let controllerNumber: number | null = null;
+    if (typeof channel.controllerNumber === 'number') {
+      controllerNumber = channel.controllerNumber;
+    } else if (typeof channel.controllerNumber === 'string') {
+      const parsed = parseInt(channel.controllerNumber, 10);
+      controllerNumber = isNaN(parsed) ? null : parsed;
     }
     
     return {
       id: typeof channel._id === 'string' ? channel._id : '',
       channelZone: channelZone,
-      controllerNumber: typeof channel.controllerNumber === 'number' ? channel.controllerNumber : null,
+      controllerNumber: controllerNumber,
       currentTemperature: this.parseTemperature(channel.temp_zone),
       setpointTemperature: this.parseTemperature(channel.setpoint_used),
       humidity: typeof channel.humidity === 'number' ? channel.humidity : null,

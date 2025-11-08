@@ -82,17 +82,11 @@ class ClimateController {
         if (group.zones && group.zones.length > 0) {
           group.zones.forEach((zone: IZone) => {
             if (zone.channels && zone.channels.length > 0) {
-              // Use channel's channelZone, but fallback to zone.number if channelZone is 0 and zone.number is not 0
-              // This handles cases where REHAU API doesn't provide channel_zone for slave units
-              const channelZone = (zone.channels[0].channelZone === 0 && zone.number !== 0) 
-                ? zone.number 
-                : zone.channels[0].channelZone;
-              
               zones.push({
                 zoneId: zone.id,
                 zoneName: zone.name,
                 zoneNumber: zone.number,
-                channelZone: channelZone,
+                channelZone: zone.channels[0].channelZone,
                 controllerNumber: zone.channels[0].controllerNumber ?? 0,
                 groupName: group.name,
                 installId: installId,
@@ -185,13 +179,6 @@ class ClimateController {
         if (channel.setpointTemperature.celsius !== null) {
           targetTemp = channel.setpointTemperature.celsius;
         }
-      }
-      
-      // Warn if channelZone or controllerNumber look suspicious
-      if (zone.channelZone === 0 && zone.zoneNumber !== 0) {
-        logger.warn(`⚠️  ${zone.zoneName} (zoneNumber=${zone.zoneNumber}) has channelZone=0 - this may cause command routing issues!`);
-        logger.warn(`   Channel ID: ${zone.channels[0]?.id}`);
-        logger.warn(`   This zone's commands may be sent to the wrong physical zone.`);
       }
       
       this.installations.set(zoneKey, {
@@ -695,16 +682,11 @@ class ClimateController {
         if (group.zones && group.zones.length > 0) {
           group.zones.forEach((zone: IZone) => {
             if (zone.channels && zone.channels.length > 0) {
-              // Use zone.number as fallback for channelZone if channel_zone is 0 for non-zero zones
-              const channelZone = (zone.channels[0].channelZone === 0 && zone.number !== 0) 
-                ? zone.number 
-                : zone.channels[0].channelZone;
-              
               zones.push({
                 zoneId: zone.id,
                 zoneName: zone.name,
                 zoneNumber: zone.number,
-                channelZone: channelZone,
+                channelZone: zone.channels[0].channelZone,
                 controllerNumber: zone.channels[0].controllerNumber ?? 0,
                 groupName: group.name,
                 installId: installId,
@@ -762,16 +744,11 @@ class ClimateController {
               }
               
               // Re-publish zone discovery configs to ensure they persist
-              // Use zone.number as fallback for channelZone if channel_zone is 0 for non-zero zones
-              const channelZone = (zone.channels[0].channelZone === 0 && zone.number !== 0) 
-                ? zone.number 
-                : zone.channels[0].channelZone;
-              
               const zoneInfo: ExtendedZoneInfo = {
                 zoneId: zone.id,
                 zoneName: zone.name,
                 zoneNumber: zone.number,
-                channelZone: channelZone,
+                channelZone: zone.channels[0].channelZone,
                 controllerNumber: zone.channels[0].controllerNumber ?? 0,
                 groupName: group.name,
                 installId: installId,
