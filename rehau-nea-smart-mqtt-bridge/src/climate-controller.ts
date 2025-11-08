@@ -181,6 +181,13 @@ class ClimateController {
         }
       }
       
+      // Warn if channelZone or controllerNumber look suspicious
+      if (zone.channelZone === 0 && zone.zoneNumber !== 0) {
+        logger.warn(`⚠️  ${zone.zoneName} (zoneNumber=${zone.zoneNumber}) has channelZone=0 - this may cause command routing issues!`);
+        logger.warn(`   Channel ID: ${zone.channels[0]?.id}`);
+        logger.warn(`   This zone's commands may be sent to the wrong physical zone.`);
+      }
+      
       this.installations.set(zoneKey, {
         id: zoneKey,
         installId: installId,
@@ -1556,6 +1563,9 @@ class ClimateController {
         // Temperature command
         const tempCelsius = parseFloat(payload);
         const tempF10 = Math.round((tempCelsius * 10) * 1.8 + 320);
+        logger.info(`Command: temperature = ${tempCelsius} for zone ${zoneId}`);
+        logger.info(`  Zone name: ${state.zoneName} (zoneNumber=${state.zoneNumber})`);
+        logger.info(`  Routing: channelZone=${state.channelZone}, controller=${state.controllerNumber}`);
         this.sendRehauCommand(installId, state.channelZone, state.controllerNumber, { "2": tempF10 });
         logger.info(`Set zone ${state.zoneName} temperature to ${tempCelsius}°C (${tempF10})`);
       } else if (commandType === 'ring_light') {

@@ -653,9 +653,15 @@ export class InstallationDataParserV2 {
     const ccConfigBits = channel.cc_config_bits as Record<string, unknown> | undefined;
     const channelConfig = channel.channel_config as Record<string, unknown> | undefined;
 
+    // Warn if channel_zone is missing - this will cause command routing issues
+    const channelZone = typeof channel.channel_zone === 'number' ? channel.channel_zone : 0;
+    if (typeof channel.channel_zone !== 'number') {
+      console.warn(`⚠️  Channel ${channel._id} is missing channel_zone field - defaulting to 0 (may cause command routing issues)`);
+    }
+    
     return {
       id: typeof channel._id === 'string' ? channel._id : '',
-      channelZone: typeof channel.channel_zone === 'number' ? channel.channel_zone : 0,
+      channelZone: channelZone,
       controllerNumber: typeof channel.controllerNumber === 'number' ? channel.controllerNumber : null,
       currentTemperature: this.parseTemperature(channel.temp_zone),
       setpointTemperature: this.parseTemperature(channel.setpoint_used),
