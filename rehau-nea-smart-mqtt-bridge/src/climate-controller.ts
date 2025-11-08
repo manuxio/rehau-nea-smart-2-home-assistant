@@ -31,12 +31,14 @@ class ClimateController {
   private installations: Map<string, ClimateState>;
   private installationNames: Map<string, string>; // Map installId -> installName
   private installationData: Map<string, IInstall>; // Map installId -> IInstall data
+  private channelToZoneKey: Map<string, string>; // Map channelId -> zoneKey for fast lookup
 
   constructor(mqttBridge: RehauMQTTBridge, _rehauApi: RehauAuthPersistent) {
     this.mqttBridge = mqttBridge;
     this.installations = new Map<string, ClimateState>();
     this.installationNames = new Map<string, string>();
     this.installationData = new Map<string, IInstall>();
+    this.channelToZoneKey = new Map<string, string>();
     
     // Listen to REHAU messages and HA commands
     this.mqttBridge.onMessage((topicOrCommand, payload?) => {
@@ -133,6 +135,8 @@ class ClimateController {
       // Register zone name and group name for better logging
       if (zone.channels && zone.channels[0]) {
         this.mqttBridge.registerZoneName(zone.channels[0].id, zone.zoneName, zone.groupName);
+        // Map channel ID to zone key for fast lookup
+        this.channelToZoneKey.set(zone.channels[0].id, zoneKey);
       }
       
       // Get initial values from zone data if available
@@ -993,30 +997,11 @@ class ClimateController {
       const channelData = channelUpdatePayload.data.data;
       
       if (channelData && channelId) {
-        // Find zone by matching channel ID
-        let zoneKey: string | null = null;
-        
-        // Find the state by matching channel ID
-        for (const [key, state] of this.installations.entries()) {
-          if (state.installId === installId) {
-            // Check if this zone's channel matches
-            const installData = this.installationData.get(installId);
-            if (installData && installData.groups) {
-              for (const group of installData.groups) {
-                for (const zone of group.zones) {
-                  if (zone.channels && zone.channels[0] && zone.channels[0].id === channelId) {
-                    zoneKey = key;
-                    break;
-                  }
-                }
-                if (zoneKey) break;
-              }
-            }
-          }
-          if (zoneKey) break;
-        }
+        // Fast lookup: Use channel ID to find zone key
+        const zoneKey = this.channelToZoneKey.get(channelId);
         
         if (!zoneKey) {
+          logger.warn(`No zone found for channel ID: ${channelId}`);
           return;
         }
         
