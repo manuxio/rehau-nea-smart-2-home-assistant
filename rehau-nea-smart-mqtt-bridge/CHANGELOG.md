@@ -1,5 +1,59 @@
 # Changelog
 
+## [2.7.0] - 2025-11-09
+
+### ✨ New Features
+
+#### Better OFF Mode Handling
+- **Preset and Target Temperature**: When a zone is OFF, Home Assistant now displays `"None"` for both preset and target temperature instead of showing stale values
+- **Consistent Behavior**: OFF mode handling is now consistent across all three data paths:
+  - Zone initialization
+  - HTTP polling updates
+  - MQTT realtime updates
+
+#### Correct Setpoint Selection for Temperature Commands
+Temperature commands from Home Assistant now update the correct REHAU setpoint based on current mode and preset:
+
+| Installation Mode | Zone Preset | Setpoint Updated | REHAU Key |
+|------------------|-------------|------------------|-----------|
+| Heating | Comfort | `setpoint_h_normal` | 16 |
+| Heating | Away | `setpoint_h_reduced` | 17 |
+| Cooling | Comfort | `setpoint_c_normal` | 19 |
+| Cooling | Away | `setpoint_c_reduced` | 20 |
+
+**Before:** Always used key "2" (`setpoint_used`) - which is READ-ONLY!  
+**After:** Dynamically selects correct configuration setpoint based on mode and preset
+
+### 📚 Documentation
+
+#### Added Future Enhancements Roadmap
+Comprehensive roadmap documenting planned features:
+1. **Schedule/Program Support** (High Priority) - Auto mode integration, schedule display and override
+2. **Party Mode** (Medium Priority) - Local and global party modes with duration control
+3. **Advanced Mode Support** (Medium Priority) - Manual, global absence, global reduced, holiday modes
+4. **Enhanced Setpoint Management** (Low Priority) - Standby setpoint display, history, validation
+5. **System Mode Detection** (Low Priority) - Operating mode display, constraints, recommendations
+
+#### REHAU Setpoint Architecture Documentation
+Added detailed explanation of REHAU's read/write setpoint separation:
+- **`setpoint_used` (READ-ONLY)**: Shows actual temperature controller is targeting RIGHT NOW
+- **`setpoint_h_normal`, `setpoint_h_reduced`, etc. (WRITE-ONLY)**: Configuration values for different modes
+- Explains why this separation enables intelligent controller decisions and schedule support
+
+### 🔧 Technical Improvements
+- Enhanced logging for temperature commands showing installation mode, preset, and target setpoint
+- Always publish target temperature on updates (removed state comparison checks)
+- Internal memory map dump now includes explicit labels for `channelZone` and `controller` values
+
+### 📋 Reference
+Complete REHAU protocol documentation stored in project memory including:
+- All setpoint fields and their purposes
+- Mode constants (modePermanent and operatingMode)
+- Setpoint key mapping patterns from REHAU web app
+- Important notes about standby mode and read/write separation
+
+---
+
 ## [2.6.0] - 2025-11-08
 
 ### 🐛 Fixed - CRITICAL: Slave Unit Command Routing
