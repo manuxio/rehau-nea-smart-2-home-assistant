@@ -1,8 +1,7 @@
-ARG BUILD_FROM
-FROM $BUILD_FROM
+FROM node:20-alpine
 
-# Install Node.js and build tools
-RUN apk add --no-cache nodejs npm
+# Install wget for healthcheck
+RUN apk add --no-cache wget=1.21.4-r0
 
 # Set working directory
 WORKDIR /app

@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  rehau-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rehau-nea-smart-mqtt-bridge
+    restart: unless-stopped
+    environment:
+      # REHAU Credentials (Required)
+      - REHAU_EMAIL=${REHAU_EMAIL}
+      - REHAU_PASSWORD=${REHAU_PASSWORD}
+      
+      # MQTT Configuration (Required)
+      - MQTT_HOST=${MQTT_HOST:-localhost}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USER=${MQTT_USER:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      
+      # API Configuration (Optional)
+      - API_PORT=${API_PORT:-3000}
+      
+      # Logging (Optional)
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      
+      # Interval Configuration (Optional)
+      - ZONE_RELOAD_INTERVAL=${ZONE_RELOAD_INTERVAL:-300}
+      - TOKEN_REFRESH_INTERVAL=${TOKEN_REFRESH_INTERVAL:-21600}
+      - REFERENTIALS_RELOAD_INTERVAL=${REFERENTIALS_RELOAD_INTERVAL:-86400}
+      - LIVE_DATA_INTERVAL=${LIVE_DATA_INTERVAL:-300}
+      
+      # Display Configuration (Optional)
+      - USE_GROUP_IN_NAMES=${USE_GROUP_IN_NAMES:-false}
+      
+      # Command Retry Configuration (Optional)
+      - COMMAND_RETRY_TIMEOUT=${COMMAND_RETRY_TIMEOUT:-30}
+      - COMMAND_MAX_RETRIES=${COMMAND_MAX_RETRIES:-3}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    networks:
+      - rehau-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  rehau-network:
+    driver: bridge

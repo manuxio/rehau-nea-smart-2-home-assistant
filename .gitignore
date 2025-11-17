@@ -28,3 +28,5 @@ Thumbs.db
 # Test files
 test-*.ts
 test-*.js
+.env
+!.env.example

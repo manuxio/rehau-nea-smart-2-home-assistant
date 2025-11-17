@@ -1,36 +1,37 @@
-#!/usr/bin/with-contenv bashio
+#!/bin/sh
 
-# Read config from Home Assistant
-export REHAU_EMAIL=$(bashio::config 'rehau_email')
-export REHAU_PASSWORD=$(bashio::config 'rehau_password')
-export MQTT_HOST=$(bashio::config 'mqtt_host')
-export MQTT_PORT=$(bashio::config 'mqtt_port')
-export API_PORT=$(bashio::config 'api_port')
-export LOG_LEVEL=$(bashio::config 'log_level')
-
-# Only set MQTT credentials if they are provided
-if bashio::config.has_value 'mqtt_user'; then
-  export MQTT_USER=$(bashio::config 'mqtt_user')
-fi
-if bashio::config.has_value 'mqtt_password'; then
-  export MQTT_PASSWORD=$(bashio::config 'mqtt_password')
+# Validate required environment variables
+if [ -z "$REHAU_EMAIL" ]; then
+  echo "ERROR: REHAU_EMAIL environment variable is required"
+  exit 1
 fi
 
-# Read interval configurations (with defaults)
-export ZONE_RELOAD_INTERVAL=$(bashio::config 'zone_reload_interval' '300')
-export TOKEN_REFRESH_INTERVAL=$(bashio::config 'token_refresh_interval' '21600')
-export REFERENTIALS_RELOAD_INTERVAL=$(bashio::config 'referentials_reload_interval' '86400')
+if [ -z "$REHAU_PASSWORD" ]; then
+  echo "ERROR: REHAU_PASSWORD environment variable is required"
+  exit 1
+fi
 
-# Read USE_GROUP_IN_NAMES configuration (with default)
-export USE_GROUP_IN_NAMES=$(bashio::config 'use_group_in_names' 'false')
+if [ -z "$MQTT_HOST" ]; then
+  echo "ERROR: MQTT_HOST environment variable is required"
+  exit 1
+fi
 
-bashio::log.info "Starting REHAU NEA SMART 2.0 MQTT Bridge (TypeScript)..."
-bashio::log.info "MQTT Host: ${MQTT_HOST}:${MQTT_PORT}"
-bashio::log.info "API Port: ${API_PORT}"
-bashio::log.info "Zone Reload Interval: ${ZONE_RELOAD_INTERVAL}s"
-bashio::log.info "Token Refresh Interval: ${TOKEN_REFRESH_INTERVAL}s"
-bashio::log.info "Referentials Reload Interval: ${REFERENTIALS_RELOAD_INTERVAL}s"
-bashio::log.info "Use Group in Names: ${USE_GROUP_IN_NAMES}"
+# Set defaults for optional variables
+export MQTT_PORT=${MQTT_PORT:-1883}
+export API_PORT=${API_PORT:-3000}
+export LOG_LEVEL=${LOG_LEVEL:-info}
+export ZONE_RELOAD_INTERVAL=${ZONE_RELOAD_INTERVAL:-300}
+export TOKEN_REFRESH_INTERVAL=${TOKEN_REFRESH_INTERVAL:-21600}
+export REFERENTIALS_RELOAD_INTERVAL=${REFERENTIALS_RELOAD_INTERVAL:-86400}
+export USE_GROUP_IN_NAMES=${USE_GROUP_IN_NAMES:-false}
+
+echo "Starting REHAU NEA SMART 2.0 MQTT Bridge (TypeScript)..."
+echo "MQTT Host: ${MQTT_HOST}:${MQTT_PORT}"
+echo "API Port: ${API_PORT}"
+echo "Zone Reload Interval: ${ZONE_RELOAD_INTERVAL}s"
+echo "Token Refresh Interval: ${TOKEN_REFRESH_INTERVAL}s"
+echo "Referentials Reload Interval: ${REFERENTIALS_RELOAD_INTERVAL}s"
+echo "Use Group in Names: ${USE_GROUP_IN_NAMES}"
 
 # Start the compiled JavaScript application
 cd /app

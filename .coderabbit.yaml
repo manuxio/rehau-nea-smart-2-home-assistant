@@ -1,0 +1,138 @@
+# CodeRabbit Configuration for REHAU NEA SMART 2.0 Home Assistant Integration
+# Documentation: https://docs.coderabbit.ai
+# Schema: https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+
+# Language for reviews (en-US, it-IT, etc.)
+language: en-US
+
+# Review configuration
+reviews:
+  # Review profile: chill or assertive
+  profile: assertive
+  
+  # Enable high-level summary of changes
+  high_level_summary: true
+  
+  # Show review status in PR
+  review_status: true
+  
+  # Show commit status checks
+  commit_status: true
+  
+  # Generate sequence diagrams for code flow
+  sequence_diagrams: true
+  
+  # Estimate code review effort
+  estimate_code_review_effort: true
+  
+  # Path filters - control which files are reviewed
+  # Use ! prefix to exclude paths
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/.git/**"
+    - "!**/*.log"
+    - "!**/*.txt"
+    - "!**/REFERENTIALS.json.txt"
+    - "!**/.env"
+    - "!**/.env.*"
+    - "**/rehau-nea-smart-mqtt-bridge/src/**"
+    - "**/rehau-nea-smart-mqtt-bridge/*.yaml"
+    - "**/rehau-nea-smart-mqtt-bridge/*.yml"
+    - "**/rehau-nea-smart-mqtt-bridge/Dockerfile"
+    - "**/rehau-nea-smart-mqtt-bridge/package.json"
+    - "**/rehau-nea-smart-mqtt-bridge/tsconfig.json"
+  
+  # Path-specific instructions
+  path_instructions:
+    - path: "**/rehau-nea-smart-mqtt-bridge/src/**"
+      instructions: "Focus on TypeScript best practices, type safety, error handling, and MQTT protocol compliance"
+    - path: "**/Dockerfile"
+      instructions: "Review for security best practices, layer optimization, and proper image usage"
+    - path: "**/*.yaml"
+      instructions: "Check YAML syntax, Home Assistant add-on format compliance, and configuration structure"
+  
+  # Auto-review settings
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+  
+  # Finishing touches - automatic improvements
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+  
+  # Tool configurations
+  tools:
+    # TypeScript/JavaScript tools
+    eslint:
+      enabled: true
+    biome:
+      enabled: true
+    oxc:
+      enabled: true
+    
+    # Docker tools
+    hadolint:
+      enabled: true
+    
+    # YAML tools
+    yamllint:
+      enabled: true
+    
+    # Security tools
+    gitleaks:
+      enabled: true
+    checkov:
+      enabled: true
+    
+    # Code quality tools
+    semgrep:
+      enabled: true
+    
+    # Shell script tools
+    shellcheck:
+      enabled: true
+    
+    # Markdown tools
+    markdownlint:
+      enabled: true
+    
+    # GitHub Actions
+    actionlint:
+      enabled: true
+    github-checks:
+      enabled: true
+      timeout_ms: 90000
+
+# Chat configuration
+chat:
+  auto_reply: true
+
+# Knowledge base configuration
+knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  code_guidelines:
+    enabled: true
+  learnings:
+    scope: auto
+  pull_requests:
+    scope: auto
+
+# Code generation settings
+code_generation:
+  docstrings:
+    language: en-US
+  unit_tests:
+    path_instructions:
+      - path: "**/rehau-nea-smart-mqtt-bridge/src/**"
+        instructions: "Generate unit tests with proper mocking for MQTT, HTTP requests, and REHAU API calls"
+
