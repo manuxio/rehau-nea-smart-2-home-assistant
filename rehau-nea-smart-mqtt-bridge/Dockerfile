@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 # Install wget for healthcheck
-RUN apk add --no-cache wget=1.21.4-r0
+RUN apk add --no-cache wget
 
 # Set working directory
 WORKDIR /app
