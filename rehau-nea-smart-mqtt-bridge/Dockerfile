@@ -1,11 +1,7 @@
 FROM node:20-alpine
 
 # Install wget for healthcheck
-<<<<<<< HEAD
-RUN apk add --no-cache wget
-=======
 RUN apk add --no-cache wget=1.21.4-r0
->>>>>>> ee5da1c (Update documentation and configuration for REHAU NEA SMART MQTT Bridge (#1))
 
 # Set working directory
 WORKDIR /app
