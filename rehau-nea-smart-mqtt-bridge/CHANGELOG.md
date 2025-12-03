@@ -22,10 +22,6 @@ Added three new sensors per zone to monitor heating activity in real-time:
 These sensors provide visibility into which rooms are currently heating, matching the LED indicators on physical manifolds (e.g., RZ22, RZ24).
 
 ### 📚 Documentation
-<<<<<<< HEAD
-=======
-
->>>>>>> ee5da1c (Update documentation and configuration for REHAU NEA SMART MQTT Bridge (#1))
 - **Complete Docker Compose Setup Guide** - Added comprehensive step-by-step guide for setting up MQTT broker, REHAU bridge, and Home Assistant Core together in a single `docker-compose.yaml` file
   - Complete `docker-compose.yaml` example with all three services (Mosquitto, REHAU bridge, Home Assistant Core)
   - Mosquitto configuration file template with proper healthcheck setup
@@ -36,10 +32,6 @@ These sensors provide visibility into which rooms are currently heating, matchin
   - Guide added as "Option A" (recommended for new installations) in README.md
 
 ### 🛠 Fixes
-<<<<<<< HEAD
-=======
-
->>>>>>> ee5da1c (Update documentation and configuration for REHAU NEA SMART MQTT Bridge (#1))
 - **Mosquitto Healthcheck** - Fixed healthcheck configuration in Docker Compose setup to use `pgrep mosquitto` instead of MQTT subscription test, preventing "unhealthy" container status
 
 ---
