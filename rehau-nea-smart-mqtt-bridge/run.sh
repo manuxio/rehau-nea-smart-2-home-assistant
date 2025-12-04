@@ -5,9 +5,23 @@
 if [ -f "/data/options.json" ]; then
   echo "Loading configuration from /data/options.json (Home Assistant addon mode)..."
   
-  # Try to use bashio (Home Assistant addon helper) if available
-  if command -v bashio > /dev/null 2>&1; then
-    echo "Using bashio to load configuration..."
+  # Try to load bashio (Home Assistant addon helper) if available
+  BASHIO_AVAILABLE=false
+  if [ -f "/usr/lib/bashio/bashio.sh" ]; then
+    # Source bashio to make functions available
+    if . /usr/lib/bashio/bashio.sh 2>/dev/null; then
+      # Test if bashio::config function works by trying a safe call
+      # This will succeed if bashio is loaded, even if the key doesn't exist
+      if (bashio::config 'rehau_email' >/dev/null 2>&1 || \
+          bashio::config.has_value 'rehau_email' >/dev/null 2>&1); then
+        BASHIO_AVAILABLE=true
+        echo "Using bashio to load configuration..."
+      fi
+    fi
+  fi
+  
+  # Use bashio if available, otherwise fall back to jq
+  if [ "$BASHIO_AVAILABLE" = "true" ]; then
     export REHAU_EMAIL=$(bashio::config 'rehau_email')
     export REHAU_PASSWORD=$(bashio::config 'rehau_password')
     export MQTT_HOST=$(bashio::config 'mqtt_host')
