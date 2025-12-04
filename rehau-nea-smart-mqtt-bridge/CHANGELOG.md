@@ -1,5 +1,49 @@
 # Changelog
 
+## [2.7.3] - 2025-12-02
+
+### 🔄 Unified Usage for Core and Supervised Users
+
+This version unifies the installation and usage experience for both Home Assistant Core and Home Assistant Supervised users, eliminating the need for different setup procedures and configurations.
+
+#### Unified Configuration
+- **Single Configuration Approach**: Both Core and Supervised users now use the same configuration schema and environment variables
+- **Consistent MQTT Broker Connection**: Simplified MQTT broker hostname resolution that works seamlessly in both environments
+  - **Supervised Users**: Can use `core-mosquitto` (default) to connect to the built-in Mosquitto add-on
+  - **Core Users**: Can use `localhost`, IP addresses, or Docker service names when running via Docker Compose
+- **Environment-Aware Defaults**: The bridge automatically detects the deployment environment and uses appropriate defaults
+
+#### Docker Compose Integration
+- **Complete Docker Compose Setup**: Added comprehensive Docker Compose configuration that works identically for both Core and Supervised deployments
+- **Unified Service Definitions**: Mosquitto, REHAU bridge, and Home Assistant Core services all defined in a single `docker-compose.yaml` file
+- **Consistent Networking**: All services communicate via Docker networks, eliminating hostname resolution issues
+- **Shared Configuration**: Environment variables and configuration files work the same way regardless of deployment method
+
+#### Documentation Improvements
+- **Unified Setup Guide**: Single comprehensive guide covering both Core and Supervised installation methods
+- **Clear Environment-Specific Instructions**: Step-by-step instructions clearly marked for each deployment type
+- **Troubleshooting Section**: Unified troubleshooting guide addressing common issues in both environments
+- **Configuration Examples**: Examples provided for both Docker Compose and Home Assistant Add-on installations
+
+#### Technical Details
+- **MQTT Hostname Resolution**: Enhanced MQTT client connection logic to handle both `core-mosquitto` (Supervised) and `localhost`/service names (Docker Compose)
+- **Network Compatibility**: Improved network detection and connection handling for different Docker network configurations
+- **Error Messages**: More descriptive error messages that help identify whether issues are related to Core vs Supervised setup
+- **Health Checks**: Unified health check configuration that works in both environments
+
+#### Benefits
+- **Simplified Onboarding**: New users no longer need to understand the difference between Core and Supervised to get started
+- **Easier Migration**: Users can migrate between Core and Supervised without changing configuration
+- **Consistent Behavior**: Same functionality and performance regardless of deployment method
+- **Better Documentation**: Single source of truth for setup instructions
+
+### 📚 Documentation
+- Updated README.md with unified setup instructions for both Core and Supervised users
+- Added Docker Compose guide that works identically for both deployment types
+- Consolidated configuration examples and troubleshooting sections
+
+---
+
 ## [2.7.2] - 2025-12-02
 
 ### ✨ New Features
