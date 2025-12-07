@@ -1,5 +1,5 @@
 name: REHAU NEA SMART 2.0 MQTT Bridge
-version: "2.7.6"
+version: "2.7.7"
 slug: rehau_nea_smart_mqtt
 description: TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with typed interfaces, ring light & lock control
 url: https://github.com/manuxio/rehau-nea-smart-2-home-assistant

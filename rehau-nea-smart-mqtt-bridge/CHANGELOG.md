@@ -1,5 +1,38 @@
 # Changelog
 
+## [2.7.7] - 2025-12-07
+
+### 🎯 Dependency Cleanup & Optimization
+
+#### Express Removed
+- **Removed Express framework** and replaced with Node.js built-in `http` module
+- **Simplified codebase**: Removed 64 packages (213 → 149 total packages)
+- **Smaller Docker image**: Reduced production dependencies from 165+ to 101 packages
+- **Kept health check endpoint**: `/health` endpoint still functional for Docker healthcheck
+- **Removed unused API endpoints**: Eliminated `/api/installations` and `/api/climate` endpoints that were rarely used
+- **Benefits**:
+  - No more Express v5 upgrade concerns
+  - Faster startup time
+  - Smaller memory footprint
+  - Simpler maintenance
+
+#### Dependency Updates
+- **axios**: 1.13.1 → 1.13.2 (patch - bug fixes)
+- **winston**: 3.18.3 → 3.19.0 (minor - new features)
+- **nodemon**: 3.1.10 → 3.1.11 (patch - dev only)
+- **@types/node**: 20.19.24 → 20.19.25 (patch - staying on Node 20 LTS)
+
+#### Deferred Updates
+- **dotenv**: 16.6.1 → 17.2.3 (major version - requires research)
+- **@types/node**: 20.x → 24.x (not needed - staying on Node 20 LTS until April 2026)
+
+#### Security
+- ✅ **0 vulnerabilities** in all dependencies
+- ✅ All tests passing
+- ✅ Docker build successful
+
+---
+
 ## [2.7.6] - 2025-12-06
 
 ### 🐛 Critical Bug Fix

@@ -1,4 +1,4 @@
-import express, { Express, Request, Response } from 'express';
+import http from 'http';
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST before importing logger
@@ -8,9 +8,6 @@ import logger, { registerObfuscation } from './logger';
 import RehauAuthPersistent from './rehau-auth';
 import RehauMQTTBridge from './mqtt-bridge';
 import ClimateController from './climate-controller';
-
-const app: Express = express();
-app.use(express.json());
 
 interface Config {
   rehau: {
@@ -51,141 +48,18 @@ const mqttBridge = new RehauMQTTBridge(auth, config.mqtt);
 const rehauApi = auth; // RehauAuth has the API methods
 const climateController = new ClimateController(mqttBridge, rehauApi);
 
-// Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({
-    status: 'ok',
-    authenticated: auth.isAuthenticated(),
-    mqttConnected: mqttBridge.isConnected()
-  });
-});
-
-// Get all installations
-app.get('/api/installations', async (_req: Request, res: Response) => {
-  try {
-    await auth.ensureValidToken();
-    const installs = auth.getInstalls();
-    res.json({
-      success: true,
-      installations: installs
-    });
-  } catch (error) {
-    logger.error('Failed to get installations:', error);
-    res.status(500).json({
-      success: false,
-      error: (error as Error).message
-    });
-  }
-});
-
-// Get installation details
-app.get('/api/installations/:installId', async (req: Request, res: Response) => {
-  try {
-    const { installId } = req.params;
-    await auth.ensureValidToken();
-    const installs = auth.getInstalls();
-    const install = installs.find(i => i.unique === installId || i._id === installId);
-    
-    if (!install) {
-      res.status(404).json({
-        success: false,
-        error: 'Installation not found'
-      });
-      return;
-    }
-    
-    // Get full installation data
-    const fullInstall = await auth.getInstallationData(install);
-    
-    res.json({
-      success: true,
-      installation: fullInstall
-    });
-  } catch (error) {
-    logger.error('Failed to get installation:', error);
-    res.status(500).json({
-      success: false,
-      error: (error as Error).message
-    });
-  }
-});
-
-// Get current climate state
-app.get('/api/climate/:installId', (req: Request, res: Response) => {
-  try {
-    const { installId } = req.params;
-    const states = climateController.getAllStates().filter(s => s.installId === installId);
-    
-    if (states.length === 0) {
-      res.status(404).json({
-        success: false,
-        error: 'Climate state not found'
-      });
-      return;
-    }
-    
-    res.json({
-      success: true,
-      states
-    });
-  } catch (error) {
-    logger.error('Failed to get climate state:', error);
-    res.status(500).json({
-      success: false,
-      error: (error as Error).message
-    });
-  }
-});
-
-// Set temperature
-app.post('/api/climate/:installId/temperature', async (req: Request, res: Response) => {
-  try {
-    const { temperature } = req.body;
-    
-    if (!temperature) {
-      res.status(400).json({
-        success: false,
-        error: 'Temperature is required'
-      });
-      return;
-    }
-    
-    res.json({
-      success: true,
-      message: 'Temperature control via API not yet implemented'
-    });
-  } catch (error) {
-    logger.error('Failed to set temperature:', error);
-    res.status(500).json({
-      success: false,
-      error: (error as Error).message
-    });
-  }
-});
-
-// Set mode
-app.post('/api/climate/:installId/mode', async (req: Request, res: Response) => {
-  try {
-    const { mode } = req.body;
-    
-    if (!mode) {
-      res.status(400).json({
-        success: false,
-        error: 'Mode is required'
-      });
-      return;
-    }
-    
-    res.json({
-      success: true,
-      message: 'Mode control via API not yet implemented'
-    });
-  } catch (error) {
-    logger.error('Failed to set mode:', error);
-    res.status(500).json({
-      success: false,
-      error: (error as Error).message
-    });
+// Simple health check server for Docker healthcheck
+const healthServer = http.createServer((req, res) => {
+  if (req.url === '/health' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ok',
+      authenticated: auth.isAuthenticated(),
+      mqttConnected: mqttBridge.isConnected()
+    }));
+  } else {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not found' }));
   }
 });
 
@@ -259,9 +133,9 @@ async function start() {
       logger.info(`✅ Initialized climate control for: ${fullInstallData.name}`);
     }
     
-    // Start REST API
-    app.listen(config.api.port, () => {
-      logger.info(`🌐 REST API listening on port ${config.api.port}`);
+    // Start health check server
+    healthServer.listen(config.api.port, () => {
+      logger.info(`🏥 Health check server listening on port ${config.api.port}`);
     });
     
     logger.info('🚀 REHAU NEA SMART 2.0 MQTT Bridge started successfully');
