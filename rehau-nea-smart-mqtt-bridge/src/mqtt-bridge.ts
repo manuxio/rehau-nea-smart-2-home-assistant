@@ -2,9 +2,21 @@ import mqtt, { MqttClient, IClientOptions, IClientPublishOptions } from 'mqtt';
 import LZString from 'lz-string';
 import logger, { debugDump, redactSensitiveData, registerObfuscation } from './logger';
 import RehauAuthPersistent from './rehau-auth';
-import { MQTTConfig, RehauMQTTMessage, ReferentialEntry, ReferentialsMap, HACommand } from './types';
+import { 
+  MQTTConfig, 
+  RehauMQTTMessage, 
+  ReferentialEntry, 
+  ReferentialsMap, 
+  HACommand,
+  RehauChannelUpdateMessage,
+  RawChannelData,
+  LiveEMUData,
+  LiveDIDOData,
+  RingLightCommand,
+  LockCommand
+} from './types';
 
-type MessageHandler = (topicOrCommand: string | HACommand, payload?: RehauMQTTMessage) => void;
+type MessageHandler = (topicOrCommand: string | HACommand | RingLightCommand | LockCommand, payload?: RehauMQTTMessage) => void;
 
 class RehauMQTTBridge {
   private rehauAuth: RehauAuthPersistent;
@@ -335,10 +347,11 @@ class RehauMQTTBridge {
       const payload: RehauMQTTMessage = JSON.parse(message.toString());
       
       // Log essential information about the message
-      if (payload.type === 'channel_update') {
-        const channelData = (payload as any).data?.data;
-        const channelId = (payload as any).data?.channel;
-        const installId = (payload as any).data?.unique;
+      if (payload.type === 'channel_update' && payload.data) {
+        const channelUpdatePayload = payload as RehauChannelUpdateMessage;
+        const channelData = channelUpdatePayload.data.data as RawChannelData;
+        const channelId = channelUpdatePayload.data.channel;
+        const installId = channelUpdatePayload.data.unique;
         const zoneName = this.channelToZoneName.get(channelId) || 'Unknown';
         const groupName = this.channelToGroupName.get(channelId) || 'Unknown';
         
@@ -407,20 +420,21 @@ class RehauMQTTBridge {
           }
         }
       } else if (payload.type === 'realtime' || payload.type === 'realtime.update') {
-        const zones = (payload as any).zones;
+        const zones = payload.zones;
         logger.info(`📨 REHAU: ${payload.type} with ${zones?.length || 0} zone(s)`);
-      } else if (payload.type === 'live_data') {
-        const dataType = (payload as any).data?.type;
-        const installId = (payload as any).data?.unique;
+      } else if (payload.type === 'live_data' && payload.data) {
+        const liveData = payload.data as LiveEMUData['data'] | LiveDIDOData['data'];
+        const dataType = liveData.type;
+        const installId = liveData.unique;
         logger.info(`📨 REHAU LIVE Data Response:`);
         logger.info(`   Type: ${dataType}`);
         logger.info(`   Install: ${installId?.substring(0, 8)}...`);
         
-        if (dataType === 'LIVE_EMU') {
-          const circuits = Object.keys((payload as any).data?.data || {});
+        if (dataType === 'LIVE_EMU' && 'data' in liveData) {
+          const circuits = Object.keys(liveData.data || {});
           logger.info(`   Mixed Circuits: ${circuits.join(', ')}`);
-        } else if (dataType === 'LIVE_DIDO') {
-          const controllers = Object.keys((payload as any).data?.data || {});
+        } else if (dataType === 'LIVE_DIDO' && 'data' in liveData) {
+          const controllers = Object.keys(liveData.data || {});
           logger.info(`   Controllers: ${controllers.join(', ')}`);
         }
       } else if (payload.type === 'LIVE_EMU' || payload.type === 'LIVE_DIDO') {
@@ -502,12 +516,12 @@ class RehauMQTTBridge {
       // Emit as a special command that climate controller will handle
       this.messageHandlers.forEach(handler => {
         try {
-          const command = {
+          const command: RingLightCommand = {
             type: 'ring_light_command',
             zoneId,
             payload
           };
-          handler(command as any);
+          handler(command);
         } catch (error) {
           // Ignore errors from handlers that don't expect this format
         }
@@ -524,12 +538,12 @@ class RehauMQTTBridge {
       // Emit as a special command that climate controller will handle
       this.messageHandlers.forEach(handler => {
         try {
-          const command = {
+          const command: LockCommand = {
             type: 'lock_command',
             zoneId,
             payload
           };
-          handler(command as any);
+          handler(command);
         } catch (error) {
           // Ignore errors from handlers that don't expect this format
         }
@@ -706,8 +720,8 @@ class RehauMQTTBridge {
       };
       
       // Set up one-time listener for referentials response
-      const responseHandler = (topic: string | HACommand, payload?: RehauMQTTMessage): void => {
-        if (typeof topic === 'string' && payload && payload.type === 'referential' && payload.data) {
+      const responseHandler: MessageHandler = (topicOrCommand, payload?) => {
+        if (typeof topicOrCommand === 'string' && payload && payload.type === 'referential' && payload.data) {
           try {
             // Referentials are LZString-compressed UTF-16 JSON
             const decompressed = LZString.decompressFromUTF16(payload.data as string);

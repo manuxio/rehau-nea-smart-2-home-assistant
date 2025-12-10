@@ -124,6 +124,58 @@ export interface RehauChannelUpdateMessage {
   };
 }
 
+// Raw MQTT Data Types (for untyped MQTT messages)
+export interface ChannelConfigBits {
+  ring_activation?: boolean;
+  lock?: boolean;
+  [key: string]: unknown;
+}
+
+export interface RawChannelData {
+  temp_zone?: number;
+  humidity?: number;
+  mode_used?: number;
+  setpoint_h_normal?: number;
+  setpoint_h_reduced?: number;
+  setpoint_c_normal?: number;
+  setpoint_c_reduced?: number;
+  cc_config_bits?: ChannelConfigBits;
+  demand?: number;
+  dewpoint?: number;
+  [key: string]: unknown;
+}
+
+export interface RawZoneData {
+  id?: string;
+  _id?: string;
+  channels?: RawChannelData[];
+  [key: string]: unknown;
+}
+
+export interface RawChannelUpdatePayload {
+  channel: string;
+  unique: string;
+  data: RawChannelData;
+}
+
+export interface RawRealtimePayload {
+  zones?: RawZoneData[];
+  [key: string]: unknown;
+}
+
+// Command Types
+export interface RingLightCommand {
+  type: 'ring_light_command';
+  zoneId: string;
+  payload: string;
+}
+
+export interface LockCommand {
+  type: 'lock_command';
+  zoneId: string;
+  payload: string;
+}
+
 // Home Assistant Types
 export interface HACommand {
   type: 'ha_command';

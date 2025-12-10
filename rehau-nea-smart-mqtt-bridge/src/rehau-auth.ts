@@ -1,8 +1,23 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as crypto from 'crypto';
 import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
+
+/**
+ * Type guard to check if an error is an AxiosError
+ */
+function isAxiosError(error: unknown): error is AxiosError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'isAxiosError' in error &&
+    error.isAxiosError === true &&
+    'response' in error &&
+    'request' in error &&
+    'config' in error
+  );
+}
 
 interface InstallInfo {
   unique: string;
@@ -219,10 +234,14 @@ class RehauAuthPersistent {
       logger.info('Authentication successful');
       return true;
     } catch (error) {
-      const axiosError = error as { response?: { data?: unknown; status?: number }; message: string };
-      logger.error('Authentication failed:', axiosError.response?.data || axiosError.message);
-      if (axiosError.response?.status === 401) {
-        logger.error('Invalid username or password');
+      if (isAxiosError(error)) {
+        logger.error('Authentication failed:', error.response?.data || error.message);
+        if (error.response?.status === 401) {
+          logger.error('Invalid username or password');
+        }
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Authentication failed:', errorMessage);
       }
       throw error;
     }
@@ -266,13 +285,14 @@ class RehauAuthPersistent {
       
       logger.info(`Found ${this.installs.length} installation(s)`);
       logger.debug('Parsed user data:', parser.getSummary(parsed));
-    } catch (error: any) {
-      if (error.response) {
-        logger.error(`getUserData HTTP Error: status=${error.response.status}`);
-        logger.error('Error response headers:', error.response.headers);
-        logger.error('Error response body:', error.response.data);
+    } catch (error: unknown) {
+      if (isAxiosError(error)) {
+        logger.error(`getUserData HTTP Error: status=${error.response?.status}`);
+        logger.error('Error response headers:', error.response?.headers);
+        logger.error('Error response body:', error.response?.data);
       }
-      logger.warn('Failed to get user info:', (error as Error).message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn('Failed to get user info:', errorMessage);
     }
   }
 
@@ -310,12 +330,16 @@ class RehauAuthPersistent {
       logger.info('Token refreshed');
       return true;
     } catch (error) {
-      const axiosError = error as { response?: { data?: unknown; status?: number }; message: string };
-      logger.error('Token refresh failed:', axiosError.response?.data || axiosError.message);
-      
-      if (axiosError.response?.status === 401) {
-        logger.info('Refresh token expired, logging in again...');
-        return await this.login();
+      if (isAxiosError(error)) {
+        logger.error('Token refresh failed:', error.response?.data || error.message);
+        
+        if (error.response?.status === 401) {
+          logger.info('Refresh token expired, logging in again...');
+          return await this.login();
+        }
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Token refresh failed:', errorMessage);
       }
       throw error;
     }
@@ -410,11 +434,14 @@ class RehauAuthPersistent {
       }
       
       return installation;
-    } catch (error: any) {
-      if (error.response) {
-        logger.error(`getInstallationData HTTP Error: status=${error.response.status}`);
-        logger.error('Error response headers:', error.response.headers);
-        logger.error('Error response body:', error.response.data);
+    } catch (error: unknown) {
+      if (isAxiosError(error)) {
+        logger.error(`getInstallationData HTTP Error: status=${error.response?.status}`);
+        logger.error('Error response headers:', error.response?.headers);
+        logger.error('Error response body:', error.response?.data);
+      } else {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('getInstallationData failed:', errorMessage);
       }
       throw error;
     }

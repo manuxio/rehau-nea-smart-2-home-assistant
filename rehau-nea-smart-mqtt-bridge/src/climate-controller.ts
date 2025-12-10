@@ -9,7 +9,12 @@ import {
   LiveEMUData,
   LiveDIDOData,
   PendingCommand,
-  QueuedCommand
+  QueuedCommand,
+  RawChannelData,
+  RawZoneData,
+  RingLightCommand,
+  LockCommand,
+  RehauChannelUpdateMessage
 } from './types';
 import type { IInstall, IChannel, IZone, IGroup } from './parsers';
 import packageJson from '../package.json';
@@ -63,16 +68,16 @@ class ClimateController {
       // Check if this is an HA command (single object argument)
       if (typeof topicOrCommand === 'object' && topicOrCommand.type === 'ha_command') {
         this.handleHomeAssistantCommand(topicOrCommand);
-      } else if (typeof topicOrCommand === 'object' && (topicOrCommand as any).type === 'ring_light_command') {
-        this.handleRingLightCommand((topicOrCommand as any).zoneId, (topicOrCommand as any).payload);
-      } else if (typeof topicOrCommand === 'object' && (topicOrCommand as any).type === 'lock_command') {
-        this.handleLockCommand((topicOrCommand as any).zoneId, (topicOrCommand as any).payload);
+      } else if (typeof topicOrCommand === 'object' && this.isRingLightCommand(topicOrCommand)) {
+        this.handleRingLightCommand(topicOrCommand.zoneId, topicOrCommand.payload);
+      } else if (typeof topicOrCommand === 'object' && this.isLockCommand(topicOrCommand)) {
+        this.handleLockCommand(topicOrCommand.zoneId, topicOrCommand.payload);
       } else if (typeof topicOrCommand === 'string' && payload) {
         // Check for LIVE data responses
         const msg = payload as RehauMQTTMessage;
-        if (msg.type === 'live_data' && (msg as any).data?.type === 'LIVE_EMU') {
+        if (msg.type === 'live_data' && this.isLiveEMUData(msg)) {
           this.handleLiveEMU(payload as LiveEMUData);
-        } else if (msg.type === 'live_data' && (msg as any).data?.type === 'LIVE_DIDO') {
+        } else if (msg.type === 'live_data' && this.isLiveDIDOData(msg)) {
           this.handleLiveDIDO(payload as LiveDIDOData);
         } else {
           // Regular REHAU message (topic, payload arguments)
@@ -281,6 +286,64 @@ class ClimateController {
     
     // Dump internal memory map for debugging
     this.dumpInternalMemoryMap(installId);
+  }
+
+  /**
+   * Type guard for RingLightCommand
+   */
+  private isRingLightCommand(obj: unknown): obj is RingLightCommand {
+    return (
+      typeof obj === 'object' &&
+      obj !== null &&
+      'type' in obj &&
+      obj.type === 'ring_light_command' &&
+      'zoneId' in obj &&
+      'payload' in obj &&
+      typeof (obj as RingLightCommand).zoneId === 'string' &&
+      typeof (obj as RingLightCommand).payload === 'string'
+    );
+  }
+
+  /**
+   * Type guard for LockCommand
+   */
+  private isLockCommand(obj: unknown): obj is LockCommand {
+    return (
+      typeof obj === 'object' &&
+      obj !== null &&
+      'type' in obj &&
+      obj.type === 'lock_command' &&
+      'zoneId' in obj &&
+      'payload' in obj &&
+      typeof (obj as LockCommand).zoneId === 'string' &&
+      typeof (obj as LockCommand).payload === 'string'
+    );
+  }
+
+  /**
+   * Type guard for LiveEMUData
+   */
+  private isLiveEMUData(msg: RehauMQTTMessage): boolean {
+    return (
+      msg.type === 'live_data' &&
+      typeof msg.data === 'object' &&
+      msg.data !== null &&
+      'type' in msg.data &&
+      (msg.data as { type: unknown }).type === 'LIVE_EMU'
+    );
+  }
+
+  /**
+   * Type guard for LiveDIDOData
+   */
+  private isLiveDIDOData(msg: RehauMQTTMessage): boolean {
+    return (
+      msg.type === 'live_data' &&
+      typeof msg.data === 'object' &&
+      msg.data !== null &&
+      'type' in msg.data &&
+      (msg.data as { type: unknown }).type === 'LIVE_DIDO'
+    );
   }
 
   private dumpInternalMemoryMap(installId: string): void {
@@ -1273,9 +1336,9 @@ class ClimateController {
     
     if (payload.type === 'channel_update' && payload.data) {
       // channel_update: payload.data contains channel ID and data
-      const channelUpdatePayload = payload as { type: string; data: { channel: string; data: any } };
-      const channelId = channelUpdatePayload.data.channel; // CORRECT: Get channel ID from data.channel
-      const channelData = channelUpdatePayload.data.data;
+      const channelUpdatePayload = payload as RehauChannelUpdateMessage;
+      const channelId = channelUpdatePayload.data.channel;
+      const channelData = channelUpdatePayload.data.data as RawChannelData;
       
       if (channelData && channelId) {
         // Check if this confirms a pending command
@@ -1305,8 +1368,13 @@ class ClimateController {
       }
     } else if (payload.zones && Array.isArray(payload.zones)) {
       // realtime/realtime.update: zones array
-      payload.zones.forEach((zoneData: any) => {
+      // Cast to RawZoneData[] since MQTT payload may have different structure than API types
+      const rawZones = payload.zones as unknown as RawZoneData[];
+      rawZones.forEach((zoneData: RawZoneData) => {
         const zoneId = zoneData.id || zoneData._id;
+        if (!zoneId) {
+          return;
+        }
         const zoneKey = `${installId}_zone_${zoneId}`;
         const state = this.installations.get(zoneKey);
         
@@ -1328,7 +1396,7 @@ class ClimateController {
     }
   }
 
-  private updateZoneFromRawChannel(zoneKey: string, state: ClimateState, rawChannel: any, installationMode: 'heat' | 'cool'): void {
+  private updateZoneFromRawChannel(zoneKey: string, state: ClimateState, rawChannel: RawChannelData, installationMode: 'heat' | 'cool'): void {
     // Handle raw MQTT channel data (not typed IChannel)
     // Current temperature
     if (rawChannel.temp_zone !== undefined) {
@@ -2063,13 +2131,13 @@ class ClimateController {
   /**
    * Convert a REHAU message with numeric keys to textual keys using referentials
    */
-  private convertMessageToTextualKeys(message: any): any {
+  private convertMessageToTextualKeys(message: Record<string, unknown>): Record<string, unknown> {
     const referentials = this.mqttBridge.getReferentials();
     if (!referentials) {
       return message; // Return as-is if referentials not loaded
     }
 
-    const converted: any = {};
+    const converted: Record<string, unknown> = {};
     
     for (const [key, value] of Object.entries(message)) {
       // Get textual key from referentials
@@ -2077,7 +2145,7 @@ class ClimateController {
       
       // If value is an object, recursively convert it
       if (value && typeof value === 'object' && !Array.isArray(value)) {
-        converted[textualKey] = this.convertMessageToTextualKeys(value);
+        converted[textualKey] = this.convertMessageToTextualKeys(value as Record<string, unknown>);
       } else {
         converted[textualKey] = value;
       }
