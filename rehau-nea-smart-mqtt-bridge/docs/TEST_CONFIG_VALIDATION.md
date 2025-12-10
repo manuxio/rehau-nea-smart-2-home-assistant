@@ -1,32 +1,32 @@
 # Testing Configuration Validation
 
-Questo documento descrive come testare la validazione della configurazione runtime.
+This document describes how to test runtime configuration validation.
 
-## Test Automatici
+## Automated Tests
 
-Esegui la suite di test completa:
+Run the complete test suite:
 
 ```bash
 npm run test:config-validation
 ```
 
-Questo esegue 16 test case che coprono:
-- ✅ Configurazione valida
-- ❌ Email mancante o formato invalido
-- ⚠️ Password troppo corta (warning)
-- ❌ Porte MQTT/API fuori range
-- ❌ Username MQTT senza password
-- ❌ Hostname invalido
-- ✅ Indirizzo IPv4 valido
-- ❌ Intervalli fuori range
-- ⚠️ LOG_LEVEL invalido (warning)
-- ⚠️ USE_GROUP_IN_NAMES invalido (warning)
+This executes 16 test cases covering:
+- ✅ Valid configuration
+- ❌ Missing email or invalid format
+- ⚠️ Password too short (warning)
+- ❌ MQTT/API ports out of range
+- ❌ MQTT username without password
+- ❌ Invalid hostname
+- ✅ Valid IPv4 address
+- ❌ Intervals out of range
+- ⚠️ Invalid LOG_LEVEL (warning)
+- ⚠️ Invalid USE_GROUP_IN_NAMES (warning)
 
-## Test Manuali
+## Manual Testing
 
-Puoi testare manualmente cambiando le variabili d'ambiente prima di avviare l'applicazione.
+You can test manually by changing environment variables before starting the application.
 
-### Test 1: Configurazione Valida
+### Test 1: Valid Configuration
 
 ```bash
 export REHAU_EMAIL="test@example.com"
@@ -37,9 +37,9 @@ export API_PORT="3000"
 npm run dev
 ```
 
-**Risultato atteso**: L'applicazione si avvia senza errori.
+**Expected result**: Application starts without errors.
 
-### Test 2: Email Mancante
+### Test 2: Missing Email
 
 ```bash
 unset REHAU_EMAIL
@@ -49,14 +49,14 @@ export MQTT_PORT="1883"
 npm run dev
 ```
 
-**Risultato atteso**: 
+**Expected result**: 
 ```
 ❌ Configuration validation failed
   [REHAU_EMAIL] REHAU email is required
 ```
 Exit code: 1
 
-### Test 3: Email Formato Invalido
+### Test 3: Invalid Email Format
 
 ```bash
 export REHAU_EMAIL="not-an-email"
@@ -66,9 +66,9 @@ export MQTT_PORT="1883"
 npm run dev
 ```
 
-**Risultato atteso**: Errore di validazione per formato email invalido.
+**Expected result**: Validation error for invalid email format.
 
-### Test 4: Password Troppo Corta (Warning)
+### Test 4: Password Too Short (Warning)
 
 ```bash
 export REHAU_EMAIL="test@example.com"
@@ -78,13 +78,13 @@ export MQTT_PORT="1883"
 npm run dev
 ```
 
-**Risultato atteso**: Warning ma l'applicazione continua:
+**Expected result**: Warning but application continues:
 ```
 ⚠️  Configuration warnings
   [REHAU_PASSWORD] REHAU password is less than 8 characters (security warning)
 ```
 
-### Test 5: Porta MQTT Fuori Range
+### Test 5: MQTT Port Out of Range
 
 ```bash
 export REHAU_EMAIL="test@example.com"
@@ -94,9 +94,9 @@ export MQTT_PORT="70000"
 npm run dev
 ```
 
-**Risultato atteso**: Errore per porta fuori range (1-65535).
+**Expected result**: Error for port out of range (1-65535).
 
-### Test 6: Porta API Troppo Bassa
+### Test 6: API Port Too Low
 
 ```bash
 export REHAU_EMAIL="test@example.com"
@@ -107,9 +107,9 @@ export API_PORT="80"
 npm run dev
 ```
 
-**Risultato atteso**: Errore per porta < 1024 (richiede privilegi root).
+**Expected result**: Error for port < 1024 (requires root privileges).
 
-### Test 7: Username MQTT Senza Password
+### Test 7: MQTT Username Without Password
 
 ```bash
 export REHAU_EMAIL="test@example.com"
@@ -117,13 +117,13 @@ export REHAU_PASSWORD="password123"
 export MQTT_HOST="localhost"
 export MQTT_PORT="1883"
 export MQTT_USER="mqttuser"
-# MQTT_PASSWORD non impostato
+# MQTT_PASSWORD not set
 npm run dev
 ```
 
-**Risultato atteso**: Errore perché password è richiesta quando username è presente.
+**Expected result**: Error because password is required when username is present.
 
-### Test 8: Hostname Invalido
+### Test 8: Invalid Hostname
 
 ```bash
 export REHAU_EMAIL="test@example.com"
@@ -133,22 +133,22 @@ export MQTT_PORT="1883"
 npm run dev
 ```
 
-**Risultato atteso**: Errore per formato hostname invalido.
+**Expected result**: Error for invalid hostname format.
 
-### Test 9: Intervallo Fuori Range
+### Test 9: Interval Out of Range
 
 ```bash
 export REHAU_EMAIL="test@example.com"
 export REHAU_PASSWORD="password123"
 export MQTT_HOST="localhost"
 export MQTT_PORT="1883"
-export ZONE_RELOAD_INTERVAL="10"  # Minimo è 30
+export ZONE_RELOAD_INTERVAL="10"  # Minimum is 30
 npm run dev
 ```
 
-**Risultato atteso**: Errore per intervallo fuori range.
+**Expected result**: Error for interval out of range.
 
-### Test 10: LOG_LEVEL Invalido (Warning)
+### Test 10: Invalid LOG_LEVEL (Warning)
 
 ```bash
 export REHAU_EMAIL="test@example.com"
@@ -159,11 +159,11 @@ export LOG_LEVEL="invalid_level"
 npm run dev
 ```
 
-**Risultato atteso**: Warning ma l'applicazione continua con default 'info'.
+**Expected result**: Warning but application continues with default 'info'.
 
-## Test con Docker
+## Testing with Docker
 
-Se stai usando Docker, puoi testare passando variabili d'ambiente:
+If you're using Docker, you can test by passing environment variables:
 
 ```bash
 docker run -e REHAU_EMAIL="test@example.com" \
@@ -173,9 +173,9 @@ docker run -e REHAU_EMAIL="test@example.com" \
            your-image
 ```
 
-## Test con Home Assistant Add-on
+## Testing with Home Assistant Add-on
 
-Per testare come add-on di Home Assistant, modifica `/data/options.json`:
+To test as a Home Assistant add-on, modify `/data/options.json`:
 
 ```json
 {
@@ -186,11 +186,11 @@ Per testare come add-on di Home Assistant, modifica `/data/options.json`:
 }
 ```
 
-Poi riavvia l'add-on e controlla i log per gli errori di validazione.
+Then restart the add-on and check logs for validation errors.
 
-## Verifica Output
+## Expected Output
 
-Quando la validazione fallisce, vedrai output formattato come:
+When validation fails, you'll see formatted output like:
 
 ```
 ═══════════════════════════════════════════════════════════════
@@ -201,7 +201,7 @@ Quando la validazione fallisce, vedrai output formattato come:
 ═══════════════════════════════════════════════════════════════
 ```
 
-Quando ci sono solo warning:
+When there are only warnings:
 
 ```
 ═══════════════════════════════════════════════════════════════
@@ -211,10 +211,14 @@ Quando ci sono solo warning:
 ═══════════════════════════════════════════════════════════════
 ```
 
-## Note
+## Notes
 
-- I valori di default vengono loggati quando vengono usati
-- Gli errori critici causano exit(1) e impediscono l'avvio
-- I warning non bloccano l'avvio ma indicano configurazioni non raccomandate
-- La validazione avviene PRIMA dell'inizializzazione di qualsiasi componente
+- Default values are logged when used
+- Critical errors cause exit(1) and prevent startup
+- Warnings don't block startup but indicate non-recommended configurations
+- Validation occurs BEFORE initialization of any component
 
+## Related Documentation
+
+- [Configuration Reference](../DOCS.md) - Complete configuration options
+- [Troubleshooting Guide](TROUBLESHOOTING.md) - Common issues and solutions
