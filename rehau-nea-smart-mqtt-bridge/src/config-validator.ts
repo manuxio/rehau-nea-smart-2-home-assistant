@@ -11,9 +11,6 @@ interface Config {
     username?: string;
     password?: string;
   };
-  api: {
-    port: number;
-  };
 }
 
 interface ValidationError {
@@ -41,9 +38,6 @@ export class ConfigValidator {
 
     // Validate MQTT configuration
     errors.push(...this.validateMqttConfig(config.mqtt));
-
-    // Validate API configuration
-    errors.push(...this.validateApiConfig(config.api));
 
     // Validate intervals from environment
     errors.push(...this.validateIntervals());
@@ -159,24 +153,6 @@ export class ConfigValidator {
         field: 'MQTT_USER',
         message: 'MQTT username should be provided when MQTT password is set',
         severity: 'warning'
-      });
-    }
-
-    return errors;
-  }
-
-  /**
-   * Validate API configuration
-   */
-  static validateApiConfig(api: Config['api']): ValidationError[] {
-    const errors: ValidationError[] = [];
-
-    // Port validation (privileged ports < 1024 require root)
-    if (!this.isValidPort(api.port, 1024, 65535)) {
-      errors.push({
-        field: 'API_PORT',
-        message: `API port must be between 1024 and 65535 (got: ${api.port}). Ports below 1024 require root privileges.`,
-        severity: 'error'
       });
     }
 

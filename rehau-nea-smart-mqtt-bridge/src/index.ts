@@ -1,4 +1,3 @@
-import http from 'http';
 import dotenv from 'dotenv';
 
 // Load environment variables FIRST before importing logger
@@ -21,9 +20,6 @@ interface Config {
     username?: string;
     password?: string;
   };
-  api: {
-    port: number;
-  };
 }
 
 // Configuration from environment
@@ -37,9 +33,6 @@ const config: Config = {
     port: parseInt(process.env.MQTT_PORT || '1883'),
     username: process.env.MQTT_USER,
     password: process.env.MQTT_PASSWORD
-  },
-  api: {
-    port: parseInt(process.env.API_PORT || '3000')
   }
 };
 
@@ -49,9 +42,6 @@ if (!process.env.MQTT_HOST) {
 }
 if (!process.env.MQTT_PORT) {
   logger.info('Using default MQTT_PORT: 1883');
-}
-if (!process.env.API_PORT) {
-  logger.info('Using default API_PORT: 3000');
 }
 if (!process.env.ZONE_RELOAD_INTERVAL) {
   logger.info('Using default ZONE_RELOAD_INTERVAL: 300 seconds');
@@ -106,21 +96,6 @@ const auth = new RehauAuthPersistent(config.rehau.email, config.rehau.password);
 const mqttBridge = new RehauMQTTBridge(auth, config.mqtt);
 const rehauApi = auth; // RehauAuth has the API methods
 const climateController = new ClimateController(mqttBridge, rehauApi);
-
-// Simple health check server for Docker healthcheck
-const healthServer = http.createServer((req, res) => {
-  if (req.url === '/health' && req.method === 'GET') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: 'ok',
-      authenticated: auth.isAuthenticated(),
-      mqttConnected: mqttBridge.isConnected()
-    }));
-  } else {
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
-  }
-});
 
 // Start application
 async function start() {
@@ -191,11 +166,6 @@ async function start() {
       climateController.initializeInstallation(fullInstallData);
       logger.info(`✅ Initialized climate control for: ${fullInstallData.name}`);
     }
-    
-    // Start health check server
-    healthServer.listen(config.api.port, () => {
-      logger.info(`🏥 Health check server listening on port ${config.api.port}`);
-    });
     
     logger.info('🚀 REHAU NEA SMART 2.0 MQTT Bridge started successfully');
     

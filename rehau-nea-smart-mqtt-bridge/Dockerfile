@@ -36,8 +36,8 @@ COPY run.sh /
 # Make run script executable
 RUN chmod a+x /run.sh
 
-# Health check to monitor service liveness
+# Health check to monitor Node.js process (API-less design)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost:3000/health || exit 1
+  CMD pidof node > /dev/null || exit 1
 
 CMD [ "/run.sh" ]

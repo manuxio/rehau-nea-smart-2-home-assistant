@@ -41,6 +41,7 @@ class ClimateController {
   private installationNames: Map<string, string>; // Map installId -> installName
   private installationData: Map<string, IInstall>; // Map installId -> IInstall data
   private channelToZoneKey: Map<string, string>; // Map channelId -> zoneKey for fast lookup
+  private channelZoneToChannelId: Map<number, string>; // Cache channelZone -> channel ID mapping
   
   // Command queue and retry mechanism
   private commandQueue: QueuedCommand[] = [];
@@ -56,6 +57,7 @@ class ClimateController {
     this.installationNames = new Map<string, string>();
     this.installationData = new Map<string, IInstall>();
     this.channelToZoneKey = new Map<string, string>();
+    this.channelZoneToChannelId = new Map<number, string>(); // Cache channelZone -> channel ID mapping
     
     // Start command retry checker
     this.startCommandRetryChecker();
@@ -157,6 +159,8 @@ class ClimateController {
         this.mqttBridge.registerZoneName(zone.channels[0].id, zone.zoneName, zone.groupName);
         // Map channel ID to zone key for fast lookup
         this.channelToZoneKey.set(zone.channels[0].id, zoneKey);
+        // Cache channelZone -> channel ID mapping for command logging
+        this.channelZoneToChannelId.set(zone.channels[0].channelZone, zone.channels[0].id);
       }
       
       // Get initial values from zone data if available
@@ -1482,12 +1486,7 @@ class ClimateController {
     const topic1 = `homeassistant/climate/rehau_${state.zoneId}/current_temperature`;
     const topic2 = `homeassistant/sensor/rehau_${state.zoneId}_temperature/state`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic1}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: current_temperature`);
-    logger.info(`   Value: ${temperature}°C`);
+    logger.info(`📤 MQTT Publish: ${topic1} = ${temperature}°C (${groupName}/${state.zoneName})`);
     
     // Publish to climate entity
     this.mqttBridge.publishToHomeAssistant(
@@ -1511,12 +1510,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/target_temperature`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: target_temperature`);
-    logger.info(`   Value: ${temperature}°C`);
+    logger.info(`📤 MQTT Publish: ${topic} = ${temperature}°C (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1532,12 +1526,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/mode`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: mode`);
-    logger.info(`   Value: ${mode}`);
+    logger.info(`📤 MQTT Publish: ${topic} = ${mode} (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1556,12 +1545,7 @@ class ClimateController {
     const topic1 = `homeassistant/climate/rehau_${state.zoneId}/current_humidity`;
     const topic2 = `homeassistant/sensor/rehau_${state.zoneId}_humidity/state`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic1}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: humidity`);
-    logger.info(`   Value: ${humidity}%`);
+    logger.info(`📤 MQTT Publish: ${topic1} = ${humidity}% (${groupName}/${state.zoneName})`);
     
     // Publish to climate entity
     this.mqttBridge.publishToHomeAssistant(
@@ -1586,12 +1570,7 @@ class ClimateController {
     const topic = `homeassistant/binary_sensor/rehau_${state.zoneId}_demanding/state`;
     const value = demanding ? 'ON' : 'OFF';
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: demanding`);
-    logger.info(`   Value: ${value}`);
+    logger.info(`📤 MQTT Publish: ${topic} = ${value} (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1607,12 +1586,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/sensor/rehau_${state.zoneId}_demanding_percent/state`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: demanding_percent`);
-    logger.info(`   Value: ${percent}%`);
+    logger.info(`📤 MQTT Publish: ${topic} = ${percent} (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1628,12 +1602,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/sensor/rehau_${state.zoneId}_dewpoint/state`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: dewpoint`);
-    logger.info(`   Value: ${dewpoint}°C`);
+    logger.info(`📤 MQTT Publish: ${topic} = ${dewpoint}°C (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1649,12 +1618,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/preset`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: preset`);
-    logger.info(`   Value: ${preset}`);
+    logger.info(`📤 MQTT Publish: ${topic} = ${preset} (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1670,12 +1634,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/preset`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: preset`);
-    logger.info(`   Value: "none" (zone is OFF)`);
+    logger.info(`📤 MQTT Publish: ${topic} = None (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1691,12 +1650,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/target_temperature`;
     
-    logger.info(`📤 MQTT Publish:`);
-    logger.info(`   Topic: ${topic}`);
-    logger.info(`   Group: ${groupName}`);
-    logger.info(`   Zone: ${state.zoneName}`);
-    logger.info(`   Entity: target_temperature`);
-    logger.info(`   Value: "none" (zone is OFF)`);
+    logger.info(`📤 MQTT Publish: ${topic} = None (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1713,12 +1667,7 @@ class ClimateController {
     const zoneState = Array.from(this.installations.values()).find(s => s.zoneId === zoneId);
     if (zoneState) {
       const groupName = this.getGroupNameForZone(zoneState.installId, zoneState.zoneNumber);
-      logger.info(`📤 MQTT Publish:`);
-      logger.info(`   Topic: ${topic}`);
-      logger.info(`   Group: ${groupName}`);
-      logger.info(`   Zone: ${zoneState.zoneName}`);
-      logger.info(`   Entity: ring_light`);
-      logger.info(`   Value: ${state}`);
+      logger.info(`📤 MQTT Publish: ${topic} = ${state} (${groupName}/${zoneState.zoneName})`);
     }
     
     this.mqttBridge.publishToHomeAssistant(
@@ -1736,12 +1685,7 @@ class ClimateController {
     const zoneState = Array.from(this.installations.values()).find(s => s.zoneId === zoneId);
     if (zoneState) {
       const groupName = this.getGroupNameForZone(zoneState.installId, zoneState.zoneNumber);
-      logger.info(`📤 MQTT Publish:`);
-      logger.info(`   Topic: ${topic}`);
-      logger.info(`   Group: ${groupName}`);
-      logger.info(`   Zone: ${zoneState.zoneName}`);
-      logger.info(`   Entity: lock`);
-      logger.info(`   Value: ${state}`);
+      logger.info(`📤 MQTT Publish: ${topic} = ${state} (${groupName}/${zoneState.zoneName})`);
     }
     
     this.mqttBridge.publishToHomeAssistant(
@@ -2063,33 +2007,7 @@ class ClimateController {
   }
 
   /**
-   * Convert a REHAU message with numeric keys to textual keys using referentials
-   */
-  private convertMessageToTextualKeys(message: any): any {
-    const referentials = this.mqttBridge.getReferentials();
-    if (!referentials) {
-      return message; // Return as-is if referentials not loaded
-    }
-
-    const converted: any = {};
-    
-    for (const [key, value] of Object.entries(message)) {
-      // Get textual key from referentials
-      const textualKey = referentials[key] || key;
-      
-      // If value is an object, recursively convert it
-      if (value && typeof value === 'object' && !Array.isArray(value)) {
-        converted[textualKey] = this.convertMessageToTextualKeys(value);
-      } else {
-        converted[textualKey] = value;
-      }
-    }
-    
-    return converted;
-  }
-
-  /**
-   * Queue a command for execution with retry support
+   * Queue a command - NEW COMMAND REPLACES OLD ONE
    */
   private queueCommand(
     installId: string,
@@ -2099,6 +2017,19 @@ class ClimateController {
     zoneKey: string,
     commandType: 'mode' | 'preset' | 'temperature' | 'ring_light' | 'lock'
   ): void {
+    // Stop waiting for old command acknowledgment - we only care about the latest
+    if (this.pendingCommand) {
+      logger.info(`⏸️ Stop waiting for old command: ${this.pendingCommand.id}`);
+      logger.info(`   (Command was already sent, just not waiting for ACK anymore)`);
+      this.pendingCommand = null;
+    }
+    
+    // Clear the entire queue - we only want the latest command
+    if (this.commandQueue.length > 0) {
+      logger.info(`🗑️ Clearing ${this.commandQueue.length} old queued commands`);
+      this.commandQueue = [];
+    }
+    
     const command: QueuedCommand = {
       installId,
       channelZone,
@@ -2109,9 +2040,9 @@ class ClimateController {
     };
     
     this.commandQueue.push(command);
-    logger.debug(`Command queued (${this.commandQueue.length} in queue): ${commandType} for zone ${zoneKey}`);
+    logger.info(`🆕 NEW command: ${commandType} for zone ${zoneKey}`);
     
-    // Process queue if no pending command
+    // Process immediately
     this.processCommandQueue();
   }
 
@@ -2130,8 +2061,12 @@ class ClimateController {
       return;
     }
     
-    // Create pending command
+    // Create pending command with comprehensive logging
     this.commandIdCounter++;
+    
+    // Always infer commandType from data to ensure accuracy
+    const inferredCommandType = this.inferCommandType(command.data);
+    
     this.pendingCommand = {
       id: `cmd_${this.commandIdCounter}_${Date.now()}`,
       installId: command.installId,
@@ -2141,8 +2076,19 @@ class ClimateController {
       timestamp: Date.now(),
       retries: 0,
       zoneKey: command.zoneKey,
-      commandType: command.commandType
+      commandType: inferredCommandType  // Always use inferred type
     };
+    
+    // Get zone name for logging
+    const channelName = this.channelZoneToChannelId.get(command.channelZone) || `zone_${command.channelZone}`;
+    const zoneName = this.mqttBridge.getZoneName(channelName) || `Zone ${command.channelZone}`;
+    
+    // Log command creation clearly
+    logger.info(`📦 COMMAND CREATED: ${this.pendingCommand.id}`);
+    logger.info(`   Zone: ${zoneName} (channelZone=${command.channelZone})`);
+    logger.info(`   Type: ${inferredCommandType}`);
+    logger.info(`   Data (REHAU format): ${JSON.stringify(command.data)}`);
+    logger.info(`   Controller: ${command.controllerNumber}`);
     
     // Send the command
     this.sendRehauCommandImmediate(
@@ -2208,16 +2154,39 @@ class ClimateController {
       if (this.pendingCommand.retries >= COMMAND_MAX_RETRIES) {
         // Max retries reached, give up
         logger.error(`❌ Command failed after ${COMMAND_MAX_RETRIES} retries (ID: ${this.pendingCommand.id})`);
-        logger.error(`   Zone: ${this.pendingCommand.zoneKey}`);
-        logger.error(`   Type: ${this.pendingCommand.commandType}`);
-        logger.error(`   Data: ${JSON.stringify(this.pendingCommand.data)}`);
+        logger.error(`   Command: ${this.getCommandDescription(this.pendingCommand)}`);
+        logger.error(`   Technical details: Zone ${this.pendingCommand.zoneKey}, Type ${this.pendingCommand.commandType}`);
         
         // Clear pending command and process next
         this.pendingCommand = null;
         this.processCommandQueue();
       } else {
-        // Retry the command
-        logger.warn(`⚠️  Command timeout (ID: ${this.pendingCommand.id}), retrying (${this.pendingCommand.retries}/${COMMAND_MAX_RETRIES})...`);
+        // Retry the command - LOG CLEARLY
+        const channelName = this.channelZoneToChannelId.get(this.pendingCommand.channelZone) || `zone_${this.pendingCommand.channelZone}`;
+        const zoneName = this.mqttBridge.getZoneName(channelName) || `Zone ${this.pendingCommand.channelZone}`;
+        
+        // Get only relevant referentials
+        const refs = this.mqttBridge.getReferentials();
+        const dataKeys = Object.keys(this.pendingCommand.data);
+        const relevantRefs: Record<string, string> = {};
+        
+        if (refs) {
+          for (const [refName, refKey] of Object.entries(refs)) {
+            if (dataKeys.includes(refKey)) {
+              relevantRefs[refName] = refKey;
+            }
+          }
+        }
+        
+        logger.warn(`⏱️  COMMAND TIMEOUT: ${this.pendingCommand.id}`);
+        logger.warn(`   Retry: ${this.pendingCommand.retries}/${COMMAND_MAX_RETRIES}`);
+        logger.warn(`   Zone: ${zoneName} (channelZone=${this.pendingCommand.channelZone})`);
+        logger.warn(`   Type: ${this.pendingCommand.commandType}`);
+        logger.warn(`   Data (REHAU format): ${JSON.stringify(this.pendingCommand.data)}`);
+        logger.warn(`   Referentials used: ${JSON.stringify(relevantRefs)}`);
+        logger.warn(`   Elapsed: ${elapsed}ms (timeout: ${COMMAND_RETRY_TIMEOUT}ms)`);
+        logger.warn(`   Full REHAU command: ${JSON.stringify({"11":"REQ_TH","12":this.pendingCommand.data,"36":this.pendingCommand.channelZone,"35":this.pendingCommand.controllerNumber})}`);
+        logger.warn(`   Resending...`);
         
         // Update timestamp and resend
         this.pendingCommand.timestamp = Date.now();
@@ -2247,7 +2216,9 @@ class ClimateController {
     }
     
     // Command confirmed! (any update for this zone confirms it)
+    const commandDesc = this.getCommandDescription(this.pendingCommand);
     logger.info(`✅ Command confirmed (ID: ${this.pendingCommand.id}) after ${Date.now() - this.pendingCommand.timestamp}ms`);
+    logger.info(`   Command: ${commandDesc}`);
     logger.debug(`   Retries: ${this.pendingCommand.retries}`);
     
     // Clear pending command and process next
@@ -2270,11 +2241,26 @@ class ClimateController {
     const topic = `client/${installId}`;
     this.mqttBridge.publishToRehau(topic, message);
     
-    // Log with textual keys for readability
-    const textualMessage = this.convertMessageToTextualKeys(message);
-    logger.info(`Command sent to channelZone ${channelZone}, controller ${controllerNumber}:`, textualMessage);
-    logger.debug(`Sent REHAU command to channelZone ${channelZone}, controller ${controllerNumber}:`, data);
-    logger.debug(`Full MQTT message: ${JSON.stringify(message)}`);
+    // Get only the relevant referentials for this command
+    const refs = this.mqttBridge.getReferentials();
+    const dataKeys = Object.keys(data);
+    const relevantRefs: Record<string, string> = {};
+    
+    if (refs) {
+      // Find which referential keys match the data keys
+      for (const [refName, refKey] of Object.entries(refs)) {
+        if (dataKeys.includes(refKey)) {
+          relevantRefs[refName] = refKey;
+        }
+      }
+    }
+    
+    // Log the actual REHAU command
+    logger.info(`📤 SENT TO REHAU:`);
+    logger.info(`   Topic: ${topic}`);
+    logger.info(`   Message: ${JSON.stringify(message)}`);
+    logger.info(`   Data keys used: ${JSON.stringify(data)}`);
+    logger.info(`   Referentials used: ${JSON.stringify(relevantRefs)}`);
   }
 
   /**
@@ -2587,6 +2573,169 @@ class ClimateController {
       logger.info(`   Topics: ${diCount} DI + ${doCount} DO binary sensors`);
       logger.info(`   Base: homeassistant/binary_sensor/rehau_${installId}_${controllerKey.toLowerCase()}`);
     });
+  }
+
+  /**
+   * Get human-readable command description for logging
+   */
+  private getCommandDescription(command: PendingCommand): string {
+    // Use cached channelZone -> channel ID mapping
+    const channelName = this.channelZoneToChannelId.get(command.channelZone) || `zone_${command.channelZone}`;
+    const zoneName = this.mqttBridge.getZoneName(channelName) || `Zone ${command.channelZone}`;
+    const groupName = this.mqttBridge.getGroupName(channelName) || 'Unknown Group';
+    
+    // Build command type description
+    let commandDesc = '';
+    switch (command.commandType) {
+      case 'mode':
+        const mode = command.data.mode_permanent !== undefined 
+          ? (command.data.mode_permanent === 1 ? 'HEAT' : command.data.mode_permanent === 0 ? 'AUTO' : `UNKNOWN (${command.data.mode_permanent})`)
+          : 'UNKNOWN (undefined)';
+        commandDesc = `Set mode to ${mode}`;
+        break;
+      case 'preset':
+        const preset = command.data.preset_mode !== undefined
+          ? this.getPresetName(Number(command.data.preset_mode))
+          : 'UNKNOWN';
+        commandDesc = `Set preset to ${preset}`;
+        break;
+      case 'temperature':
+        // Get referentials for dynamic key mapping
+        const refs = this.mqttBridge.getReferentials();
+        
+        // Find which temperature key is present
+        let tempValue: number | undefined;
+        let tempType = '';
+        
+        if (refs) {
+          const key15 = refs['setpoint_h_standby'];
+          const key16 = refs['setpoint_h_normal'];
+          const key17 = refs['setpoint_h_reduced'];
+          const key19 = refs['setpoint_c_normal'];
+          const key20 = refs['setpoint_c_reduced'];
+          
+          if (key15 && command.data[key15] !== undefined) {
+            tempValue = Number(command.data[key15]);
+            tempType = ' (standby/frost protection)';
+          } else if (key16 && command.data[key16] !== undefined) {
+            tempValue = Number(command.data[key16]);
+            tempType = ' (heating comfort)';
+          } else if (key17 && command.data[key17] !== undefined) {
+            tempValue = Number(command.data[key17]);
+            tempType = ' (heating away)';
+          } else if (key19 && command.data[key19] !== undefined) {
+            tempValue = Number(command.data[key19]);
+            tempType = ' (cooling comfort)';
+          } else if (key20 && command.data[key20] !== undefined) {
+            tempValue = Number(command.data[key20]);
+            tempType = ' (cooling away)';
+          }
+        }
+        
+        // Fallback to named keys
+        if (tempValue === undefined) {
+          if (command.data.setpoint_h_standby !== undefined) {
+            tempValue = Number(command.data.setpoint_h_standby);
+            tempType = ' (standby/frost protection)';
+          } else if (command.data.setpoint_h_normal !== undefined) {
+            tempValue = Number(command.data.setpoint_h_normal);
+            tempType = ' (heating comfort)';
+          } else if (command.data.setpoint_h_reduced !== undefined) {
+            tempValue = Number(command.data.setpoint_h_reduced);
+            tempType = ' (heating away)';
+          } else if (command.data.setpoint_c_normal !== undefined) {
+            tempValue = Number(command.data.setpoint_c_normal);
+            tempType = ' (cooling comfort)';
+          } else if (command.data.setpoint_c_reduced !== undefined) {
+            tempValue = Number(command.data.setpoint_c_reduced);
+            tempType = ' (cooling away)';
+          }
+        }
+        
+        const temp = tempValue !== undefined
+          ? `${(Number(tempValue) / 32).toFixed(1)}°C${tempType}`
+          : 'UNKNOWN';
+        commandDesc = `Set temperature to ${temp}`;
+        break;
+      case 'ring_light':
+        const ringState = command.data.ring_light !== undefined
+          ? (command.data.ring_light === 1 ? 'ON' : 'OFF')
+          : 'UNKNOWN';
+        commandDesc = `Turn ring light ${ringState}`;
+        break;
+      case 'lock':
+        const lockState = command.data.lock !== undefined
+          ? (command.data.lock === 1 ? 'LOCKED' : 'UNLOCKED')
+          : 'UNKNOWN';
+        commandDesc = `Set lock to ${lockState}`;
+        break;
+      default:
+        commandDesc = `Unknown command: ${command.commandType}`;
+    }
+    
+    return `${commandDesc} for ${zoneName} (${groupName})`;
+  }
+  
+  /**
+   * Get preset name from preset mode value
+   */
+  private getPresetName(presetMode: number): string {
+    switch (presetMode) {
+      case 0: return 'MANUAL';
+      case 1: return 'ECO';
+      case 2: return 'COMFORT';
+      case 3: return 'AWAY';
+      case 4: return 'OFF';
+      default: return `PRESET_${presetMode}`;
+    }
+  }
+  
+  /**
+   * Infer command type from data structure
+   * Uses referentials mapping to identify command types dynamically
+   */
+  private inferCommandType(data: RehauCommandData): PendingCommand['commandType'] {
+    const keys = Object.keys(data);
+    const referentials = this.mqttBridge.getReferentials();
+    
+    if (!referentials) {
+      // Fallback to named keys if referentials not loaded
+      if (data.setpoint_h_normal !== undefined || data.setpoint_h_reduced !== undefined || 
+          data.setpoint_h_standby !== undefined || data.setpoint_c_normal !== undefined || 
+          data.setpoint_c_reduced !== undefined) return 'temperature';
+      if (data.mode_permanent !== undefined) return 'mode';
+      if (data.preset_mode !== undefined) return 'preset';
+      if (data.ring_light !== undefined) return 'ring_light';
+      if (data.lock !== undefined) return 'lock';
+      return 'mode';
+    }
+    
+    // Get numeric keys from referentials
+    const tempKeys = [
+      referentials['setpoint_h_standby'],
+      referentials['setpoint_h_normal'],
+      referentials['setpoint_h_reduced'],
+      referentials['setpoint_c_normal'],
+      referentials['setpoint_c_reduced']
+    ].filter(k => k !== undefined);
+    
+    const modeKey = referentials['mode_permanent'];
+    const presetKey = referentials['preset_mode'];
+    
+    // Check if any data key matches temperature keys
+    if (keys.some(k => tempKeys.includes(k))) return 'temperature';
+    
+    // Check for mode key
+    if (modeKey && keys.includes(modeKey)) return 'mode';
+    
+    // Check for preset key
+    if (presetKey && keys.includes(presetKey)) return 'preset';
+    
+    // Check for named keys (fallback)
+    if (data.ring_light !== undefined) return 'ring_light';
+    if (data.lock !== undefined) return 'lock';
+    
+    return 'mode'; // Default fallback
   }
 
   /**
