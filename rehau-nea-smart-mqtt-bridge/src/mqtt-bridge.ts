@@ -35,6 +35,8 @@ class RehauMQTTBridge {
   private channelToGroupName: Map<string, string> = new Map(); // channelId -> groupName
   private isReconnecting: boolean = false;
   private reconnectTimeout: NodeJS.Timeout | null = null;
+  private referentialsHandlerTimeout: NodeJS.Timeout | null = null;
+  private isCleanedUp: boolean = false;
 
   constructor(rehauAuth: RehauAuthPersistent, mqttConfig: MQTTConfig) {
     this.rehauAuth = rehauAuth;
@@ -680,30 +682,104 @@ class RehauMQTTBridge {
   async disconnect(): Promise<void> {
     logger.info('🔌 Disconnecting from MQTT brokers...');
     
-    // Stop reconnection attempts
+    // Stop all timers first
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
-    this.isReconnecting = false;
     
     if (this.referentialsTimer) {
       clearInterval(this.referentialsTimer);
+      this.referentialsTimer = null;
     }
     
     if (this.liveDataTimer) {
       clearInterval(this.liveDataTimer);
+      this.liveDataTimer = null;
     }
     
+    if (this.referentialsHandlerTimeout) {
+      clearTimeout(this.referentialsHandlerTimeout);
+      this.referentialsHandlerTimeout = null;
+    }
+    
+    // Remove all event listeners before disconnecting
     if (this.rehauClient) {
-      this.rehauClient.end();
+      this.rehauClient.removeAllListeners();
+      this.rehauClient.end(true);
+      this.rehauClient = null;
     }
     
     if (this.haClient) {
-      this.haClient.end();
+      this.haClient.removeAllListeners();
+      this.haClient.end(true);
+      this.haClient = null;
     }
     
     this.connected = false;
+    this.isReconnecting = false;
+  }
+
+  /**
+   * Comprehensive cleanup method to release all resources
+   * Idempotent: safe to call multiple times
+   */
+  async cleanup(): Promise<void> {
+    if (this.isCleanedUp) {
+      logger.debug('RehauMQTTBridge already cleaned up, skipping');
+      return;
+    }
+    
+    logger.info('Cleaning up RehauMQTTBridge...');
+    
+    // Clean up all timers
+    if (this.referentialsTimer) {
+      clearInterval(this.referentialsTimer);
+      this.referentialsTimer = null;
+      logger.info('Referentials timer cleared');
+    }
+    
+    if (this.liveDataTimer) {
+      clearInterval(this.liveDataTimer);
+      this.liveDataTimer = null;
+      logger.info('Live data timer cleared');
+    }
+    
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+      logger.info('Reconnect timeout cleared');
+    }
+    
+    if (this.referentialsHandlerTimeout) {
+      clearTimeout(this.referentialsHandlerTimeout);
+      this.referentialsHandlerTimeout = null;
+      logger.info('Referentials handler timeout cleared');
+    }
+    
+    // Call disconnect to handle MQTT client cleanup
+    await this.disconnect();
+    
+    // Clear subscription sets
+    this.rehauSubscriptions.clear();
+    this.haSubscriptions.clear();
+    logger.info('Subscription sets cleared');
+    
+    // Clear message handlers array
+    this.messageHandlers.length = 0;
+    logger.info('Message handlers cleared');
+    
+    // Clear Maps
+    this.channelToZoneName.clear();
+    this.channelToGroupName.clear();
+    logger.info('Channel mapping Maps cleared');
+    
+    // Reset flags
+    this.connected = false;
+    this.isReconnecting = false;
+    
+    this.isCleanedUp = true;
+    logger.info('RehauMQTTBridge cleanup completed');
   }
 
   private async loadReferentials(): Promise<void> {
@@ -759,11 +835,12 @@ class RehauMQTTBridge {
       this.publishToRehau(topic, message);
       
       // Remove handler after 10 seconds
-      setTimeout(() => {
+      this.referentialsHandlerTimeout = setTimeout(() => {
         const index = this.messageHandlers.indexOf(responseHandler);
         if (index > -1) {
           this.messageHandlers.splice(index, 1);
         }
+        this.referentialsHandlerTimeout = null;
       }, 10000);
       
     } catch (error) {

@@ -12,6 +12,7 @@
     "test:watch": "nodemon --exec ts-node test-local.ts",
     "test:auth": "ts-node test-auth-only.ts",
     "test:rehau": "ts-node test-rehau-only.ts",
+    "test:config-validation": "ts-node test/test-config-validation.ts",
     "parseUserData": "ts-node src/parsers/cli-user-data.ts",
     "parseUserDataV2": "ts-node src/parsers/cli-user-data-v2.ts",
     "parseInstallationData": "ts-node src/parsers/cli-installation-data.ts",

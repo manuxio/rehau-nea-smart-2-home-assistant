@@ -52,6 +52,8 @@ class ClimateController {
   private pendingCommand: PendingCommand | null = null;
   private commandCheckTimer: NodeJS.Timeout | null = null;
   private commandIdCounter: number = 0;
+  private autoConfirmTimeout: NodeJS.Timeout | null = null;
+  private isCleanedUp: boolean = false;
 
   constructor(mqttBridge: RehauMQTTBridge, _rehauApi: RehauAuthPersistent) {
     this.mqttBridge = mqttBridge;
@@ -2227,10 +2229,11 @@ class ClimateController {
       const commandId = this.pendingCommand.id;
       
       // Auto-confirm after 2 seconds (enough time for MQTT delivery)
-      setTimeout(() => {
+      this.autoConfirmTimeout = setTimeout(() => {
         if (this.pendingCommand && this.pendingCommand.id === commandId) {
           logger.info(`✅ Command auto-confirmed (ID: ${commandId}) - ${command.commandType}`);
           this.pendingCommand = null;
+          this.autoConfirmTimeout = null;
           this.processCommandQueue();
         }
       }, 2000);
@@ -2655,14 +2658,48 @@ class ClimateController {
   }
 
   /**
-   * Cleanup method to stop timers
+   * Cleanup method to stop timers and release resources
+   * Idempotent: safe to call multiple times
    */
   cleanup(): void {
+    if (this.isCleanedUp) {
+      logger.debug('ClimateController already cleaned up, skipping');
+      return;
+    }
+    
+    logger.info('Cleaning up ClimateController...');
+    
+    // Stop command retry checker timer
     if (this.commandCheckTimer) {
       clearInterval(this.commandCheckTimer);
       this.commandCheckTimer = null;
       logger.info('Command retry checker stopped');
     }
+    
+    // Clear auto-confirmation timeout if pending
+    if (this.autoConfirmTimeout) {
+      clearTimeout(this.autoConfirmTimeout);
+      this.autoConfirmTimeout = null;
+      logger.info('Auto-confirmation timeout cleared');
+    }
+    
+    // Clear command queue
+    this.commandQueue = [];
+    logger.info('Command queue cleared');
+    
+    // Reset pending command
+    this.pendingCommand = null;
+    logger.info('Pending command reset');
+    
+    // Clear all Maps
+    this.installations.clear();
+    this.installationNames.clear();
+    this.installationData.clear();
+    this.channelToZoneKey.clear();
+    logger.info('All Maps cleared');
+    
+    this.isCleanedUp = true;
+    logger.info('ClimateController cleanup completed');
   }
 }
 

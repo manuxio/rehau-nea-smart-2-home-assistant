@@ -25,8 +25,10 @@ tokens.json
 .DS_Store
 Thumbs.db
 
-# Test files
-test-*.ts
-test-*.js
+# Test files (exclude test files in root, but include test/ directory)
+/test-*.ts
+/test-*.js
+# Explicitly include test directory
+!test/
 .env
 !.env.example
