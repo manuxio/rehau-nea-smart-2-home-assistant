@@ -1,5 +1,53 @@
 # Changelog
 
+## [2.7.8] - 2025-12-XX
+
+### 🐛 Critical Bug Fix
+
+#### MQTT Reconnection Promise Fix
+- **Root Cause**: During MQTT reconnections, the promise in `connectToRehau()` was only resolved when `!isReconnect`, causing the promise to hang indefinitely during reconnection attempts
+- **Impact**: The `isReconnecting` flag never got reset, blocking all subsequent reconnection attempts
+- **Solution**: Always resolve the promise when connection is established, regardless of whether it's an initial connection or reconnection
+- **Result**: Reconnections now work correctly and can handle multiple consecutive disconnections
+
+### 🔧 Enhanced Connection Stability
+
+#### Preventive Token Refresh
+- **Proactive Token Management**: Token status checked every 5 minutes
+- **Automatic Refresh**: Token refreshed 30 minutes before expiry to prevent connection drops
+- **Seamless Reconnection**: MQTT connection automatically refreshed with new token after refresh
+- **New Methods**: Added `isTokenExpiringSoon()` and `getMinutesUntilExpiry()` to `RehauAuthPersistent`
+
+#### Heartbeat Mechanism
+- **Connection Keepalive**: Periodic heartbeat messages sent every 3 minutes to keep MQTT connection active
+- **Prevents Timeout**: Avoids broker-side timeouts for inactive connections
+- **Lightweight**: Minimal overhead with QoS 0 messages on user topic
+
+#### Improved Reconnection Mechanism
+- **Exponential Backoff**: Reconnection delays increase exponentially (5s, 10s, 20s, 40s, 60s max)
+- **Retry Limits**: Maximum of 5 retry attempts before reset
+- **Cooldown Protection**: 15-second minimum cooldown between reconnection attempts to prevent tight loops
+- **Better Error Handling**: Improved error messages and retry logic
+
+#### Enhanced Health Check
+- **Token Status Monitoring**: Health check now includes token expiry information in debug mode
+- **Proactive Detection**: Better visibility into connection and authentication status
+- **Detailed Logging**: Enhanced debug output for troubleshooting
+
+#### Configurable Keepalive
+- **Environment Variable**: New `MQTT_KEEPALIVE` environment variable (default: 60 seconds)
+- **Flexible Configuration**: Adjustable via docker-compose.yml or environment variables
+- **Better Compatibility**: Allows tuning for different network conditions and broker requirements
+
+#### Benefits
+- **No More Hanging Reconnections**: Promise resolution fix ensures reconnections complete successfully
+- **Long-Term Stability**: Preventive token refresh and heartbeat prevent connection drops
+- **Better Recovery**: Exponential backoff and retry limits provide robust error recovery
+- **Improved Monitoring**: Enhanced health checks provide better visibility into system status
+- **Flexible Configuration**: Configurable keepalive allows optimization for different environments
+
+---
+
 ## [2.7.7] - 2025-12-10
 
 ### 🎯 Dependency Cleanup & Optimization

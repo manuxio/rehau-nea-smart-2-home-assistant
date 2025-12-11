@@ -89,7 +89,7 @@ class RehauMQTTBridge {
 
       // Get keepalive from environment or use default
       const keepalive = parseInt(process.env.MQTT_KEEPALIVE || '60');
-      
+
       const options: IClientOptions = {
         clientId: this.rehauAuth.getClientId(),
         username,
@@ -155,7 +155,7 @@ class RehauMQTTBridge {
         
         // Always resolve the promise when connection is established
         // This fixes the bug where reconnections would hang indefinitely
-        resolve();
+          resolve();
       };
       
       this.rehauClient.on('connect', handleRehauConnect);
