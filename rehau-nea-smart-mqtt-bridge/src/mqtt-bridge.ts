@@ -212,9 +212,7 @@ class RehauMQTTBridge {
           });
         }
         
-        if (!isReconnect) {
-          resolve();
-        }
+        resolve();
       };
       
       this.haClient.on('connect', handleHAConnect);
