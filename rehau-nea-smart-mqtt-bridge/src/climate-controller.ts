@@ -9,7 +9,11 @@ import {
   LiveEMUData,
   LiveDIDOData,
   PendingCommand,
-  QueuedCommand
+  QueuedCommand,
+  RawChannelData,
+  RawZoneData,
+  RingLightCommand,
+  LockCommand
 } from './types';
 import type { IInstall, IChannel, IZone, IGroup } from './parsers';
 import packageJson from '../package.json';
@@ -65,18 +69,22 @@ class ClimateController {
     // Listen to REHAU messages and HA commands
     this.mqttBridge.onMessage((topicOrCommand, payload?) => {
       // Check if this is an HA command (single object argument)
-      if (typeof topicOrCommand === 'object' && topicOrCommand.type === 'ha_command') {
-        this.handleHomeAssistantCommand(topicOrCommand);
-      } else if (typeof topicOrCommand === 'object' && (topicOrCommand as any).type === 'ring_light_command') {
-        this.handleRingLightCommand((topicOrCommand as any).zoneId, (topicOrCommand as any).payload);
-      } else if (typeof topicOrCommand === 'object' && (topicOrCommand as any).type === 'lock_command') {
-        this.handleLockCommand((topicOrCommand as any).zoneId, (topicOrCommand as any).payload);
+      if (typeof topicOrCommand === 'object' && topicOrCommand !== null && 'type' in topicOrCommand) {
+        if (topicOrCommand.type === 'ha_command') {
+          this.handleHomeAssistantCommand(topicOrCommand as HACommand);
+        } else if (topicOrCommand.type === 'ring_light_command') {
+          const cmd = topicOrCommand as unknown as RingLightCommand;
+          this.handleRingLightCommand(cmd.zoneId, String(cmd.payload));
+        } else if (topicOrCommand.type === 'lock_command') {
+          const cmd = topicOrCommand as unknown as LockCommand;
+          this.handleLockCommand(cmd.zoneId, String(cmd.payload));
+        }
       } else if (typeof topicOrCommand === 'string' && payload) {
         // Check for LIVE data responses
         const msg = payload as RehauMQTTMessage;
-        if (msg.type === 'live_data' && (msg as any).data?.type === 'LIVE_EMU') {
+        if (msg.type === 'live_data' && 'data' in msg && typeof msg.data === 'object' && msg.data !== null && 'type' in msg.data && msg.data.type === 'LIVE_EMU') {
           this.handleLiveEMU(payload as LiveEMUData);
-        } else if (msg.type === 'live_data' && (msg as any).data?.type === 'LIVE_DIDO') {
+        } else if (msg.type === 'live_data' && 'data' in msg && typeof msg.data === 'object' && msg.data !== null && 'type' in msg.data && msg.data.type === 'LIVE_DIDO') {
           this.handleLiveDIDO(payload as LiveDIDOData);
         } else {
           // Regular REHAU message (topic, payload arguments)
@@ -1279,7 +1287,7 @@ class ClimateController {
     
     if (payload.type === 'channel_update' && payload.data) {
       // channel_update: payload.data contains channel ID and data
-      const channelUpdatePayload = payload as { type: string; data: { channel: string; data: any } };
+      const channelUpdatePayload = payload as { type: string; data: { channel: string; data: RawChannelData } };
       const channelId = channelUpdatePayload.data.channel; // CORRECT: Get channel ID from data.channel
       const channelData = channelUpdatePayload.data.data;
       
@@ -1311,8 +1319,8 @@ class ClimateController {
       }
     } else if (payload.zones && Array.isArray(payload.zones)) {
       // realtime/realtime.update: zones array
-      payload.zones.forEach((zoneData: any) => {
-        const zoneId = zoneData.id || zoneData._id;
+      payload.zones.forEach((zoneData) => {
+        const zoneId = zoneData._id || (zoneData as RawZoneData).id;
         const zoneKey = `${installId}_zone_${zoneId}`;
         const state = this.installations.get(zoneKey);
         
@@ -1321,7 +1329,7 @@ class ClimateController {
         }
         
         if (zoneData.channels && zoneData.channels[0]) {
-          const channel = zoneData.channels[0];
+          const channel = zoneData.channels[0] as unknown as RawChannelData;
           const groupName = this.getGroupNameForZone(installId, state.zoneNumber);
           
           logger.info(`📨 Processing MQTT realtime update:`);
@@ -1334,7 +1342,7 @@ class ClimateController {
     }
   }
 
-  private updateZoneFromRawChannel(zoneKey: string, state: ClimateState, rawChannel: any, installationMode: 'heat' | 'cool'): void {
+  private updateZoneFromRawChannel(zoneKey: string, state: ClimateState, rawChannel: RawChannelData, installationMode: 'heat' | 'cool'): void {
     // Handle raw MQTT channel data (not typed IChannel)
     // Current temperature
     if (rawChannel.temp_zone !== undefined) {
@@ -1405,9 +1413,10 @@ class ClimateController {
     }
     
     // Ring light and lock states from raw channel data
-    if (rawChannel.cc_config_bits) {
-      const ringActivation = rawChannel.cc_config_bits.ring_activation === true;
-      const locked = rawChannel.cc_config_bits.lock === true;
+    if (rawChannel.cc_config_bits && typeof rawChannel.cc_config_bits === 'object' && !Array.isArray(rawChannel.cc_config_bits)) {
+      const configBits = rawChannel.cc_config_bits as { ring_activation?: boolean; lock?: boolean };
+      const ringActivation = configBits.ring_activation === true;
+      const locked = configBits.lock === true;
       this.publishRingLightState(state.zoneId, ringActivation);
       this.publishLockState(state.zoneId, locked);
     }

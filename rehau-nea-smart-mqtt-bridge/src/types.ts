@@ -124,6 +124,74 @@ export interface RehauChannelUpdateMessage {
   };
 }
 
+// Raw MQTT Data Types (for type safety)
+/**
+ * Raw channel data from MQTT messages
+ * All fields are optional as they may not all be present in every message
+ */
+export interface RawChannelData {
+  _id?: string;
+  id?: string;
+  temp_zone?: number;
+  humidity?: number;
+  mode_used?: number;
+  setpoint_h_normal?: number;
+  setpoint_h_reduced?: number;
+  setpoint_h_standby?: number;
+  setpoint_c_normal?: number;
+  setpoint_c_reduced?: number;
+  cc_config_bits?: number | string | { ring_activation?: boolean; lock?: boolean; [key: string]: unknown };
+  demand?: number;
+  dewpoint?: number;
+  setpoint_used?: number;
+  index_config?: number;
+  ca_code?: number;
+  channel_zone?: number;
+  openWindow?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Raw zone data from MQTT realtime messages
+ */
+export interface RawZoneData {
+  _id?: string;
+  id?: string;
+  number?: number;
+  name?: string;
+  channels?: RawChannelData[];
+  [key: string]: unknown;
+}
+
+/**
+ * Raw message data payloads for different MQTT message types
+ */
+export interface RawMessageData {
+  channel_update?: {
+    type: 'channel_update';
+    success?: boolean;
+    data: {
+      channel: string;
+      unique?: string;
+      data: RawChannelData;
+    };
+  };
+  realtime?: {
+    type: 'realtime' | 'realtime.update';
+    success?: boolean;
+    zones?: RawZoneData[];
+  };
+  live_data?: {
+    type: 'live_data';
+    success?: boolean;
+    data?: {
+      type?: 'LIVE_EMU' | 'LIVE_DIDO';
+      data?: unknown;
+      unique?: string;
+    };
+  };
+}
+
 // Home Assistant Types
 export interface HACommand {
   type: 'ha_command';
@@ -131,6 +199,18 @@ export interface HACommand {
   zoneNumber: string; // This is actually zoneId (MongoDB ObjectId string)
   commandType: 'mode' | 'preset' | 'temperature' | 'ring_light';
   payload: string;
+}
+
+export interface RingLightCommand {
+  type: 'ring_light_command';
+  zoneId: string;
+  payload: string | boolean;
+}
+
+export interface LockCommand {
+  type: 'lock_command';
+  zoneId: string;
+  payload: string | boolean;
 }
 
 export interface ClimateState {

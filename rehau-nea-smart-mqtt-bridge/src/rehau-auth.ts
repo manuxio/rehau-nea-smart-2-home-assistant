@@ -1,8 +1,20 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as crypto from 'crypto';
 import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
+
+/**
+ * Type guard to check if an error is an AxiosError
+ */
+function isAxiosError(error: unknown): error is AxiosError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'isAxiosError' in error &&
+    (error as { isAxiosError?: boolean }).isAxiosError === true
+  );
+}
 
 interface InstallInfo {
   unique: string;
@@ -289,13 +301,14 @@ class RehauAuthPersistent {
       
       logger.info(`Found ${this.installs.length} installation(s)`);
       logger.debug('Parsed user data:', parser.getSummary(parsed));
-    } catch (error: any) {
-      if (error.response) {
-        logger.error(`getUserData HTTP Error: status=${error.response.status}`);
-        logger.error('Error response headers:', error.response.headers);
-        logger.error('Error response body:', error.response.data);
+    } catch (error: unknown) {
+      if (isAxiosError(error)) {
+        logger.error(`getUserData HTTP Error: status=${error.response?.status}`);
+        logger.error('Error response headers:', error.response?.headers);
+        logger.error('Error response body:', error.response?.data);
       }
-      logger.warn('Failed to get user info:', (error as Error).message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn('Failed to get user info:', errorMessage);
     }
   }
 
@@ -433,11 +446,11 @@ class RehauAuthPersistent {
       }
       
       return installation;
-    } catch (error: any) {
-      if (error.response) {
-        logger.error(`getInstallationData HTTP Error: status=${error.response.status}`);
-        logger.error('Error response headers:', error.response.headers);
-        logger.error('Error response body:', error.response.data);
+    } catch (error: unknown) {
+      if (isAxiosError(error)) {
+        logger.error(`getInstallationData HTTP Error: status=${error.response?.status}`);
+        logger.error('Error response headers:', error.response?.headers);
+        logger.error('Error response body:', error.response?.data);
       }
       throw error;
     }

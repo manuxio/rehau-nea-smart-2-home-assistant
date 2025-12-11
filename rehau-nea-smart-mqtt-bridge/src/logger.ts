@@ -4,10 +4,17 @@ import { LogLevel } from './types';
 const logLevel: LogLevel = (process.env.LOG_LEVEL as LogLevel) || 'info';
 
 /**
+ * Type guard to check if value is a plain object (not array, not null)
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
  * Redact sensitive information from objects for safe logging
  * Useful for sharing logs with other developers
  */
-export function redactSensitiveData(obj: any): any {
+export function redactSensitiveData(obj: unknown): unknown {
   if (obj === null || obj === undefined) {
     return obj;
   }
@@ -20,7 +27,11 @@ export function redactSensitiveData(obj: any): any {
     return obj.map(item => redactSensitiveData(item));
   }
   
-  const redacted: any = {};
+  if (!isPlainObject(obj)) {
+    return obj;
+  }
+  
+  const redacted: Record<string, unknown> = {};
   const sensitiveKeys = [
     'password', 'token', 'access_token', 'refresh_token', 'id_token',
     'authorization', 'auth', 'secret', 'api_key', 'apikey',
@@ -201,7 +212,7 @@ export function clearObfuscation(): void {
 /**
  * Safe JSON stringify that handles circular references
  */
-function safeStringify(obj: any, indent: number = 2): string {
+function safeStringify(obj: unknown, indent: number = 2): string {
   const seen = new WeakSet();
   return JSON.stringify(obj, (_key, value) => {
     // Handle circular references
@@ -225,7 +236,7 @@ function safeStringify(obj: any, indent: number = 2): string {
  * @param data - Data to dump
  * @param condensed - If true, use single-line format (no indentation)
  */
-export function debugDump(label: string, data: any, condensed: boolean = false): void {
+export function debugDump(label: string, data: unknown, condensed: boolean = false): void {
   if (logLevel === 'debug') {
     try {
       const redacted = redactSensitiveData(data);
