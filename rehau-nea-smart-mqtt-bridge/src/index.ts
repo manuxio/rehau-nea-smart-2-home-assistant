@@ -67,6 +67,9 @@ if (!process.env.LOG_LEVEL) {
 if (!process.env.USE_GROUP_IN_NAMES) {
   logger.info('Using default USE_GROUP_IN_NAMES: false');
 }
+if (!process.env.MQTT_KEEPALIVE) {
+  logger.info('Using default MQTT_KEEPALIVE: 60 seconds');
+}
 
 // Validate configuration before initializing components
 const validationResult = ConfigValidator.validateConfig(config);

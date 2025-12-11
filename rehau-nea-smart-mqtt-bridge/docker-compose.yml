@@ -36,6 +36,9 @@ services:
       # Command Retry Configuration (Optional)
       - COMMAND_RETRY_TIMEOUT=${COMMAND_RETRY_TIMEOUT:-30}
       - COMMAND_MAX_RETRIES=${COMMAND_MAX_RETRIES:-3}
+      
+      # MQTT Keepalive Configuration (Optional)
+      - MQTT_KEEPALIVE=${MQTT_KEEPALIVE:-60}
     ports:
       - "${API_PORT:-3000}:3000"
     networks:

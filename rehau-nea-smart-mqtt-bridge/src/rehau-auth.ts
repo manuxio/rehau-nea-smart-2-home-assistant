@@ -354,6 +354,25 @@ class RehauAuthPersistent {
   }
 
   /**
+   * Check if token will expire soon (within specified minutes)
+   * @param minutesBeforeExpiry - Minutes before expiry to consider "soon" (default: 30)
+   */
+  isTokenExpiringSoon(minutesBeforeExpiry: number = 30): boolean {
+    if (!this.tokenExpiry) return true;
+    const expiryThreshold = minutesBeforeExpiry * 60 * 1000; // Convert to milliseconds
+    return Date.now() >= (this.tokenExpiry - expiryThreshold);
+  }
+
+  /**
+   * Get minutes until token expiry
+   */
+  getMinutesUntilExpiry(): number | null {
+    if (!this.tokenExpiry) return null;
+    const msUntilExpiry = this.tokenExpiry - Date.now();
+    return Math.max(0, Math.floor(msUntilExpiry / 60000));
+  }
+
+  /**
    * Ensure we have a valid access token
    * Always performs fresh login on first call
    */

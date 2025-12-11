@@ -25,8 +25,15 @@ class RehauMQTTBridge {
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private referentialsHandlerTimeout: NodeJS.Timeout | null = null;
   private healthCheckTimer: NodeJS.Timeout | null = null;
+  private tokenCheckTimer: NodeJS.Timeout | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
   private lastReconnectAttempt: number = 0;
+  private reconnectRetryCount: number = 0;
   private readonly RECONNECT_COOLDOWN_MS = 15000; // 15 seconds minimum between attempts
+  private readonly MAX_RECONNECT_RETRIES = 5;
+  private readonly HEARTBEAT_INTERVAL_MS = 180000; // 3 minutes
+  private readonly TOKEN_CHECK_INTERVAL_MS = 300000; // 5 minutes
+  private readonly TOKEN_REFRESH_THRESHOLD_MINUTES = 30; // Refresh token 30 minutes before expiry
   private isCleanedUp: boolean = false;
 
   constructor(rehauAuth: RehauAuthPersistent, mqttConfig: MQTTConfig) {
@@ -48,6 +55,12 @@ class RehauMQTTBridge {
     
     // Start periodic health check for MQTT connections
     this.startHealthCheck();
+    
+    // Start periodic token check and refresh
+    this.startTokenCheck();
+    
+    // Start periodic heartbeat to keep connection alive
+    this.startHeartbeat();
     
     // Load referentials immediately
     await this.loadReferentials();
@@ -74,13 +87,16 @@ class RehauMQTTBridge {
         return;
       }
 
+      // Get keepalive from environment or use default
+      const keepalive = parseInt(process.env.MQTT_KEEPALIVE || '60');
+      
       const options: IClientOptions = {
         clientId: this.rehauAuth.getClientId(),
         username,
         password,
         protocol: 'wss',
         rejectUnauthorized: true,
-        keepalive: 60,
+        keepalive: keepalive,
         reconnectPeriod: 0, // Disable automatic reconnection - we'll handle it manually
         connectTimeout: 30000,
         protocolVersion: 4,
@@ -92,6 +108,8 @@ class RehauMQTTBridge {
           }
         }
       };
+      
+      logger.debug(`Using MQTT keepalive: ${keepalive} seconds`);
 
       this.rehauClient = mqtt.connect(rehauUrl, options);
 
@@ -135,9 +153,9 @@ class RehauMQTTBridge {
           });
         }
         
-        if (!isReconnect) {
-          resolve();
-        }
+        // Always resolve the promise when connection is established
+        // This fixes the bug where reconnections would hang indefinitely
+        resolve();
       };
       
       this.rehauClient.on('connect', handleRehauConnect);
@@ -249,6 +267,7 @@ class RehauMQTTBridge {
 
   /**
    * Handle REHAU MQTT reconnection with token refresh
+   * Uses exponential backoff for retries
    */
   private async handleRehauReconnection(): Promise<void> {
     const now = Date.now();
@@ -265,16 +284,36 @@ class RehauMQTTBridge {
       return;
     }
 
+    // Check if we've exceeded max retries
+    if (this.reconnectRetryCount >= this.MAX_RECONNECT_RETRIES) {
+      logger.error(`❌ Maximum reconnection retries (${this.MAX_RECONNECT_RETRIES}) exceeded. Resetting retry count.`);
+      this.reconnectRetryCount = 0;
+      // Wait longer before next attempt
+      this.lastReconnectAttempt = now;
+      setTimeout(() => {
+        this.handleRehauReconnection();
+      }, 60000); // Wait 1 minute before retrying
+      return;
+    }
+
     this.lastReconnectAttempt = now;
     this.isReconnecting = true;
-    logger.info('🔄 Preparing to reconnect to REHAU MQTT...');
+    this.reconnectRetryCount++;
+    
+    logger.info(`🔄 Preparing to reconnect to REHAU MQTT... (attempt ${this.reconnectRetryCount}/${this.MAX_RECONNECT_RETRIES})`);
     
     // Clear any existing reconnect timeout
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
 
-    // Wait 5 seconds before attempting reconnection
+    // Calculate exponential backoff delay: 5s, 10s, 20s, 40s, 60s
+    const baseDelay = 5000;
+    const backoffDelay = Math.min(baseDelay * Math.pow(2, this.reconnectRetryCount - 1), 60000);
+    
+    logger.debug(`Waiting ${backoffDelay / 1000}s before reconnection attempt...`);
+
+    // Wait with exponential backoff before attempting reconnection
     this.reconnectTimeout = setTimeout(async () => {
       try {
         // Step 1: Refresh authentication token
@@ -316,18 +355,21 @@ class RehauMQTTBridge {
         
         logger.info('✅ REHAU MQTT reconnection completed successfully');
         this.isReconnecting = false;
+        this.reconnectRetryCount = 0; // Reset retry count on success
         
       } catch (error) {
         logger.error('❌ Failed to reconnect to REHAU MQTT:', (error as Error).message);
-        logger.error('Will retry in 30 seconds...');
         this.isReconnecting = false;
         
-        // Retry after 30 seconds
+        // Retry with exponential backoff
+        const retryDelay = Math.min(30000 * Math.pow(2, this.reconnectRetryCount - 1), 120000); // Max 2 minutes
+        logger.error(`Will retry in ${retryDelay / 1000} seconds...`);
+        
         this.reconnectTimeout = setTimeout(() => {
           this.handleRehauReconnection();
-        }, 30000);
+        }, retryDelay);
       }
-    }, 5000);
+    }, backoffDelay);
   }
 
   /**
@@ -397,6 +439,158 @@ class RehauMQTTBridge {
   }
 
   /**
+   * Start periodic token check to refresh before expiry
+   */
+  private startTokenCheck(): void {
+    // Clear existing timer if any
+    if (this.tokenCheckTimer) {
+      clearInterval(this.tokenCheckTimer);
+    }
+    
+    // Check token status every 5 minutes
+    this.tokenCheckTimer = setInterval(() => {
+      this.checkAndRefreshToken();
+    }, this.TOKEN_CHECK_INTERVAL_MS);
+    
+    logger.info(`🔐 Token check scheduled every ${this.TOKEN_CHECK_INTERVAL_MS / 1000} seconds`);
+    
+    // Perform initial check immediately
+    this.checkAndRefreshToken();
+  }
+
+  /**
+   * Check token expiry and refresh if needed, then reconnect MQTT if token was refreshed
+   */
+  private async checkAndRefreshToken(): Promise<void> {
+    if (this.isCleanedUp) {
+      return;
+    }
+    
+    try {
+      const minutesUntilExpiry = this.rehauAuth.getMinutesUntilExpiry();
+      
+      if (minutesUntilExpiry === null) {
+        logger.warn('⚠️  Token expiry time unknown, refreshing token...');
+        await this.rehauAuth.ensureValidToken();
+        await this.refreshRehauConnection();
+        return;
+      }
+      
+      if (this.rehauAuth.isTokenExpiringSoon(this.TOKEN_REFRESH_THRESHOLD_MINUTES)) {
+        logger.info(`🔐 Token expiring soon (${minutesUntilExpiry} minutes remaining), refreshing proactively...`);
+        await this.rehauAuth.ensureValidToken();
+        await this.refreshRehauConnection();
+        logger.info('✅ Token refreshed and MQTT reconnected with new token');
+      } else {
+        logger.debug(`🔐 Token valid for ${minutesUntilExpiry} more minutes`);
+      }
+    } catch (error) {
+      logger.error('❌ Failed to check/refresh token:', (error as Error).message);
+    }
+  }
+
+  /**
+   * Refresh REHAU MQTT connection with new token (without full reconnection flow)
+   */
+  private async refreshRehauConnection(): Promise<void> {
+    if (!this.rehauClient || !this.rehauClient.connected) {
+      logger.debug('REHAU client not connected, skipping connection refresh');
+      return;
+    }
+    
+    try {
+      // Close current connection
+      logger.debug('Closing current REHAU MQTT connection for token refresh...');
+      this.rehauClient.removeAllListeners();
+      this.rehauClient.end(true);
+      this.rehauClient = null;
+      
+      // Wait a moment before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Reconnect with fresh token
+      logger.debug('Reconnecting with fresh token...');
+      await this.connectToRehau();
+      
+      // Restore subscriptions
+      const subscriptionsToRestore = Array.from(this.rehauSubscriptions);
+      this.rehauSubscriptions.clear();
+      
+      for (const topic of subscriptionsToRestore) {
+        await new Promise<void>((resolve, reject) => {
+          this.rehauClient!.subscribe(topic, (err) => {
+            if (!err) {
+              logger.debug(`✅ Re-subscribed: ${topic}`);
+              this.rehauSubscriptions.add(topic);
+              resolve();
+            } else {
+              logger.error(`❌ Failed to re-subscribe ${topic}:`, err);
+              reject(err);
+            }
+          });
+        });
+      }
+      
+      logger.info('✅ REHAU MQTT connection refreshed with new token');
+    } catch (error) {
+      logger.error('❌ Failed to refresh REHAU connection:', (error as Error).message);
+      // Trigger full reconnection
+      this.handleRehauReconnection();
+    }
+  }
+
+  /**
+   * Start periodic heartbeat to keep MQTT connection alive
+   */
+  private startHeartbeat(): void {
+    // Clear existing timer if any
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+    }
+    
+    // Send heartbeat every 3 minutes
+    this.heartbeatTimer = setInterval(() => {
+      this.sendHeartbeat();
+    }, this.HEARTBEAT_INTERVAL_MS);
+    
+    logger.info(`💓 Heartbeat scheduled every ${this.HEARTBEAT_INTERVAL_MS / 1000} seconds`);
+  }
+
+  /**
+   * Send heartbeat message to keep connection alive
+   */
+  private sendHeartbeat(): void {
+    if (this.isCleanedUp) {
+      return;
+    }
+    
+    if (!this.rehauClient || !this.rehauClient.connected) {
+      logger.debug('💓 Heartbeat skipped: REHAU MQTT not connected');
+      return;
+    }
+    
+    try {
+      // Send a lightweight message to keep connection alive
+      // We can use the user topic to send a minimal message
+      const userTopic = `client/${this.rehauAuth.getEmail()}`;
+      const heartbeatMessage = {
+        type: 'heartbeat',
+        timestamp: Date.now()
+      };
+      
+      this.rehauClient.publish(userTopic, JSON.stringify(heartbeatMessage), { qos: 0 }, (err) => {
+        if (err) {
+          logger.debug(`💓 Heartbeat failed: ${err.message}`);
+        } else {
+          logger.debug('💓 Heartbeat sent successfully');
+        }
+      });
+    } catch (error) {
+      logger.debug(`💓 Heartbeat error: ${(error as Error).message}`);
+    }
+  }
+
+  /**
    * Perform health check on both MQTT connections
    */
   private performHealthCheck(): void {
@@ -421,7 +615,9 @@ class RehauMQTTBridge {
     
     // Log connection status in debug mode
     if (process.env.LOG_LEVEL === 'debug') {
-      logger.debug(`🏥 Health check - REHAU: ${rehauConnected ? '✅' : '❌'}, HA: ${haConnected ? '✅' : '❌'}`);
+      const tokenMinutes = this.rehauAuth.getMinutesUntilExpiry();
+      const tokenStatus = tokenMinutes !== null ? `${tokenMinutes}m` : 'unknown';
+      logger.debug(`🏥 Health check - REHAU: ${rehauConnected ? '✅' : '❌'}, HA: ${haConnected ? '✅' : '❌'}, Token: ${tokenStatus}`);
     }
   }
 
@@ -859,6 +1055,18 @@ class RehauMQTTBridge {
       logger.info('Health check timer cleared');
     }
     
+    if (this.tokenCheckTimer) {
+      clearInterval(this.tokenCheckTimer);
+      this.tokenCheckTimer = null;
+      logger.info('Token check timer cleared');
+    }
+    
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+      logger.info('Heartbeat timer cleared');
+    }
+    
     if (this.referentialsHandlerTimeout) {
       clearTimeout(this.referentialsHandlerTimeout);
       this.referentialsHandlerTimeout = null;
@@ -884,6 +1092,7 @@ class RehauMQTTBridge {
     
     // Reset reconnection tracking
     this.lastReconnectAttempt = 0;
+    this.reconnectRetryCount = 0;
     logger.info('Reconnection tracking reset');
     
     // Reset flags
