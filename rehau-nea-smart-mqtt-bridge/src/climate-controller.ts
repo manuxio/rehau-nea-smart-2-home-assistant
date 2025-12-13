@@ -1,6 +1,7 @@
 import logger, { registerObfuscation } from './logger';
 import RehauMQTTBridge from './mqtt-bridge';
 import RehauAuthPersistent from './rehau-auth';
+import RateLimiter from './utils/rate-limiter';
 import {
   ClimateState,
   HACommand,
@@ -36,6 +37,13 @@ const COMMAND_RETRY_TIMEOUT = parseInt(process.env.COMMAND_RETRY_TIMEOUT || '30'
 const COMMAND_MAX_RETRIES = parseInt(process.env.COMMAND_MAX_RETRIES || '3'); // Default 3 retries
 const COMMAND_CHECK_INTERVAL = 5000; // Check pending commands every 5 seconds
 
+// Rate limiting configuration
+const COMMAND_RATE_LIMIT_MS = ((): number => {
+  const rawValue = parseInt(process.env.COMMAND_RATE_LIMIT_MS || '500');
+  // Validate: min 100ms, max 5000ms
+  return Math.max(100, Math.min(5000, rawValue));
+})();
+
 // Get version from package.json (single source of truth)
 const SW_VERSION = packageJson.version;
 
@@ -54,6 +62,11 @@ class ClimateController {
   private commandIdCounter: number = 0;
   private autoConfirmTimeout: NodeJS.Timeout | null = null;
   private isCleanedUp: boolean = false;
+  
+  // Rate limiting
+  private rateLimiter: RateLimiter;
+  private readonly MIN_COMMAND_INTERVAL: number;
+  private rateLimitHits: number = 0;
 
   constructor(mqttBridge: RehauMQTTBridge, _rehauApi: RehauAuthPersistent) {
     this.mqttBridge = mqttBridge;
@@ -62,6 +75,11 @@ class ClimateController {
     this.installationData = new Map<string, IInstall>();
     this.channelToZoneKey = new Map<string, string>();
     this.channelZoneToChannelId = new Map<number, string>(); // Cache channelZone -> channel ID mapping
+    
+    // Initialize rate limiter
+    this.MIN_COMMAND_INTERVAL = COMMAND_RATE_LIMIT_MS;
+    this.rateLimiter = new RateLimiter(this.MIN_COMMAND_INTERVAL);
+    logger.info(`Rate limiter initialized with ${this.MIN_COMMAND_INTERVAL}ms minimum interval`);
     
     // Start command retry checker
     this.startCommandRetryChecker();
@@ -2064,10 +2082,31 @@ class ClimateController {
       return;
     }
     
-    // Get next command from queue
-    const command = this.commandQueue.shift();
+    // Get next command from queue (peek without removing)
+    const command = this.commandQueue[0];
     if (!command) {
       return;
+    }
+    
+    // Check rate limit before processing
+    if (!this.rateLimiter.canExecute(command.installId)) {
+      const waitTime = this.rateLimiter.getTimeUntilNextExecution(command.installId);
+      this.rateLimitHits++;
+      
+      logger.warn(`⏱️ Rate limit active for install ${command.installId}, command queued (wait ${waitTime}ms)`);
+      logger.debug(`   Rate limit hits: ${this.rateLimitHits}, Minimum interval: ${this.MIN_COMMAND_INTERVAL}ms`);
+      
+      // Don't remove command from queue - it will be retried on next check
+      // The command will be processed when rate limit clears (via retry checker or next call)
+      return;
+    }
+    
+    // Rate limit cleared - remove command from queue and process
+    this.commandQueue.shift();
+    
+    // Log if this command was waiting due to rate limit
+    if (this.rateLimitHits > 0) {
+      logger.info(`✅ Rate limit cleared, executing queued command for install ${command.installId}`);
     }
     
     // Create pending command with comprehensive logging
@@ -2107,6 +2146,9 @@ class ClimateController {
       command.data
     );
     
+    // Record execution for rate limiting (after sending)
+    this.rateLimiter.recordExecution(command.installId);
+    
     // Ring light and lock commands NEVER return confirmations (REHAU design)
     // Auto-confirm them after a short delay to allow MQTT delivery
     if (command.commandType === 'ring_light' || command.commandType === 'lock') {
@@ -2143,8 +2185,15 @@ class ClimateController {
 
   /**
    * Check if pending command has timed out and needs retry
+   * Also checks if queued commands can be processed (rate limit may have cleared)
    */
   private checkPendingCommand(): void {
+    // If no pending command, try to process queued commands (rate limit may have cleared)
+    if (!this.pendingCommand && this.commandQueue.length > 0) {
+      this.processCommandQueue();
+      return;
+    }
+    
     if (!this.pendingCommand) {
       return;
     }

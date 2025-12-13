@@ -1,5 +1,56 @@
 # Changelog
 
+## [2.7.9] - 2025-12-12
+
+### 🛡️ Command Rate Limiting
+
+#### Problem Solved
+- **Root Cause**: When multiple commands were sent to REHAU installations in rapid succession (e.g., from Home Assistant automations or manual rapid adjustments), the system could become overloaded
+- **Impact**: 
+  - REHAU MQTT broker could drop connections or become unresponsive
+  - Commands could be lost or fail silently
+  - System instability during high command volume scenarios
+  - No protection against command flooding from automations or scripts
+- **Solution**: Implemented configurable rate limiting per installation to prevent command overload
+
+#### Rate Limiting Implementation
+- **New RateLimiter Class**: Created `src/utils/rate-limiter.ts` with per-installation command tracking
+- **Configurable Minimum Interval**: New `COMMAND_RATE_LIMIT_MS` environment variable (default: 500ms, range: 100-5000ms)
+- **Smart Queue Management**: Commands are queued instead of rejected when rate limit is active
+- **Automatic Retry**: Queued commands are automatically processed when rate limit clears
+- **Per-Installation Limiting**: Rate limit applies per `installId`, allowing parallel commands to different installations
+
+#### Technical Details
+- **Rate Limiter Features**:
+  - Tracks last execution time for each installation
+  - Verifies minimum interval before allowing command execution
+  - Calculates remaining wait time for queued commands
+  - Provides metrics for monitoring rate limit hits
+- **Integration Points**:
+  - Rate limit check in `processCommandQueue()` before command execution
+  - Automatic retry via `checkPendingCommand()` when rate limit expires
+  - Execution recorded after successful command send
+- **Configuration**:
+  - Environment variable: `COMMAND_RATE_LIMIT_MS` (default: 500ms)
+  - Validated range: 100ms minimum, 5000ms maximum
+  - Configurable via `.env` file or `docker-compose.yml`
+
+#### Logging and Monitoring
+- **Warning Level**: Logs when commands are rate-limited with wait time
+- **Info Level**: Logs when rate limit clears and command executes
+- **Debug Level**: Provides rate limit hit metrics and timing information
+- **Metrics**: Tracks total rate limit hits for monitoring
+
+#### Benefits
+- **Prevents System Overload**: Protects REHAU system from command flooding
+- **No Command Loss**: Commands are queued instead of rejected
+- **Automatic Recovery**: Commands execute automatically when rate limit clears
+- **Configurable**: Adjustable for different network conditions and system capabilities
+- **Backward Compatible**: No breaking changes, works with existing configurations
+- **Better Stability**: Reduces connection drops and system instability during high command volume
+
+---
+
 ## [2.7.8] - 2025-12-11
 
 ### 🐛 Critical Bug Fixes

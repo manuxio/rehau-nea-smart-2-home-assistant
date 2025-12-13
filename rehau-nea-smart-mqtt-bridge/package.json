@@ -1,6 +1,6 @@
 {
   "name": "rehau-nea-smart-mqtt-bridge-typescript",
-  "version": "2.7.8",
+  "version": "2.7.9",
   "description": "MQTT bridge for REHAU NEA SMART 2.0 heating systems (TypeScript)",
   "main": "dist/index.js",
   "scripts": {

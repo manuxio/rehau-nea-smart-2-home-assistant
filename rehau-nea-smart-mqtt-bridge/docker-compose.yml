@@ -36,6 +36,11 @@ services:
       # Command Retry Configuration (Optional)
       - COMMAND_RETRY_TIMEOUT=${COMMAND_RETRY_TIMEOUT:-30}
       - COMMAND_MAX_RETRIES=${COMMAND_MAX_RETRIES:-3}
+      
+      # Command Rate Limiting (Optional)
+      # Minimum interval between commands for the same installation in milliseconds (default: 500)
+      # Prevents overloading REHAU system with too many rapid commands
+      - COMMAND_RATE_LIMIT_MS=${COMMAND_RATE_LIMIT_MS:-500}
     ports:
       - "${API_PORT:-3000}:3000"
     networks:
