@@ -1,5 +1,71 @@
 # Changelog
 
+## [2.7.8] - 2025-12-11
+
+### 🐛 Critical Bug Fixes
+
+#### MQTT Reconnection Promise Resolution Fixed
+- **Root Cause**: During MQTT reconnections, connection promises were not being resolved properly, causing the application to hang indefinitely during reconnection attempts
+- **Impact**: The `isReconnecting` flag never got reset, blocking all subsequent reconnection attempts for both REHAU and Home Assistant MQTT brokers
+- **Solution**: 
+  - Fixed promise resolution in `connectToRehau()` and `connectToHomeAssistant()` methods to always resolve when connection is established, regardless of whether it's an initial connection or reconnection
+  - Separated reconnection flags: `isReconnectingToRehau` and `isReconnectingToHA` to handle each broker independently
+  - Ensured proper promise resolution in both initial connections and reconnection scenarios
+- **Result**: Reconnections now work correctly and can handle multiple consecutive disconnections without hanging
+
+### 🔧 Enhanced Connection Stability
+
+#### Preventive Token Refresh & Heartbeat Mechanism
+- **Proactive Token Management**: Token status checked every 5 minutes via health check
+- **Automatic Refresh**: Token refreshed 30 minutes before expiry to prevent connection drops
+- **Seamless Reconnection**: MQTT connection automatically refreshed with new token after refresh
+- **Heartbeat Messages**: Periodic heartbeat messages sent every 3 minutes to keep MQTT connection active
+- **New Methods**: Added `isTokenExpiringSoon()` and `getMinutesUntilExpiry()` to `RehauAuthPersistent` class
+
+#### Improved Reconnection Logic
+- **Exponential Backoff**: Reconnection delays increase exponentially (5s, 10s, 20s, 40s, 60s max) for better error recovery
+- **Retry Limits**: Maximum of 5 retry attempts before reset
+- **Cooldown Protection**: 15-second minimum cooldown between reconnection attempts to prevent tight loops
+- **Better Error Handling**: Improved error messages and retry logic for both REHAU and Home Assistant MQTT brokers
+
+#### Configurable MQTT Keepalive
+- **Environment Variable**: New `MQTT_KEEPALIVE` environment variable (default: 60 seconds)
+- **Flexible Configuration**: Adjustable via docker-compose.yml or environment variables
+- **Better Compatibility**: Allows tuning for different network conditions and broker requirements
+
+### 🔒 Enhanced Type Safety
+
+#### Type Guards and Improved Type Definitions
+- **Type Guards**: Added `isPlainObject()` type guard function for better runtime type validation
+- **New Type Definitions**: 
+  - Added `RawChannelData` and `RawZoneData` types for better type safety in MQTT message handling
+  - Added `RingLightCommand` and `LockCommand` types for command handling
+- **Improved Type Safety**: 
+  - Enhanced `redactSensitiveData()` function with proper type guards to handle unknown types safely
+  - Updated `debugDump()` and `safeStringify()` functions with proper type annotations
+  - Added type guards for AxiosError handling in `rehau-auth.ts`
+- **Better Error Handling**: Improved type checking in `ClimateController` for MQTT message processing with proper type guards for nested object access
+
+#### Command Handling Improvements
+- **Type-Safe Command Processing**: Refactored command processing logic in `ClimateController` to use proper type guards
+- **Safer Type Assertions**: Replaced unsafe `any` types with proper type guards and type assertions
+- **Better Type Validation**: Enhanced validation for `cc_config_bits` and other nested objects using type guards
+
+### 📚 Documentation Improvements
+- **Enhanced Code Comments**: Added comprehensive JSDoc comments for new type guard functions
+- **Improved Type Documentation**: Better documentation of type definitions in `types.ts`
+- **Clearer Error Messages**: Enhanced error messages with better type information for debugging
+
+### ✅ Benefits
+- **No More Hanging Reconnections**: Promise resolution fix ensures reconnections complete successfully
+- **Long-Term Stability**: Preventive token refresh and heartbeat prevent connection drops
+- **Better Recovery**: Exponential backoff and retry limits provide robust error recovery
+- **Improved Type Safety**: Type guards prevent runtime errors and improve code reliability
+- **Better Developer Experience**: Enhanced type definitions make the codebase easier to maintain and extend
+- **Flexible Configuration**: Configurable keepalive allows optimization for different environments
+
+---
+
 ## [2.7.7] - 2025-12-10
 
 ### 🎯 Dependency Cleanup & Optimization
