@@ -7,15 +7,20 @@
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Add--on-orange.svg?logo=home-assistant)
 ![MQTT](https://img.shields.io/badge/MQTT-Bridge-brightgreen.svg)
 
-TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with Home Assistant integration.
+TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with Home Assistant integration and automatic 2FA support.
 
 > **⚠️ DISCLAIMER:** This is an unofficial, community-developed integration. It is **NOT affiliated with, endorsed by, or supported by REHAU AG or REHAU Industries SE & Co. KG**. REHAU® and NEA SMART® are registered trademarks of REHAU. Use this software at your own risk.
 
-> **🚨 CRITICAL: Version 2.3.3 REQUIRES CLEAN REINSTALL**
+> **🚨 BREAKING CHANGE: Version 2.8.0 - 2FA Required**
 >
-> This version fixes a critical zone mapping bug but requires complete removal and reinstallation.
-> **YOU MUST DELETE ALL EXISTING REHAU ENTITIES BEFORE UPGRADING.**
-> See [Migration Guide](./docs/migration.md) for detailed steps.
+> **REHAU has introduced mandatory email-based 2FA authentication.** This version implements automatic 2FA handling via POP3 email polling.
+>
+> **Required Setup:**
+> 1. Create a POP3 email account (we recommend [GMX.de](https://www.gmx.de) - it's German and free)
+> 2. Set up email forwarding from `noreply@accounts.rehau.com` to your POP3 account
+> 3. Add POP3 credentials to your configuration
+>
+> See [2FA Setup Guide](./rehau-nea-smart-mqtt-bridge/README.md#-breaking-change---version-280-february-2026) for detailed instructions.
 
 ---
 
@@ -25,8 +30,9 @@ TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with Home A
 
 1. Add repository: `https://github.com/manuxio/rehau-nea-smart-2-home-assistant`
 2. Install **REHAU NEA SMART 2.0 MQTT Bridge** from the Add-on Store
-3. Configure with your REHAU credentials (see [Configuration Guide](./docs/configuration.md))
-4. Start the add-on
+3. **Set up POP3 email account** for 2FA (see breaking change notice above)
+4. Configure with your REHAU and POP3 credentials (see [Configuration Guide](./docs/configuration.md))
+5. Start the add-on
 
 ### Home Assistant Core (Docker)
 

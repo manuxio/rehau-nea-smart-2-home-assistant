@@ -1,7 +1,7 @@
 name: REHAU NEA SMART 2.0 MQTT Bridge
-version: "2.7.8"
+version: "3.0.0"
 slug: rehau_nea_smart_mqtt
-description: TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with typed interfaces, ring light & lock control
+description: TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with automatic 2FA support via POP3
 url: https://github.com/manuxio/rehau-nea-smart-2-home-assistant
 arch:
   - aarch64
@@ -19,6 +19,13 @@ ports_description:
 options:
   rehau_email: ""
   rehau_password: ""
+  pop3_email: ""
+  pop3_password: ""
+  pop3_host: "pop.gmx.net"
+  pop3_port: 995
+  pop3_secure: true
+  pop3_timeout: 300000
+  pop3_debug: false
   mqtt_host: "core-mosquitto"
   mqtt_port: 1883
   mqtt_user: ""
@@ -32,6 +39,13 @@ options:
 schema:
   rehau_email: email
   rehau_password: password
+  pop3_email: email
+  pop3_password: password
+  pop3_host: str
+  pop3_port: port
+  pop3_secure: bool?
+  pop3_timeout: "int(60000,600000)?"
+  pop3_debug: bool?
   mqtt_host: str
   mqtt_port: port
   mqtt_user: str?

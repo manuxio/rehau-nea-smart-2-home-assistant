@@ -297,6 +297,7 @@ process.on('SIGINT', async () => {
 // Handle uncaught exceptions
 process.on('uncaughtException', async (error: Error) => {
   logger.error('❌ Uncaught Exception:', error.message);
+  logger.error('Error:', error);
   logger.error('Stack:', error.stack);
   await shutdown(1);
 });
