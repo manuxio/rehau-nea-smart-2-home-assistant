@@ -189,32 +189,38 @@ class RehauAuthPersistent {
       const authUrl = `https://accounts.rehau.com/authz-srv/authz?${authParams.toString()}`;
       
       logger.debug('Making auth request with native HTTPS client...');
+      
+      // Add small delay to avoid triggering Cloudflare rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const authResponse = await client.get(authUrl, {
         maxRedirects: 5,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9'
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Connection': 'close'
         }
       });
       
       logger.debug(`Auth response status: ${authResponse.statusCode}`);
       logger.debug(`Auth response final URL: ${authResponse.finalUrl}`);
       
-      if (authResponse.statusCode !== 302 && authResponse.statusCode !== 200) {
+      // Extract requestId from final URL - if we have it, the redirect worked even if status is 403
+      const requestIdMatch = authResponse.finalUrl.match(/[?&]requestId=([^&]+)/);
+      
+      if (!requestIdMatch) {
+        // Only fail if we don't have a requestId
         logger.error(`Auth failed with status ${authResponse.statusCode}`);
         logger.error(`Response body preview: ${authResponse.body.substring(0, 200)}`);
-        throw new Error(`Auth request failed with status ${authResponse.statusCode}`);
+        throw new Error('Failed to extract requestId from authorization flow');
       }
       
       // Debug: Check if cookies were set
       logger.debug('Auth response set-cookie headers:', authResponse.headers['set-cookie']);
-
-      // Extract requestId from final URL
-      const requestIdMatch = authResponse.finalUrl.match(/[?&]requestId=([^&]+)/);
-      if (!requestIdMatch) {
-        throw new Error('Failed to extract requestId from authorization flow');
-      }
+      
+      // We have a requestId, so the OAuth flow succeeded even if final page returned 403
+      logger.debug('OAuth redirect successful - requestId obtained despite 403 status');
       const requestId = requestIdMatch[1];
       logger.debug(`RequestId obtained: ${requestId}`);
 

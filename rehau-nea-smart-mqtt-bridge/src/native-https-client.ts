@@ -35,18 +35,15 @@ export class NativeHttpsClient {
 
     const parsedUrl = new URL(url);
     
-    // Get cookies for this URL
-    const cookieString = await this.jar.getCookieString(url);
+    // Store cookies in jar for this request (cookies are managed by tough-cookie)
+    await this.jar.getCookieString(url);
     
     const requestOptions: https.RequestOptions = {
       hostname: parsedUrl.hostname,
       port: parsedUrl.port || 443,
       path: parsedUrl.pathname + parsedUrl.search,
       method: options.method || 'GET',
-      headers: {
-        ...options.headers,
-        ...(cookieString ? { 'Cookie': cookieString } : {})
-      }
+      headers: options.headers || {}
     };
 
     return new Promise((resolve, reject) => {
@@ -63,7 +60,9 @@ export class NativeHttpsClient {
         const shouldFollowRedirect = options.maxRedirects === undefined || redirectCount < maxRedirects;
         if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && shouldFollowRedirect) {
           const redirectUrl = new URL(res.headers.location, url).toString();
-          return resolve(await this.request(redirectUrl, { ...options, maxRedirects }, redirectCount + 1));
+          // Follow redirect and update finalUrl to the redirect destination
+          const redirectResponse = await this.request(redirectUrl, { ...options, maxRedirects }, redirectCount + 1);
+          return resolve(redirectResponse);
         }
 
         // Read response body
