@@ -45,6 +45,21 @@ if [ -f "$OPTIONS_FILE" ]; then
   fi
   echo "[DEBUG] REHAU_PASSWORD length: ${#REHAU_PASSWORD} (not printing actual value for safety)"
 
+  # POP3_EMAIL
+  echo "[DEBUG] Reading 'pop3_email'..."
+  POP3_EMAIL="$(jq -r '.pop3_email // empty' "$OPTIONS_FILE" 2>/tmp/jq_pop3_email.err || echo "")"
+  echo "[DEBUG] POP3_EMAIL='$POP3_EMAIL'"
+
+  # POP3_PASSWORD
+  echo "[DEBUG] Reading 'pop3_password'..."
+  POP3_PASSWORD="$(jq -r '.pop3_password // empty' "$OPTIONS_FILE" 2>/tmp/jq_pop3_password.err || echo "")"
+  echo "[DEBUG] POP3_PASSWORD length: ${#POP3_PASSWORD} (not printing actual value for safety)"
+
+  # POP3_HOST
+  echo "[DEBUG] Reading 'pop3_host'..."
+  POP3_HOST="$(jq -r '.pop3_host // empty' "$OPTIONS_FILE" 2>/tmp/jq_pop3_host.err || echo "")"
+  echo "[DEBUG] POP3_HOST='$POP3_HOST'"
+
   # MQTT_HOST
   echo "[DEBUG] Reading 'mqtt_host'..."
   MQTT_HOST="$(jq -r '.mqtt_host // empty' "$OPTIONS_FILE" 2>/tmp/jq_mqtt_host.err || echo "")"
@@ -86,10 +101,30 @@ if [ -f "$OPTIONS_FILE" ]; then
   USE_GROUP_IN_NAMES="$(jq -r '.use_group_in_names // false' "$OPTIONS_FILE" 2>/tmp/jq_use_group.err || echo "false")"
   echo "[DEBUG] USE_GROUP_IN_NAMES='$USE_GROUP_IN_NAMES'"
 
+  # POP3 optional settings with defaults
+  POP3_PORT="$(jq -r '.pop3_port // 995' "$OPTIONS_FILE" 2>/tmp/jq_pop3_port.err || echo "995")"
+  echo "[DEBUG] POP3_PORT='$POP3_PORT'"
+
+  POP3_SECURE="$(jq -r '.pop3_secure // true' "$OPTIONS_FILE" 2>/tmp/jq_pop3_secure.err || echo "true")"
+  echo "[DEBUG] POP3_SECURE='$POP3_SECURE'"
+
+  POP3_TIMEOUT="$(jq -r '.pop3_timeout // 300000' "$OPTIONS_FILE" 2>/tmp/jq_pop3_timeout.err || echo "300000")"
+  echo "[DEBUG] POP3_TIMEOUT='$POP3_TIMEOUT'"
+
+  POP3_DEBUG="$(jq -r '.pop3_debug // false' "$OPTIONS_FILE" 2>/tmp/jq_pop3_debug.err || echo "false")"
+  echo "[DEBUG] POP3_DEBUG='$POP3_DEBUG'"
+
   echo "[DEBUG] Exporting variables from JSON..."
   export \
     REHAU_EMAIL \
     REHAU_PASSWORD \
+    POP3_EMAIL \
+    POP3_PASSWORD \
+    POP3_HOST \
+    POP3_PORT \
+    POP3_SECURE \
+    POP3_TIMEOUT \
+    POP3_DEBUG \
     MQTT_HOST \
     MQTT_PORT \
     MQTT_USER \
@@ -111,6 +146,13 @@ fi
 echo "[DEBUG] Current environment snapshot (redacted secrets):"
 echo "  REHAU_EMAIL='${REHAU_EMAIL:-<unset>}'"
 echo "  REHAU_PASSWORD length='${REHAU_PASSWORD:+${#REHAU_PASSWORD}}'"
+echo "  POP3_EMAIL='${POP3_EMAIL:-<unset>}'"
+echo "  POP3_PASSWORD length='${POP3_PASSWORD:+${#POP3_PASSWORD}}'"
+echo "  POP3_HOST='${POP3_HOST:-<unset>}'"
+echo "  POP3_PORT='${POP3_PORT:-<unset>}'"
+echo "  POP3_SECURE='${POP3_SECURE:-<unset>}'"
+echo "  POP3_TIMEOUT='${POP3_TIMEOUT:-<unset>}'"
+echo "  POP3_DEBUG='${POP3_DEBUG:-<unset>}'"
 echo "  MQTT_HOST='${MQTT_HOST:-<unset>}'"
 echo "  MQTT_PORT='${MQTT_PORT:-<unset>}'"
 echo "  MQTT_USER='${MQTT_USER:-<unset>}'"
