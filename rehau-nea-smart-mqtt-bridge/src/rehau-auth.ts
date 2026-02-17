@@ -4,8 +4,8 @@ import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
 import { POP3Client, POP3Config } from './pop3-client';
-import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
+import { NativeHttpsClient } from './native-https-client';
 
 /**
  * Type guard to check if an error is an AxiosError
@@ -161,9 +161,9 @@ class RehauAuthPersistent {
       logger.info('Authenticating with form-based flow...');
       logger.info(`Email: ${this.email}`);
       
-      // Create axios instance with cookie jar support
+      // Use native HTTPS client instead of axios (axios triggers Cloudflare 403 in Docker)
       const jar = new CookieJar();
-      const client = wrapper(axios.create({ jar }));
+      const client = new NativeHttpsClient(jar);
       
       // Generate PKCE parameters
       const codeVerifier = this.generateCodeVerifier();
@@ -188,10 +188,9 @@ class RehauAuthPersistent {
 
       const authUrl = `https://accounts.rehau.com/authz-srv/authz?${authParams.toString()}`;
       
+      logger.debug('Making auth request with native HTTPS client...');
       const authResponse = await client.get(authUrl, {
         maxRedirects: 5,
-        validateStatus: (status) => status >= 200 && status < 400,
-        withCredentials: true,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -199,12 +198,20 @@ class RehauAuthPersistent {
         }
       });
       
+      logger.debug(`Auth response status: ${authResponse.statusCode}`);
+      logger.debug(`Auth response final URL: ${authResponse.finalUrl}`);
+      
+      if (authResponse.statusCode !== 302 && authResponse.statusCode !== 200) {
+        logger.error(`Auth failed with status ${authResponse.statusCode}`);
+        logger.error(`Response body preview: ${authResponse.body.substring(0, 200)}`);
+        throw new Error(`Auth request failed with status ${authResponse.statusCode}`);
+      }
+      
       // Debug: Check if cookies were set
       logger.debug('Auth response set-cookie headers:', authResponse.headers['set-cookie']);
 
-      // Extract requestId
-      const finalUrl = (authResponse.request?.res?.responseUrl as string) || authResponse.config.url;
-      const requestIdMatch = finalUrl?.match(/[?&]requestId=([^&]+)/);
+      // Extract requestId from final URL
+      const requestIdMatch = authResponse.finalUrl.match(/[?&]requestId=([^&]+)/);
       if (!requestIdMatch) {
         throw new Error('Failed to extract requestId from authorization flow');
       }
@@ -238,58 +245,36 @@ class RehauAuthPersistent {
         logger.debug('About to make login POST request...');
         loginResponse = await client.post(
           'https://accounts.rehau.com/login-srv/login',
-          loginData,
+          loginData.toString(),
           {
+            maxRedirects: 0,
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
               'Origin': 'https://accounts.rehau.com',
               'Referer': `https://accounts.rehau.com/rehau-ui/login?requestId=${requestId}&view_type=login`
-            },
-            maxRedirects: 0,  // Don't follow redirects automatically
-            withCredentials: true,
-            validateStatus: (status) => status >= 200 && status < 400
+            }
           }
         );
       } catch (error: any) {
         logger.debug('=== LOGIN ERROR ===');
         logger.debug('Error message:', error.message);
-        logger.debug('Error code:', error.code);
-        logger.debug('Has response:', !!error.response);
-        if (error.response) {
-          logger.debug('Response status:', error.response.status);
-          logger.debug('Response headers:', JSON.stringify(error.response.headers));
-          logger.debug('Location header:', error.response.headers?.location);
-          
-          // If it's a redirect (302), that's expected
-          if (error.response.status === 302) {
-            loginResponse = error.response;
-            logger.debug('Treating 302 redirect as success');
-          } else {
-            logger.error('Unexpected error status:', error.response.status);
-            throw error;
-          }
-        } else {
-          logger.error('No response in error - network issue?');
-          throw error;
-        }
+        throw error;
       }
       
       logger.debug('=== LOGIN RESPONSE ===');
-      logger.debug('loginResponse is defined:', !!loginResponse);
-      logger.debug('loginResponse type:', typeof loginResponse);
-      if (loginResponse) {
-        logger.debug('Status:', loginResponse.status);
-        logger.debug('Location header:', loginResponse.headers?.location);
-        logger.debug('Response URL:', loginResponse.request?.res?.responseUrl);
-      } else {
-        logger.error('loginResponse is undefined!');
-        throw new Error('Login response is undefined - request may have failed');
+      logger.debug('Status:', loginResponse.statusCode);
+      logger.debug('Location header:', loginResponse.headers?.location);
+      
+      if (loginResponse.statusCode !== 302 && loginResponse.statusCode !== 200) {
+        logger.error('Unexpected login status:', loginResponse.statusCode);
+        logger.error('Response body:', loginResponse.body.substring(0, 500));
+        throw new Error(`Login failed with status ${loginResponse.statusCode}`);
       }
 
       // Extract authorization code or handle MFA
-      const finalLoginUrl = loginResponse.headers?.location || (loginResponse.request?.res?.responseUrl as string) || loginResponse.config?.url;
+      const finalLoginUrl = loginResponse.headers?.location as string || loginResponse.finalUrl;
       let authCode: string | null = null;
       
       // Check for MFA redirect
@@ -320,7 +305,7 @@ class RehauAuthPersistent {
         }
         
         if (!authCode && loginResponse.headers.location) {
-          const location = loginResponse.headers.location;
+          const location = loginResponse.headers.location as string;
           const url = new URL(location, 'https://accounts.rehau.com');
           authCode = url.searchParams.get('code');
         }
@@ -334,15 +319,17 @@ class RehauAuthPersistent {
 
       // Step 3: Exchange code for tokens
       logger.debug('Step 3: Exchanging code for tokens...');
-      const tokenResponse: AxiosResponse<RehauTokenResponse> = await axios.post(
+      const tokenPayload = {
+        grant_type: 'authorization_code',
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        code_verifier: codeVerifier,
+        code: authCode
+      };
+      
+      const tokenResponse = await client.post(
         'https://accounts.rehau.com/token-srv/token',
-        {
-          grant_type: 'authorization_code',
-          client_id: clientId,
-          redirect_uri: redirectUri,
-          code_verifier: codeVerifier,
-          code: authCode
-        },
+        JSON.stringify(tokenPayload),
         {
           headers: {
             'Content-Type': 'application/json'
@@ -419,7 +406,7 @@ class RehauAuthPersistent {
       try {
         configuredResponse = await client.post(
           'https://accounts.rehau.com/verification-srv/v2/setup/public/configured/list',
-          configuredPayload,
+          JSON.stringify(configuredPayload),
           {
             headers: {
               'Content-Type': 'application/json',
@@ -470,7 +457,7 @@ class RehauAuthPersistent {
       try {
         initiateResponse = await client.post(
           'https://accounts.rehau.com/verification-srv/v2/authenticate/initiate/email',
-          initiatePayload,
+          JSON.stringify(initiatePayload),
           {
             headers: {
               'Content-Type': 'application/json',
@@ -558,7 +545,7 @@ class RehauAuthPersistent {
       try {
         verifyResponse = await client.post(
           'https://accounts.rehau.com/verification-srv/v2/authenticate/authenticate/email',
-          verifyPayload,
+          JSON.stringify(verifyPayload),
           {
             headers: {
               'Content-Type': 'application/json',
@@ -589,15 +576,17 @@ class RehauAuthPersistent {
       
       // Step 7: Complete authentication with form POST
       logger.debug('Step 7: Completing authentication...');
+      const continueParams = new URLSearchParams({
+        status_id: statusId,
+        track_id: trackId,
+        requestId: requestId,
+        sub: sub,
+        verificationType: 'EMAIL'
+      });
+      
       const continueResponse = await client.post(
         `https://accounts.rehau.com/login-srv/precheck/continue/${trackId}`,
-        new URLSearchParams({
-          status_id: statusId,
-          track_id: trackId,
-          requestId: requestId,
-          sub: sub,
-          verificationType: 'EMAIL'
-        }),
+        continueParams.toString(),
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
