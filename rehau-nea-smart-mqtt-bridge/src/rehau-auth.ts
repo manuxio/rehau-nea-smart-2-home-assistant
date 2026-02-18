@@ -4,8 +4,7 @@ import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
 import { POP3Client, POP3Config } from './pop3-client';
-import { CookieJar } from 'tough-cookie';
-import { NativeHttpsClient } from './native-https-client';
+import { CurlHttpsClient } from './curl-https-client';
 
 /**
  * Type guard to check if an error is an AxiosError
@@ -161,9 +160,8 @@ class RehauAuthPersistent {
       logger.info('Authenticating with form-based flow...');
       logger.info(`Email: ${this.email}`);
       
-      // Use native HTTPS client instead of axios (axios triggers Cloudflare 403 in Docker)
-      const jar = new CookieJar();
-      const client = new NativeHttpsClient(jar);
+      // Use curl-based HTTPS client (bypasses Cloudflare bot detection)
+      const client = new CurlHttpsClient();
       
       // Generate PKCE parameters
       const codeVerifier = this.generateCodeVerifier();
