@@ -4,7 +4,7 @@ import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
 import { POP3Client, POP3Config } from './pop3-client';
-import { CurlHttpsClient } from './curl-https-client';
+import { PlaywrightHttpsClient } from './playwright-https-client';
 
 /**
  * Type guard to check if an error is an AxiosError
@@ -153,15 +153,15 @@ class RehauAuthPersistent {
    * Authenticate with username and password via form submission
    */
   async login(): Promise<boolean> {
+    // Use Playwright-based HTTPS client (real browser bypasses Cloudflare bot detection)
+    const client = new PlaywrightHttpsClient();
+    
     try {
       // Register email for obfuscation before logging
       registerObfuscation('email', this.email);
       
       logger.info('Authenticating with form-based flow...');
       logger.info(`Email: ${this.email}`);
-      
-      // Use curl-based HTTPS client (bypasses Cloudflare bot detection)
-      const client = new CurlHttpsClient();
       
       // Generate PKCE parameters
       const codeVerifier = this.generateCodeVerifier();
@@ -391,6 +391,9 @@ class RehauAuthPersistent {
         logger.error('Invalid username or password');
       }
       throw error;
+    } finally {
+      // Always cleanup Playwright browser resources
+      await client.cleanup();
     }
   }
 

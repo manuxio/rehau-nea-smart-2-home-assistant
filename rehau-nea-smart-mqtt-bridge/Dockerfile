@@ -11,6 +11,21 @@ RUN if ! command -v node > /dev/null 2>&1; then \
 # Install wget for healthcheck and jq for JSON parsing (needed for HA addon config)
 RUN apk add --no-cache wget jq
 
+# Install Playwright dependencies for Chromium
+# These are required for running headless Chromium browser
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    font-noto-emoji
+
+# Set Playwright to use system-installed Chromium
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 # Set working directory
 WORKDIR /app
 
