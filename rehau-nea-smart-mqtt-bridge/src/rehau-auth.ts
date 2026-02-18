@@ -246,12 +246,17 @@ class RehauAuthPersistent {
         rememberMe: 'true'
       });
       
+      const loginPayloadString = loginData.toString();
+      logger.debug('Login payload length:', loginPayloadString.length);
+      
       let loginResponse: any;
       try {
         logger.debug('About to make login POST request...');
+        const startTime = Date.now();
+        
         loginResponse = await client.post(
           'https://accounts.rehau.com/login-srv/login',
-          loginData.toString(),
+          loginPayloadString,
           {
             maxRedirects: 5,  // Allow redirects for login POST
             headers: {
@@ -264,7 +269,10 @@ class RehauAuthPersistent {
             }
           }
         );
-        logger.debug('Login POST completed successfully');
+        
+        const elapsed = Date.now() - startTime;
+        logger.debug(`Login POST completed in ${elapsed}ms`);
+        logger.debug('Response received, type:', typeof loginResponse);
       } catch (error: any) {
         logger.error('=== LOGIN ERROR ===');
         logger.error('Error message:', error.message);
