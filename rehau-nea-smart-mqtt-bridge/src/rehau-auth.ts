@@ -273,6 +273,9 @@ class RehauAuthPersistent {
         const elapsed = Date.now() - startTime;
         logger.debug(`Login POST completed in ${elapsed}ms`);
         logger.debug('Response received, type:', typeof loginResponse);
+        logger.info(`CRITICAL DEBUG - Response is undefined: ${loginResponse === undefined}`);
+        logger.info(`CRITICAL DEBUG - Response is null: ${loginResponse === null}`);
+        logger.info(`CRITICAL DEBUG - Response truthy: ${!!loginResponse}`);
       } catch (error: any) {
         logger.error('=== LOGIN ERROR ===');
         logger.error('Error message:', error.message);
