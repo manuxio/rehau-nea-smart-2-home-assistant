@@ -1,6 +1,6 @@
 {
   "name": "rehau-nea-smart-mqtt-bridge-typescript",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "MQTT bridge for REHAU NEA SMART 2.0 heating systems with automatic 2FA support (TypeScript)",
   "main": "dist/index.js",
   "scripts": {
@@ -40,11 +40,10 @@
     "node-pop3": "^0.11.0",
     "playwright": "^1.40.0",
     "poplib": "^0.1.7",
-    "tough-cookie": "^6.0.0",
+    "tough-cookie": "^5.0.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
-    "@types/lz-string": "^1.5.0",
     "@types/mailparser": "^3.4.6",
     "@types/node": "^20.10.0",
     "nodemon": "^3.0.1",
