@@ -272,15 +272,20 @@ class RehauAuthPersistent {
       logger.debug('=== LOGIN RESPONSE ===');
       logger.debug('Status:', loginResponse.statusCode);
       logger.debug('Location header:', loginResponse.headers?.location);
+      logger.debug('Final URL:', loginResponse.finalUrl);
       
-      if (loginResponse.statusCode !== 302 && loginResponse.statusCode !== 200) {
+      // Extract authorization code or handle MFA from location header or final URL
+      const finalLoginUrl = loginResponse.headers?.location as string || loginResponse.finalUrl;
+      
+      // Check if we have a valid redirect URL (MFA or auth code)
+      if (!finalLoginUrl || (!finalLoginUrl.includes('/mfa') && !finalLoginUrl.includes('code='))) {
         logger.error('Unexpected login status:', loginResponse.statusCode);
+        logger.error('No valid redirect URL found');
         logger.error('Response body:', loginResponse.body.substring(0, 500));
         throw new Error(`Login failed with status ${loginResponse.statusCode}`);
       }
-
-      // Extract authorization code or handle MFA
-      const finalLoginUrl = loginResponse.headers?.location as string || loginResponse.finalUrl;
+      
+      logger.debug('Login redirect URL obtained:', finalLoginUrl);
       let authCode: string | null = null;
       
       // Check for MFA redirect

@@ -43,7 +43,10 @@ export class NativeHttpsClient {
       port: parsedUrl.port || 443,
       path: parsedUrl.pathname + parsedUrl.search,
       method: options.method || 'GET',
-      headers: options.headers || {}
+      headers: {
+        ...options.headers,
+        ...(options.body ? { 'Content-Length': Buffer.byteLength(options.body) } : {})
+      }
     };
 
     return new Promise((resolve, reject) => {
