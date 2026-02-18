@@ -72,17 +72,17 @@ export class CurlHttpsClient {
           statusCode = parseInt(match[1], 10);
         }
       }
-      // Final URL from curl verbose output
-      else if (line.includes('< Location:')) {
-        finalUrl = line.split('< Location:')[1].trim();
-      }
       // Header line
-      else if (line.includes(':') && !line.startsWith('{') && !line.startsWith('<')) {
+      else if (line.includes(':') && !line.startsWith('{') && !line.startsWith('<') && !line.startsWith('HTTP/')) {
         const colonIndex = line.indexOf(':');
         const key = line.substring(0, colonIndex).trim().toLowerCase();
         const value = line.substring(colonIndex + 1).trim();
         if (key && value) {
           headers[key] = value;
+          // Capture Location header as finalUrl
+          if (key === 'location') {
+            finalUrl = value;
+          }
         }
       }
       // Empty line marks end of headers
