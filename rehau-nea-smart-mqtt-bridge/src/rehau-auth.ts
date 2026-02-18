@@ -287,6 +287,17 @@ class RehauAuthPersistent {
       logger.debug('Location header:', loginResponse?.headers?.location);
       logger.debug('Final URL:', loginResponse?.finalUrl);
       logger.debug('Body length:', loginResponse?.body?.length || 0);
+      logger.debug('All response headers:', JSON.stringify(loginResponse?.headers, null, 2));
+      
+      // Log full body if 403 for debugging
+      if (loginResponse?.statusCode === 403) {
+        logger.error('=== 403 FORBIDDEN DETECTED ===');
+        logger.error('Full response body:', loginResponse.body);
+        logger.error('Content-Type:', loginResponse?.headers?.['content-type']);
+        logger.error('Server:', loginResponse?.headers?.['server']);
+        logger.error('CF-Ray:', loginResponse?.headers?.['cf-ray']);
+        logger.error('All headers:', JSON.stringify(loginResponse?.headers, null, 2));
+      }
       
       // Extract authorization code or handle MFA from location header or final URL
       const finalLoginUrl = (loginResponse?.headers?.location as string) || loginResponse?.finalUrl;
@@ -295,7 +306,7 @@ class RehauAuthPersistent {
       if (!finalLoginUrl || (!finalLoginUrl.includes('/mfa') && !finalLoginUrl.includes('code='))) {
         logger.error('Unexpected login status:', loginResponse.statusCode);
         logger.error('No valid redirect URL found');
-        logger.error('Response body:', loginResponse.body.substring(0, 500));
+        logger.error('Response body preview:', loginResponse.body.substring(0, 1000));
         throw new Error(`Login failed with status ${loginResponse.statusCode}`);
       }
       

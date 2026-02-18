@@ -135,6 +135,7 @@ export class CurlHttpsClient {
     
     try {
       process.stderr.write(`[CurlHttpsClient] Executing: ${curlCommand.substring(0, 200)}...\n`);
+      process.stderr.write(`[CurlHttpsClient] Full command: ${curlCommand}\n`);
       
       const output = execSync(curlCommand, {
         encoding: 'utf-8',
@@ -143,6 +144,15 @@ export class CurlHttpsClient {
       });
 
       const parsed = this.parseResponse(output);
+      
+      process.stderr.write(`[CurlHttpsClient] Response status: ${parsed.statusCode}\n`);
+      process.stderr.write(`[CurlHttpsClient] Response headers: ${JSON.stringify(parsed.headers)}\n`);
+      process.stderr.write(`[CurlHttpsClient] Response body length: ${parsed.body.length} bytes\n`);
+      
+      // Log first 500 chars of body for debugging 403s
+      if (parsed.statusCode === 403) {
+        process.stderr.write(`[CurlHttpsClient] 403 Response body preview: ${parsed.body.substring(0, 500)}\n`);
+      }
       
       // Load cookies from response
       if (parsed.headers['set-cookie']) {
