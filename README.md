@@ -1,5 +1,23 @@
 # REHAU NEA SMART 2.0 - Home Assistant Add-on
 
+```
+              .-.
+             (o.o)
+              |=|
+             __|__
+           //.=|=.\\
+          // .=|=. \\
+          \\ .=|=. //
+           \\(_=_)//
+            (:| |:)
+             || ||
+             () ()
+             || ||
+             || ||
+            ==' '==
+```
+*Dear REHAU: Thanks for the Cloudflare bot detection. Here's what we think of that.*
+
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg?logo=typescript)
 ![Node.js](https://img.shields.io/badge/Node.js-20.14-green.svg?logo=node.js)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg?logo=docker)
@@ -11,16 +29,33 @@ TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with Home A
 
 > **⚠️ DISCLAIMER:** This is an unofficial, community-developed integration. It is **NOT affiliated with, endorsed by, or supported by REHAU AG or REHAU Industries SE & Co. KG**. REHAU® and NEA SMART® are registered trademarks of REHAU. Use this software at your own risk.
 
-> **🚨 BREAKING CHANGE: Version 2.8.0 - 2FA Required**
+> **🚨 BREAKING CHANGES: Version 3.5.0 - The Cloudflare Saga**
 >
-> **REHAU has introduced mandatory email-based 2FA authentication.** This version implements automatic 2FA handling via POP3 email polling.
+> **REHAU deployed aggressive Cloudflare bot protection that blocked all legitimate API access.** After extensive debugging, we discovered they're serving JavaScript challenges that can't be executed by standard HTTP clients. We had to implement a curl-based workaround because curl's TLS fingerprint bypasses their detection.
+>
+> **What REHAU Did:**
+> 1. **Mandatory 2FA** - Introduced email-based 2FA for every login (February 2026)
+> 2. **Cloudflare Bot Protection** - Deployed aggressive bot detection that blocks Node.js HTTPS requests
+> 3. **JavaScript Challenges** - Serves "Just a moment..." pages that standard HTTP clients can't execute
+>
+> **What We Had To Do:**
+> 1. Implement automatic POP3 email polling for 2FA codes
+> 2. Replace the entire HTTP client with curl-based implementation to bypass Cloudflare's TLS fingerprinting
+> 3. Spend countless hours debugging 403 errors in Docker environments
+>
+> **The Technical Details:**
+> - Node.js native `https` module: ❌ Blocked by Cloudflare (403)
+> - Axios library: ❌ Blocked by Cloudflare (403)
+> - curl command-line tool: ✅ Works (bypasses TLS fingerprinting)
+>
+> This is why version 3.5.0 uses curl via child_process instead of proper HTTP libraries. Not our first choice, but REHAU forced our hand.
 >
 > **Required Setup:**
 > 1. Create a POP3 email account (we recommend [GMX.de](https://www.gmx.de) - it's German and free)
 > 2. Set up email forwarding from `noreply@accounts.rehau.com` to your POP3 account
 > 3. Add POP3 credentials to your configuration
 >
-> See [2FA Setup Guide](./rehau-nea-smart-mqtt-bridge/README.md#-breaking-change---version-280-february-2026) for detailed instructions.
+> See [Full Setup Guide](./rehau-nea-smart-mqtt-bridge/README.md#-breaking-changes---version-350-february-2026) for detailed instructions.
 
 ---
 
