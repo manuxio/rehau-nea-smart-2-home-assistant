@@ -325,8 +325,9 @@ class RehauAuthPersistent {
       // Step 2: Wait for verification email
       logger.info('Step 2: Waiting for verification email from REHAU...');
       const timeout = parseInt(process.env.POP3_TIMEOUT || '600000');
+      const fromAddress = process.env.POP3_FROM_ADDRESS || 'noreply@accounts.rehau.com';
       const verificationEmail = await this.pop3Client.waitForNewMessage(
-        'noreply@accounts.rehau.com',
+        fromAddress,
         timeout
       );
       
