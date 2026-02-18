@@ -23,8 +23,9 @@ RUN apk add --no-cache \
     font-noto-emoji
 
 # Set Playwright to use system-installed Chromium
+# Alpine Linux has chromium at /usr/bin/chromium (not chromium-browser)
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Set working directory
 WORKDIR /app

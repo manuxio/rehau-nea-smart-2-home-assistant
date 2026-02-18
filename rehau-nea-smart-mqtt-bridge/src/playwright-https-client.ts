@@ -34,8 +34,12 @@ export class PlaywrightHttpsClient {
     process.stderr.write('[PlaywrightHttpsClient] Initializing Chromium browser...\n');
     
     // Launch browser in headless mode
+    // Use system Chromium if PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is set
+    const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+    
     this.browser = await chromium.launch({
       headless: true,
+      executablePath: executablePath || undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -44,6 +48,10 @@ export class PlaywrightHttpsClient {
         '--disable-features=IsolateOrigins,site-per-process'
       ]
     });
+    
+    if (executablePath) {
+      process.stderr.write(`[PlaywrightHttpsClient] Using system Chromium at: ${executablePath}\n`);
+    }
 
     // Create browser context with realistic settings
     this.context = await this.browser.newContext({
