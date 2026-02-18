@@ -1,6 +1,24 @@
-# Documentazione Aggiuntiva
+# Additional Documentation
 
-Questa cartella contiene documentazione aggiuntiva per il progetto REHAU NEA SMART 2.0 MQTT Bridge.
+```
+              .-.
+             (o.o)
+              |=|
+             __|__
+           //.=|=.\\
+          // .=|=. \\
+          \\ .=|=. //
+           \\(_=_)//
+            (:| |:)
+             || ||
+             () ()
+             || ||
+             || ||
+            ==' '==
+```
+*Dear REHAU: Thanks for the Cloudflare bot detection. This is for you.*
+
+This folder contains additional documentation for the REHAU NEA SMART 2.0 MQTT Bridge project.
 
 ## Documenti Disponibili
 

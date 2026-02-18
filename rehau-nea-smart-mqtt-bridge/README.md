@@ -1,16 +1,51 @@
 # REHAU NEA SMART 2.0 MQTT Bridge
 
+```
+              .-.
+             (o.o)
+              |=|
+             __|__
+           //.=|=.\\
+          // .=|=. \\
+          \\ .=|=. //
+           \\(_=_)//
+            (:| |:)
+             || ||
+             () ()
+             || ||
+             || ||
+            ==' '==
+```
+*Dear REHAU: Thanks for trying to lock us out with Cloudflare bot detection. Here's what we think of that.*
+
 Bridge between REHAU NEA SMART 2.0 heating system and Home Assistant via MQTT.
 
-## 🚨 BREAKING CHANGE - Version 2.8.0 (February 2026)
+## 🚨 BREAKING CHANGES - Version 3.5.0 (February 2026)
 
-**REHAU has introduced mandatory email-based 2FA authentication.** This requires additional setup to continue using the bridge.
+### The REHAU Cloudflare Saga
+
+**TL;DR**: REHAU deployed aggressive Cloudflare bot protection that blocked all legitimate API access. After extensive debugging, we discovered they're serving JavaScript challenges that can't be executed by standard HTTP clients. We had to implement a curl-based workaround because curl's TLS fingerprint bypasses their detection.
+
+**What REHAU Did:**
+1. **Mandatory 2FA** - Introduced email-based 2FA for every login (February 2026)
+2. **Cloudflare Bot Protection** - Deployed aggressive bot detection that blocks Node.js HTTPS requests
+3. **JavaScript Challenges** - Serves "Just a moment..." pages with JavaScript challenges that standard HTTP clients can't execute
+
+**What We Had To Do:**
+1. Implement automatic POP3 email polling for 2FA codes
+2. Replace the entire HTTP client with curl-based implementation to bypass Cloudflare's TLS fingerprinting
+3. Spend countless hours debugging 403 errors in Docker environments
+
+**The Technical Details:**
+- Node.js native `https` module: ❌ Blocked by Cloudflare (403)
+- Axios library: ❌ Blocked by Cloudflare (403)
+- curl command-line tool: ✅ Works (bypasses TLS fingerprinting)
+
+This is why version 3.5.0 uses curl via child_process instead of proper HTTP libraries. Not our first choice, but REHAU forced our hand.
 
 ### What Changed?
 
 REHAU now requires email-based two-factor authentication for every login. The bridge automatically handles this by polling a POP3 email account for verification codes.
-
-### Required Setup
 
 #### 1. Create a POP3 Email Account
 
