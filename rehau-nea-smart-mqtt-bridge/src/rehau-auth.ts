@@ -150,17 +150,17 @@ class RehauAuthPersistent {
   }
 
   /**
-   * Authenticate with username and password via form submission
+   * Authenticate with username and password via Playwright browser automation
    */
   async login(): Promise<boolean> {
-    // Use Playwright-based HTTPS client (real browser bypasses Cloudflare bot detection)
+    // Use Playwright for interactive browser-based authentication
     const client = new PlaywrightHttpsClient();
     
     try {
       // Register email for obfuscation before logging
       registerObfuscation('email', this.email);
       
-      logger.info('Authenticating with form-based flow...');
+      logger.info('=== Starting Playwright-based authentication ===');
       logger.info(`Email: ${this.email}`);
       
       // Generate PKCE parameters
@@ -172,8 +172,8 @@ class RehauAuthPersistent {
       const redirectUri = 'https://rehau-smartheating-email-gallery-public.s3.eu-central-1.amazonaws.com/publicimages/preprod/rehau.jpg';
       const scope = 'email roles profile offline_access groups';
 
-      // Step 1: Get authorization page
-      logger.debug('Step 1: Initiating OAuth flow...');
+      // Step 1: Build OAuth authorization URL
+      logger.info('Step 1: Building OAuth authorization URL...');
       const authParams = new URLSearchParams({
         client_id: clientId,
         scope: scope,
@@ -185,176 +185,75 @@ class RehauAuthPersistent {
       });
 
       const authUrl = `https://accounts.rehau.com/authz-srv/authz?${authParams.toString()}`;
+      logger.info(`Authorization URL generated: ${authUrl}`);
       
-      logger.debug('Making auth request with native HTTPS client...');
+      // Step 2: Navigate to authorization URL
+      logger.info('Step 2: Navigating to authorization page...');
+      await client.navigate(authUrl);
+      logger.info('Authorization page loaded');
       
-      // Add small delay to avoid triggering Cloudflare rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Step 3: Wait for login form elements
+      logger.info('Step 3: Waiting for login form elements...');
+      await client.waitForElementById('email', 30000);
+      await client.waitForElementById('password', 30000);
+      logger.info('Login form elements found');
       
-      const authResponse = await client.get(authUrl, {
-        maxRedirects: 5,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Connection': 'close'
-        }
-      });
+      // Step 4: Fill in credentials
+      logger.info('Step 4: Filling in credentials...');
+      await client.typeById('email', this.email);
+      logger.info('Email entered');
+      await client.typeById('password', this.password);
+      logger.info('Password entered');
       
-      logger.debug(`Auth response status: ${authResponse.statusCode}`);
-      logger.debug(`Auth response final URL: ${authResponse.finalUrl}`);
+      // Step 5: Submit login form
+      logger.info('Step 5: Submitting login form...');
+      await client.clickSubmit();
+      logger.info('Login form submitted');
       
-      // Extract requestId from final URL - if we have it, the redirect worked even if status is 403
-      const requestIdMatch = authResponse.finalUrl.match(/[?&]requestId=([^&]+)/);
+      // Step 6: Wait for either MFA code input or redirect to final URL
+      logger.info('Step 6: Waiting for response (MFA or redirect)...');
       
-      if (!requestIdMatch) {
-        // Only fail if we don't have a requestId
-        logger.error(`Auth failed with status ${authResponse.statusCode}`);
-        logger.error(`Response body preview: ${authResponse.body.substring(0, 200)}`);
-        throw new Error('Failed to extract requestId from authorization flow');
-      }
-      
-      // Debug: Check if cookies were set
-      logger.debug('Auth response set-cookie headers:', authResponse.headers['set-cookie']);
-      
-      // We have a requestId, so the OAuth flow succeeded even if final page returned 403
-      logger.debug('OAuth redirect successful - requestId obtained despite 403 status');
-      const requestId = requestIdMatch[1];
-      logger.debug(`RequestId obtained: ${requestId}`);
-
-      logger.debug('Step 2: Submitting credentials...');
-      
-      // Step 2: Submit login form
-      const loginData = new URLSearchParams({
-        username: this.email,
-        username_type: 'email',
-        password: this.password,
-        requestId: requestId,
-        rememberMe: 'true'
-      });
-
-      logger.debug('=== LOGIN REQUEST ===');
-      logger.debug('URL: POST https://accounts.rehau.com/login-srv/login');
-      logger.debug('Payload:', loginData.toString());
-      logger.debug('Payload fields:', {
-        username: this.email,
-        username_type: 'email',
-        password: '***',
-        requestId: requestId,
-        rememberMe: 'true'
-      });
-      
-      const loginPayloadString = loginData.toString();
-      logger.debug('Login payload length:', loginPayloadString.length);
-      
-      let loginResponse: any;
-      try {
-        logger.debug('About to make login POST request...');
-        const startTime = Date.now();
-        
-        loginResponse = await client.post(
-          'https://accounts.rehau.com/login-srv/login',
-          loginPayloadString,
-          {
-            maxRedirects: 5,  // Allow redirects for login POST
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              'Origin': 'https://accounts.rehau.com',
-              'Referer': `https://accounts.rehau.com/rehau-ui/login?requestId=${requestId}&view_type=login`,
-              'Connection': 'close'
-            }
-          }
-        );
-        
-        const elapsed = Date.now() - startTime;
-        logger.debug(`Login POST completed in ${elapsed}ms`);
-        logger.debug('Response received, type:', typeof loginResponse);
-        logger.info(`CRITICAL DEBUG - Response is undefined: ${loginResponse === undefined}`);
-        logger.info(`CRITICAL DEBUG - Response is null: ${loginResponse === null}`);
-        logger.info(`CRITICAL DEBUG - Response truthy: ${!!loginResponse}`);
-      } catch (error: any) {
-        logger.error('=== LOGIN ERROR ===');
-        logger.error('Error message:', error.message);
-        logger.error('Error stack:', error.stack);
-        throw error;
-      }
-      
-      logger.debug('=== LOGIN RESPONSE ===');
-      logger.debug('Full response object:', JSON.stringify(loginResponse, null, 2));
-      logger.debug('Status:', loginResponse?.statusCode);
-      logger.debug('Location header:', loginResponse?.headers?.location);
-      logger.debug('Final URL:', loginResponse?.finalUrl);
-      logger.debug('Body length:', loginResponse?.body?.length || 0);
-      logger.debug('All response headers:', JSON.stringify(loginResponse?.headers, null, 2));
-      
-      // Log full body if 403 for debugging
-      if (loginResponse?.statusCode === 403) {
-        logger.error('=== 403 FORBIDDEN DETECTED ===');
-        logger.error('Full response body:', loginResponse.body);
-        logger.error('Content-Type:', loginResponse?.headers?.['content-type']);
-        logger.error('Server:', loginResponse?.headers?.['server']);
-        logger.error('CF-Ray:', loginResponse?.headers?.['cf-ray']);
-        logger.error('All headers:', JSON.stringify(loginResponse?.headers, null, 2));
-      }
-      
-      // Extract authorization code or handle MFA from location header or final URL
-      const finalLoginUrl = (loginResponse?.headers?.location as string) || loginResponse?.finalUrl;
-      
-      // Check if we have a valid redirect URL (MFA or auth code)
-      if (!finalLoginUrl || (!finalLoginUrl.includes('/mfa') && !finalLoginUrl.includes('code='))) {
-        logger.error('Unexpected login status:', loginResponse.statusCode);
-        logger.error('No valid redirect URL found');
-        logger.error('Response body preview:', loginResponse.body.substring(0, 1000));
-        throw new Error(`Login failed with status ${loginResponse.statusCode}`);
-      }
-      
-      logger.debug('Login redirect URL obtained:', finalLoginUrl);
       let authCode: string | null = null;
       
-      // Check for MFA redirect
-      if (finalLoginUrl && finalLoginUrl.includes('/rehau-ui/mfa')) {
-        logger.info('MFA required - initiating automated 2FA flow');
+      try {
+        // Try to wait for MFA code input (with shorter timeout)
+        logger.info('Checking for MFA requirement...');
+        await client.waitForElementById('code', 10000);
+        logger.info('MFA required - 2FA code input detected');
         
-        // Extract MFA parameters from URL
-        const url = new URL(finalLoginUrl);
-        const trackId = url.searchParams.get('track_id');
-        const sub = url.searchParams.get('sub');
-        const mfaRequestId = url.searchParams.get('requestId');
+        // Step 7: Handle MFA flow
+        logger.info('Step 7: Handling MFA flow...');
+        authCode = await this.handleMfaFlowWithPlaywright(client);
         
-        if (!trackId || !sub || !mfaRequestId) {
-          throw new Error('Failed to extract MFA parameters from redirect URL');
-        }
+      } catch (error: any) {
+        // No MFA required - check if we already have the redirect
+        logger.info('No MFA required or already redirected');
+        const currentUrl = client.getCurrentUrl();
+        logger.info(`Current URL: ${currentUrl}`);
         
-        logger.debug(`MFA Parameters: track_id=${trackId}, sub=${sub}, requestId=${mfaRequestId}`);
-        
-        // Handle MFA flow with POP3 using the client with cookie jar
-        authCode = await this.handleMfaFlowWithPOP3(trackId, sub, mfaRequestId, client);
-      } else {
-        // Original flow - extract auth code directly
-        if (finalLoginUrl) {
-          const codeMatch = finalLoginUrl.match(/[?&]code=([^&]+)/);
-          if (codeMatch) {
-            authCode = codeMatch[1];
-          }
-        }
-        
-        if (!authCode && loginResponse.headers.location) {
-          const location = loginResponse.headers.location as string;
-          const url = new URL(location, 'https://accounts.rehau.com');
+        if (currentUrl.startsWith(redirectUri)) {
+          // Already redirected - extract code
+          const url = new URL(currentUrl);
           authCode = url.searchParams.get('code');
+          logger.info('Authorization code extracted from redirect URL');
+        } else {
+          // Wait for redirect to happen
+          logger.info('Waiting for redirect to final URL...');
+          const finalUrl = await client.waitForUrlPrefix(redirectUri, 60000);
+          const url = new URL(finalUrl);
+          authCode = url.searchParams.get('code');
+          logger.info('Authorization code extracted after redirect');
         }
-        
-        if (!authCode) {
-          throw new Error('No authorization code found - check credentials');
-        }
-
-        logger.debug('Authorization code obtained');
       }
+      
+      if (!authCode) {
+        throw new Error('Failed to obtain authorization code');
+      }
+      
+      logger.info(`Authorization code obtained: ${authCode.substring(0, 8)}...`);
 
-      // Step 3: Exchange code for tokens
-      logger.debug('Step 3: Exchanging code for tokens...');
+      // Step 8: Exchange code for tokens
+      logger.info('Step 8: Exchanging authorization code for tokens...');
       const tokenPayload = {
         grant_type: 'authorization_code',
         client_id: clientId,
@@ -363,9 +262,10 @@ class RehauAuthPersistent {
         code: authCode
       };
       
-      const tokenResponse = await client.post(
+      // Use axios for token exchange (simpler than Playwright for this)
+      const tokenResponse = await axios.post(
         'https://accounts.rehau.com/token-srv/token',
-        JSON.stringify(tokenPayload),
+        tokenPayload,
         {
           headers: {
             'Content-Type': 'application/json'
@@ -377,174 +277,53 @@ class RehauAuthPersistent {
       this.refreshToken = tokenResponse.data.refresh_token;
       this.tokenExpiry = Date.now() + (tokenResponse.data.expires_in * 1000);
 
-      logger.debug('Tokens obtained');
+      logger.info('Tokens obtained successfully');
 
-      // Get user info
+      // Step 9: Get user info
+      logger.info('Step 9: Fetching user information...');
       await this.getUserInfo();
 
-      logger.info('Authentication successful');
+      logger.info('=== Authentication completed successfully ===');
       return true;
     } catch (error) {
       const axiosError = error as { response?: { data?: unknown; status?: number }; message: string };
-      logger.error('Authentication failed:', axiosError.response?.data || axiosError.message);
+      logger.error('=== Authentication failed ===');
+      logger.error('Error:', axiosError.response?.data || axiosError.message);
       if (axiosError.response?.status === 401) {
         logger.error('Invalid username or password');
       }
       throw error;
     } finally {
-      // Always cleanup Playwright browser resources
+      // Always cleanup Playwright browser resources to reduce RAM footprint
+      logger.info('Cleaning up browser resources...');
       await client.cleanup();
+      logger.info('Browser closed');
     }
   }
 
   /**
-   * Handle MFA flow with POP3 email polling
+   * Handle MFA flow with Playwright and POP3 email polling
    */
-  private async handleMfaFlowWithPOP3(
-    trackId: string,
-    sub: string,
-    requestId: string,
-    client: any
-  ): Promise<string> {
-    logger.info('Starting automated MFA flow with POP3 email polling');
+  private async handleMfaFlowWithPlaywright(client: PlaywrightHttpsClient): Promise<string> {
+    logger.info('=== Starting MFA flow with Playwright ===');
     
     if (!this.pop3Client) {
       throw new Error(
         'POP3 client not configured. Please set POP3_EMAIL, POP3_PASSWORD, ' +
-        'and other POP3_* environment variables.'
+        'and other POP3_* environment variables for automated 2FA.'
       );
     }
     
     try {
-      // Step 1: Get current email count
-      logger.debug('Step 1: Getting current email count...');
+      const redirectUri = 'https://rehau-smartheating-email-gallery-public.s3.eu-central-1.amazonaws.com/publicimages/preprod/rehau.jpg';
+      
+      // Step 1: Get current email count (baseline)
+      logger.info('Step 1: Getting current email count...');
       await this.pop3Client.getMessageCount();
+      logger.info('Baseline email count established');
       
-      // Step 1.5: Visit the MFA page to establish session context
-      logger.debug('=== VISITING MFA PAGE ===');
-      const mfaPageUrl = `https://accounts.rehau.com/rehau-ui/mfa?track_id=${trackId}&sub=${sub}&q=${sub}&requestId=${requestId}`;
-      logger.debug('URL: GET', mfaPageUrl);
-      
-      await client.get(mfaPageUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Referer': `https://accounts.rehau.com/login-srv/login`
-        }
-      });
-      
-      logger.debug('MFA page visited successfully');
-      
-      // Step 2: Check configured MFA methods
-      logger.debug('=== CONFIGURED METHODS REQUEST ===');
-      logger.debug('URL: POST https://accounts.rehau.com/verification-srv/v2/setup/public/configured/list');
-      const configuredPayload = { request_id: requestId, sub: sub };
-      logger.debug('Payload:', JSON.stringify(configuredPayload));
-      
-      let configuredResponse;
-      try {
-        configuredResponse = await client.post(
-          'https://accounts.rehau.com/verification-srv/v2/setup/public/configured/list',
-          JSON.stringify(configuredPayload),
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Accept': 'application/json, text/plain, */*',
-              'Origin': 'https://accounts.rehau.com',
-              'Referer': `https://accounts.rehau.com/rehau-ui/mfa?track_id=${trackId}&sub=${sub}&q=${sub}&requestId=${requestId}`
-            }
-          }
-        );
-      } catch (error: any) {
-        logger.error('=== CONFIGURED METHODS ERROR ===');
-        logger.error('Error message:', error.message);
-        logger.error('Error response status:', error.response?.status);
-        logger.error('Error response data:', JSON.stringify(error.response?.data));
-        throw error;
-      }
-      
-      logger.debug('=== CONFIGURED METHODS RESPONSE ===');
-      logger.debug('Response object exists:', !!configuredResponse);
-      logger.debug('HTTP Status:', String(configuredResponse.status));
-      
-      // Log the entire response structure
-      const responseData = configuredResponse.data;
-      logger.debug('Response data exists:', !!responseData);
-      
-      if (responseData) {
-        logger.debug('Configured methods response received', { success: responseData.success, status: responseData.status });
-      }
-      
-      // Extract medium_id from response - the actual data is in response.data.data
-      const actualData = configuredResponse.data?.data || configuredResponse.data;
-      const mediumId = this.extractMediumId(actualData);
-      logger.debug(`Medium ID: ${mediumId}`);
-      
-      // Step 3: Initiate email verification
-      logger.debug('=== INITIATE EMAIL REQUEST ===');
-      logger.debug('URL: POST https://accounts.rehau.com/verification-srv/v2/authenticate/initiate/email');
-      const initiatePayload = {
-        sub: sub,
-        medium_id: mediumId,
-        request_id: requestId,
-        usage_type: 'MULTIFACTOR_AUTHENTICATION'
-      };
-      logger.debug('Payload:', JSON.stringify(initiatePayload));
-      
-      let initiateResponse;
-      try {
-        initiateResponse = await client.post(
-          'https://accounts.rehau.com/verification-srv/v2/authenticate/initiate/email',
-          JSON.stringify(initiatePayload),
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Accept': 'application/json, text/plain, */*',
-              'Origin': 'https://accounts.rehau.com',
-              'Referer': `https://accounts.rehau.com/rehau-ui/mfa?track_id=${trackId}&sub=${sub}&q=${sub}&requestId=${requestId}`
-            }
-          }
-        );
-      } catch (error: any) {
-        logger.error('=== INITIATE EMAIL ERROR ===');
-        logger.error('Error message:', error.message);
-        logger.error('Error response status:', error.response?.status);
-        logger.error('Error response data:', JSON.stringify(error.response?.data));
-        throw error;
-      }
-      
-      logger.debug('=== INITIATE EMAIL RESPONSE ===');
-      logger.debug('Status:', initiateResponse.status);
-      logger.debug('Initiate response data:', JSON.stringify(initiateResponse.data));
-      
-      const exchangeId = this.extractExchangeId(initiateResponse.data);
-      logger.debug(`Exchange ID: ${exchangeId}`);
-      logger.info('Verification email sent. Waiting for email...');
-      
-      // Step 3.5: Visit the MFA verify page to establish session
-      logger.debug('=== VISITING MFA VERIFY PAGE ===');
-      const mfaVerifyUrl = `https://accounts.rehau.com/rehau-ui/mfaverify/${exchangeId}/email/${sub}/${mediumId}/${requestId}`;
-      logger.debug('MFA verify URL:', mfaVerifyUrl);
-      
-      try {
-        const verifyPageResponse = await client.get(mfaVerifyUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Referer': `https://accounts.rehau.com/rehau-ui/mfa?track_id=${trackId}&sub=${sub}&q=${sub}&requestId=${requestId}`
-          }
-        });
-        logger.debug('MFA verify page visited successfully, status:', verifyPageResponse.status);
-      } catch (error: any) {
-        logger.error('Failed to visit MFA verify page:', error.message);
-        logger.error('Response status:', error.response?.status);
-        throw error;
-      }
-      
-      // Step 4: Wait for verification email
-      logger.debug('Step 4: Polling POP3 for verification email...');
+      // Step 2: Wait for verification email
+      logger.info('Step 2: Waiting for verification email from REHAU...');
       const timeout = parseInt(process.env.POP3_TIMEOUT || '600000');
       const verificationEmail = await this.pop3Client.waitForNewMessage(
         'noreply@accounts.rehau.com',
@@ -557,8 +336,8 @@ class RehauAuthPersistent {
       
       logger.info('Verification email received');
       
-      // Step 5: Extract verification code
-      logger.debug('Step 5: Extracting verification code from email...');
+      // Step 3: Extract verification code from email
+      logger.info('Step 3: Extracting verification code from email...');
       const verificationCode = this.pop3Client.extractVerificationCode(
         verificationEmail.body
       );
@@ -569,89 +348,38 @@ class RehauAuthPersistent {
       
       logger.info(`Verification code extracted: ${verificationCode}`);
       
-      // Step 6: Verify the code
-      logger.debug('=== VERIFY CODE REQUEST ===');
-      logger.debug('URL: POST https://accounts.rehau.com/verification-srv/v2/authenticate/authenticate/email');
+      // Step 4: Enter verification code in browser
+      logger.info('Step 4: Entering verification code in browser...');
+      await client.typeById('code', verificationCode);
+      logger.info('Verification code entered');
       
-      const verifyPayload = {
-        pass_code: verificationCode,
-        exchange_id: exchangeId,
-        sub: sub
-      };
-      logger.debug('Verify code payload:', JSON.stringify(verifyPayload));
+      // Step 5: Submit verification form
+      logger.info('Step 5: Submitting verification form...');
+      await client.clickSubmit();
+      logger.info('Verification form submitted');
       
-      let verifyResponse;
-      try {
-        verifyResponse = await client.post(
-          'https://accounts.rehau.com/verification-srv/v2/authenticate/authenticate/email',
-          JSON.stringify(verifyPayload),
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-              'Accept': '*/*',
-              'Origin': 'https://accounts.rehau.com',
-              'Referer': `https://accounts.rehau.com/rehau-ui/mfaverify/${exchangeId}/email/${sub}/${mediumId}/${requestId}`
-            }
-          }
-        );
-      } catch (error: any) {
-        logger.error('=== VERIFY CODE ERROR ===');
-        logger.error('Error message:', error.message);
-        logger.error('Error response status:', error.response?.status);
-        logger.error('Error response data:', JSON.stringify(error.response?.data));
-        throw new Error(`Failed to verify code: ${error.response?.data?.error?.error || error.message}`);
-      }
+      // Step 6: Wait for redirect to final URL with authorization code
+      logger.info('Step 6: Waiting for redirect to final URL...');
+      const finalUrl = await client.waitForUrlPrefix(redirectUri, 60000);
+      logger.info(`Redirected to: ${finalUrl}`);
       
-      logger.debug('=== VERIFY CODE RESPONSE ===');
-      logger.debug('Verify response:', JSON.stringify(verifyResponse.data));
-      
-      const statusId = verifyResponse.data?.data?.status_id || verifyResponse.data?.status_id;
-      if (!statusId) {
-        logger.error('No status_id in verify response:', JSON.stringify(verifyResponse.data));
-        throw new Error('Failed to get status_id from verify response');
-      }
-      logger.debug(`Status ID: ${statusId}`);
-      
-      // Step 7: Complete authentication with form POST
-      logger.debug('Step 7: Completing authentication...');
-      const continueParams = new URLSearchParams({
-        status_id: statusId,
-        track_id: trackId,
-        requestId: requestId,
-        sub: sub,
-        verificationType: 'EMAIL'
-      });
-      
-      const continueResponse = await client.post(
-        `https://accounts.rehau.com/login-srv/precheck/continue/${trackId}`,
-        continueParams.toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          maxRedirects: 5
-        }
-      );
-      
-      // Step 8: Extract authorization code from final URL
-      logger.debug('Step 8: Extracting authorization code...');
-      logger.debug('Continue response status:', continueResponse.statusCode);
-      logger.debug('Final URL:', continueResponse.finalUrl);
-      
-      const finalUrl = new URL(continueResponse.finalUrl);
-      const authCode = finalUrl.searchParams.get('code');
+      // Step 7: Extract authorization code from URL
+      logger.info('Step 7: Extracting authorization code from URL...');
+      const url = new URL(finalUrl);
+      const authCode = url.searchParams.get('code');
       
       if (!authCode) {
-        logger.error('No authorization code in final URL:', continueResponse.finalUrl);
         throw new Error('No authorization code found in redirect URL');
       }
       
-      logger.info('MFA flow completed successfully');
+      logger.info(`Authorization code obtained: ${authCode.substring(0, 8)}...`);
+      logger.info('=== MFA flow completed successfully ===');
+      
       return authCode;
       
     } catch (error) {
-      logger.error('MFA flow failed:', error);
+      logger.error('=== MFA flow failed ===');
+      logger.error('Error:', error);
       throw error;
     } finally {
       // Cleanup POP3 connection
@@ -662,53 +390,319 @@ class RehauAuthPersistent {
   }
 
   /**
+   * Handle MFA flow with POP3 email polling (legacy method for non-Playwright flows)
+   * @deprecated This method is no longer used by the Playwright-based login flow
+   * Kept for reference and potential fallback scenarios
+   */
+  // private async handleMfaFlowWithPOP3(
+  //   trackId: string,
+  //   sub: string,
+  //   requestId: string,
+  //   client: any
+  // ): Promise<string> {
+  //   logger.info('Starting automated MFA flow with POP3 email polling');
+    
+  //   if (!this.pop3Client) {
+  //     throw new Error(
+  //       'POP3 client not configured. Please set POP3_EMAIL, POP3_PASSWORD, ' +
+  //       'and other POP3_* environment variables.'
+  //     );
+  //   }
+    
+  //   try {
+  //     // Step 1: Get current email count
+  //     logger.debug('Step 1: Getting current email count...');
+  //     await this.pop3Client.getMessageCount();
+      
+  //     // Step 1.5: Visit the MFA page to establish session context
+  //     logger.debug('=== VISITING MFA PAGE ===');
+  //     const mfaPageUrl = `https://accounts.rehau.com/rehau-ui/mfa?track_id=${trackId}&sub=${sub}&q=${sub}&requestId=${requestId}`;
+  //     logger.debug('URL: GET', mfaPageUrl);
+      
+  //     await client.get(mfaPageUrl, {
+  //       headers: {
+  //         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  //         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  //         'Referer': `https://accounts.rehau.com/login-srv/login`
+  //       }
+  //     });
+      
+  //     logger.debug('MFA page visited successfully');
+      
+  //     // Step 2: Check configured MFA methods
+  //     logger.debug('=== CONFIGURED METHODS REQUEST ===');
+  //     logger.debug('URL: POST https://accounts.rehau.com/verification-srv/v2/setup/public/configured/list');
+  //     const configuredPayload = { request_id: requestId, sub: sub };
+  //     logger.debug('Payload:', JSON.stringify(configuredPayload));
+      
+  //     let configuredResponse;
+  //     try {
+  //       configuredResponse = await client.post(
+  //         'https://accounts.rehau.com/verification-srv/v2/setup/public/configured/list',
+  //         JSON.stringify(configuredPayload),
+  //         {
+  //           headers: {
+  //             'Content-Type': 'application/json',
+  //             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  //             'Accept': 'application/json, text/plain, */*',
+  //             'Origin': 'https://accounts.rehau.com',
+  //             'Referer': `https://accounts.rehau.com/rehau-ui/mfa?track_id=${trackId}&sub=${sub}&q=${sub}&requestId=${requestId}`
+  //           }
+  //         }
+  //       );
+  //     } catch (error: any) {
+  //       logger.error('=== CONFIGURED METHODS ERROR ===');
+  //       logger.error('Error message:', error.message);
+  //       logger.error('Error response status:', error.response?.status);
+  //       logger.error('Error response data:', JSON.stringify(error.response?.data));
+  //       throw error;
+  //     }
+      
+  //     logger.debug('=== CONFIGURED METHODS RESPONSE ===');
+  //     logger.debug('Response object exists:', !!configuredResponse);
+  //     logger.debug('HTTP Status:', String(configuredResponse.status));
+      
+  //     // Log the entire response structure
+  //     const responseData = configuredResponse.data;
+  //     logger.debug('Response data exists:', !!responseData);
+      
+  //     if (responseData) {
+  //       logger.debug('Configured methods response received', { success: responseData.success, status: responseData.status });
+  //     }
+      
+  //     // Extract medium_id from response - the actual data is in response.data.data
+  //     const actualData = configuredResponse.data?.data || configuredResponse.data;
+  //     const mediumId = this.extractMediumId(actualData);
+  //     logger.debug(`Medium ID: ${mediumId}`);
+      
+  //     // Step 3: Initiate email verification
+  //     logger.debug('=== INITIATE EMAIL REQUEST ===');
+  //     logger.debug('URL: POST https://accounts.rehau.com/verification-srv/v2/authenticate/initiate/email');
+  //     const initiatePayload = {
+  //       sub: sub,
+  //       medium_id: mediumId,
+  //       request_id: requestId,
+  //       usage_type: 'MULTIFACTOR_AUTHENTICATION'
+  //     };
+  //     logger.debug('Payload:', JSON.stringify(initiatePayload));
+      
+  //     let initiateResponse;
+  //     try {
+  //       initiateResponse = await client.post(
+  //         'https://accounts.rehau.com/verification-srv/v2/authenticate/initiate/email',
+  //         JSON.stringify(initiatePayload),
+  //         {
+  //           headers: {
+  //             'Content-Type': 'application/json',
+  //             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  //             'Accept': 'application/json, text/plain, */*',
+  //             'Origin': 'https://accounts.rehau.com',
+  //             'Referer': `https://accounts.rehau.com/rehau-ui/mfa?track_id=${trackId}&sub=${sub}&q=${sub}&requestId=${requestId}`
+  //           }
+  //         }
+  //       );
+  //     } catch (error: any) {
+  //       logger.error('=== INITIATE EMAIL ERROR ===');
+  //       logger.error('Error message:', error.message);
+  //       logger.error('Error response status:', error.response?.status);
+  //       logger.error('Error response data:', JSON.stringify(error.response?.data));
+  //       throw error;
+  //     }
+      
+  //     logger.debug('=== INITIATE EMAIL RESPONSE ===');
+  //     logger.debug('Status:', initiateResponse.status);
+  //     logger.debug('Initiate response data:', JSON.stringify(initiateResponse.data));
+      
+  //     const exchangeId = this.extractExchangeId(initiateResponse.data);
+  //     logger.debug(`Exchange ID: ${exchangeId}`);
+  //     logger.info('Verification email sent. Waiting for email...');
+      
+  //     // Step 3.5: Visit the MFA verify page to establish session
+  //     logger.debug('=== VISITING MFA VERIFY PAGE ===');
+  //     const mfaVerifyUrl = `https://accounts.rehau.com/rehau-ui/mfaverify/${exchangeId}/email/${sub}/${mediumId}/${requestId}`;
+  //     logger.debug('MFA verify URL:', mfaVerifyUrl);
+      
+  //     try {
+  //       const verifyPageResponse = await client.get(mfaVerifyUrl, {
+  //         headers: {
+  //           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  //           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  //           'Referer': `https://accounts.rehau.com/rehau-ui/mfa?track_id=${trackId}&sub=${sub}&q=${sub}&requestId=${requestId}`
+  //         }
+  //       });
+  //       logger.debug('MFA verify page visited successfully, status:', verifyPageResponse.status);
+  //     } catch (error: any) {
+  //       logger.error('Failed to visit MFA verify page:', error.message);
+  //       logger.error('Response status:', error.response?.status);
+  //       throw error;
+  //     }
+      
+  //     // Step 4: Wait for verification email
+  //     logger.debug('Step 4: Polling POP3 for verification email...');
+  //     const timeout = parseInt(process.env.POP3_TIMEOUT || '600000');
+  //     const verificationEmail = await this.pop3Client.waitForNewMessage(
+  //       'noreply@accounts.rehau.com',
+  //       timeout
+  //     );
+      
+  //     if (!verificationEmail) {
+  //       throw new Error('Timeout waiting for verification email');
+  //     }
+      
+  //     logger.info('Verification email received');
+      
+  //     // Step 5: Extract verification code
+  //     logger.debug('Step 5: Extracting verification code from email...');
+  //     const verificationCode = this.pop3Client.extractVerificationCode(
+  //       verificationEmail.body
+  //     );
+      
+  //     if (!verificationCode) {
+  //       throw new Error('Failed to extract verification code from email');
+  //     }
+      
+  //     logger.info(`Verification code extracted: ${verificationCode}`);
+      
+  //     // Step 6: Verify the code
+  //     logger.debug('=== VERIFY CODE REQUEST ===');
+  //     logger.debug('URL: POST https://accounts.rehau.com/verification-srv/v2/authenticate/authenticate/email');
+      
+  //     const verifyPayload = {
+  //       pass_code: verificationCode,
+  //       exchange_id: exchangeId,
+  //       sub: sub
+  //     };
+  //     logger.debug('Verify code payload:', JSON.stringify(verifyPayload));
+      
+  //     let verifyResponse;
+  //     try {
+  //       verifyResponse = await client.post(
+  //         'https://accounts.rehau.com/verification-srv/v2/authenticate/authenticate/email',
+  //         JSON.stringify(verifyPayload),
+  //         {
+  //           headers: {
+  //             'Content-Type': 'application/json',
+  //             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+  //             'Accept': '*/*',
+  //             'Origin': 'https://accounts.rehau.com',
+  //             'Referer': `https://accounts.rehau.com/rehau-ui/mfaverify/${exchangeId}/email/${sub}/${mediumId}/${requestId}`
+  //           }
+  //         }
+  //       );
+  //     } catch (error: any) {
+  //       logger.error('=== VERIFY CODE ERROR ===');
+  //       logger.error('Error message:', error.message);
+  //       logger.error('Error response status:', error.response?.status);
+  //       logger.error('Error response data:', JSON.stringify(error.response?.data));
+  //       throw new Error(`Failed to verify code: ${error.response?.data?.error?.error || error.message}`);
+  //     }
+      
+  //     logger.debug('=== VERIFY CODE RESPONSE ===');
+  //     logger.debug('Verify response:', JSON.stringify(verifyResponse.data));
+      
+  //     const statusId = verifyResponse.data?.data?.status_id || verifyResponse.data?.status_id;
+  //     if (!statusId) {
+  //       logger.error('No status_id in verify response:', JSON.stringify(verifyResponse.data));
+  //       throw new Error('Failed to get status_id from verify response');
+  //     }
+  //     logger.debug(`Status ID: ${statusId}`);
+      
+  //     // Step 7: Complete authentication with form POST
+  //     logger.debug('Step 7: Completing authentication...');
+  //     const continueParams = new URLSearchParams({
+  //       status_id: statusId,
+  //       track_id: trackId,
+  //       requestId: requestId,
+  //       sub: sub,
+  //       verificationType: 'EMAIL'
+  //     });
+      
+  //     const continueResponse = await client.post(
+  //       `https://accounts.rehau.com/login-srv/precheck/continue/${trackId}`,
+  //       continueParams.toString(),
+  //       {
+  //         headers: {
+  //           'Content-Type': 'application/x-www-form-urlencoded'
+  //         },
+  //         maxRedirects: 5
+  //       }
+  //     );
+      
+  //     // Step 8: Extract authorization code from final URL
+  //     logger.debug('Step 8: Extracting authorization code...');
+  //     logger.debug('Continue response status:', continueResponse.statusCode);
+  //     logger.debug('Final URL:', continueResponse.finalUrl);
+      
+  //     const finalUrl = new URL(continueResponse.finalUrl);
+  //     const authCode = finalUrl.searchParams.get('code');
+      
+  //     if (!authCode) {
+  //       logger.error('No authorization code in final URL:', continueResponse.finalUrl);
+  //       throw new Error('No authorization code found in redirect URL');
+  //     }
+      
+  //     logger.info('MFA flow completed successfully');
+  //     return authCode;
+      
+  //   } catch (error) {
+  //     logger.error('MFA flow failed:', error);
+  //     throw error;
+  //   } finally {
+  //     // Cleanup POP3 connection
+  //     if (this.pop3Client) {
+  //       await this.pop3Client.disconnect();
+  //     }
+  //   }
+  // }
+
+  /**
    * Extract medium_id from configured MFA methods response
    */
-  private extractMediumId(responseData: any): string {
-    logger.debug('Extracting medium_id from configured methods');
+  // private extractMediumId(responseData: any): string {
+  //   logger.debug('Extracting medium_id from configured methods');
     
-    // The actual structure is: { configured_list: [ { type: 'EMAIL', mediums: [...] } ] }
-    if (responseData.configured_list && Array.isArray(responseData.configured_list)) {
-      const emailConfig = responseData.configured_list.find((item: any) => item.type === 'EMAIL');
-      if (emailConfig && emailConfig.mediums && Array.isArray(emailConfig.mediums) && emailConfig.mediums.length > 0) {
-        const mediumId = emailConfig.mediums[0].medium_id || emailConfig.mediums[0].id;
-        logger.debug('Found medium_id:', mediumId);
-        return mediumId;
-      }
-    }
+  //   // The actual structure is: { configured_list: [ { type: 'EMAIL', mediums: [...] } ] }
+  //   if (responseData.configured_list && Array.isArray(responseData.configured_list)) {
+  //     const emailConfig = responseData.configured_list.find((item: any) => item.type === 'EMAIL');
+  //     if (emailConfig && emailConfig.mediums && Array.isArray(emailConfig.mediums) && emailConfig.mediums.length > 0) {
+  //       const mediumId = emailConfig.mediums[0].medium_id || emailConfig.mediums[0].id;
+  //       logger.debug('Found medium_id:', mediumId);
+  //       return mediumId;
+  //     }
+  //   }
     
-    throw new Error('No email medium found in configured MFA methods');
-  }
+  //   throw new Error('No email medium found in configured MFA methods');
+  // }
 
   /**
    * Extract exchange_id from initiate email response
    */
-  private extractExchangeId(responseData: any): string {
-    logger.debug('Extracting exchange_id from response');
+  // private extractExchangeId(responseData: any): string {
+  //   logger.debug('Extracting exchange_id from response');
     
-    // The response structure is: responseData.data.exchange_id.exchange_id (string)
-    if (responseData.data && responseData.data.exchange_id) {
-      const exchangeIdObj = responseData.data.exchange_id;
+  //   // The response structure is: responseData.data.exchange_id.exchange_id (string)
+  //   if (responseData.data && responseData.data.exchange_id) {
+  //     const exchangeIdObj = responseData.data.exchange_id;
       
-      // Extract the actual exchange_id string from the object
-      if (typeof exchangeIdObj === 'string') {
-        logger.debug('Extracted exchange_id:', exchangeIdObj);
-        return exchangeIdObj;
-      } else if (exchangeIdObj.exchange_id) {
-        logger.debug('Extracted exchange_id:', exchangeIdObj.exchange_id);
-        return exchangeIdObj.exchange_id;
-      }
-    }
+  //     // Extract the actual exchange_id string from the object
+  //     if (typeof exchangeIdObj === 'string') {
+  //       logger.debug('Extracted exchange_id:', exchangeIdObj);
+  //       return exchangeIdObj;
+  //     } else if (exchangeIdObj.exchange_id) {
+  //       logger.debug('Extracted exchange_id:', exchangeIdObj.exchange_id);
+  //       return exchangeIdObj.exchange_id;
+  //     }
+  //   }
     
-    // Check for status_id as fallback
-    if (responseData.data && responseData.data.status_id) {
-      logger.debug('Using status_id as exchange_id:', responseData.data.status_id);
-      return responseData.data.status_id;
-    }
+  //   // Check for status_id as fallback
+  //   if (responseData.data && responseData.data.status_id) {
+  //     logger.debug('Using status_id as exchange_id:', responseData.data.status_id);
+  //     return responseData.data.status_id;
+  //   }
     
-    logger.error('No exchange_id found in initiate email response');
-    throw new Error('No exchange_id found in initiate email response');
-  }
+  //   logger.error('No exchange_id found in initiate email response');
+  //   throw new Error('No exchange_id found in initiate email response');
+  // }
 
   /**
    * Get user information and installations

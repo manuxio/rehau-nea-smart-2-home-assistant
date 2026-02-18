@@ -21,9 +21,12 @@ export class PlaywrightHttpsClient {
   private context: BrowserContext | null = null;
   private page: Page | null = null;
   private initialized: boolean = false;
+  private headless: boolean = true;
 
-  constructor() {
-    // Browser will be initialized on first request
+  constructor(headless?: boolean) {
+    // Use environment variable or constructor parameter
+    this.headless = headless !== undefined ? headless : (process.env.PLAYWRIGHT_HEADLESS !== 'false');
+    process.stderr.write(`[PlaywrightHttpsClient] Headless mode: ${this.headless}\n`);
   }
 
   private async ensureInitialized(): Promise<void> {
@@ -33,38 +36,18 @@ export class PlaywrightHttpsClient {
 
     process.stderr.write('[PlaywrightHttpsClient] Initializing Chromium browser...\n');
     
-    // Launch browser in headless mode
-    // Use system Chromium if PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is set
-    const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
-    
-    this.browser = await chromium.launch({
-      headless: true,
-      executablePath: executablePath || undefined,
-      args: [
+    try {
+      // Launch browser in headless mode
+      // Use system Chromium if PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH is set
+      const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+      
+      this.browser = await chromium.launch({
+        headless: this.headless,
+        executablePath: executablePath || undefined,
+        args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--disable-gpu',
-        '--disable-software-rasterizer',
-        '--disable-extensions',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-background-networking',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-breakpad',
-        '--disable-component-extensions-with-background-pages',
-        '--disable-features=TranslateUI',
-        '--disable-ipc-flooding-protection',
-        '--disable-renderer-backgrounding',
-        '--enable-features=NetworkService,NetworkServiceInProcess',
-        '--force-color-profile=srgb',
-        '--hide-scrollbars',
-        '--metrics-recording-only',
-        '--mute-audio'
+        '--disable-blink-features=AutomationControlled'
       ],
       timeout: 60000
     });
@@ -72,6 +55,8 @@ export class PlaywrightHttpsClient {
     if (executablePath) {
       process.stderr.write(`[PlaywrightHttpsClient] Using system Chromium at: ${executablePath}\n`);
     }
+
+    
 
     // Create browser context with realistic settings
     this.context = await this.browser.newContext({
@@ -102,8 +87,12 @@ export class PlaywrightHttpsClient {
       'Cache-Control': 'max-age=0'
     });
 
-    this.initialized = true;
-    process.stderr.write('[PlaywrightHttpsClient] Browser initialized successfully\n');
+      this.initialized = true;
+      process.stderr.write('[PlaywrightHttpsClient] Browser initialized successfully\n');
+    } catch (error: any) {
+      process.stderr.write(`[PlaywrightHttpsClient] Failed to initialize browser: ${error.message}\n`);
+      throw error;
+    }
   }
 
   async request(url: string, options: RequestOptions = {}): Promise<Response> {
@@ -237,22 +226,147 @@ export class PlaywrightHttpsClient {
   async cleanup(): Promise<void> {
     process.stderr.write('[PlaywrightHttpsClient] Cleaning up browser resources...\n');
     
-    if (this.page) {
-      await this.page.close();
-      this.page = null;
+    try {
+      if (this.page) {
+        await this.page.close().catch(() => {});
+        this.page = null;
+      }
+    } catch (error) {
+      process.stderr.write('[PlaywrightHttpsClient] Error closing page (may already be closed)\n');
     }
     
-    if (this.context) {
-      await this.context.close();
-      this.context = null;
+    try {
+      if (this.context) {
+        await this.context.close().catch(() => {});
+        this.context = null;
+      }
+    } catch (error) {
+      process.stderr.write('[PlaywrightHttpsClient] Error closing context (may already be closed)\n');
     }
     
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
+    try {
+      if (this.browser) {
+        await this.browser.close().catch(() => {});
+        this.browser = null;
+      }
+    } catch (error) {
+      process.stderr.write('[PlaywrightHttpsClient] Error closing browser (may already be closed)\n');
     }
     
     this.initialized = false;
     process.stderr.write('[PlaywrightHttpsClient] Cleanup complete\n');
+  }
+
+  /**
+   * Navigate to a URL and wait for page load
+   */
+  async navigate(url: string): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.page) {
+      throw new Error('Page not initialized');
+    }
+    
+    process.stderr.write(`[PlaywrightHttpsClient] Navigating to: ${url}\n`);
+    try {
+      await this.page.goto(url, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 60000 
+      });
+      process.stderr.write(`[PlaywrightHttpsClient] Navigation complete. Current URL: ${this.page.url()}\n`);
+    } catch (error: any) {
+      process.stderr.write(`[PlaywrightHttpsClient] Navigation error: ${error.message}\n`);
+      process.stderr.write(`[PlaywrightHttpsClient] Current URL after error: ${this.page.url()}\n`);
+      throw error;
+    }
+  }
+
+  /**
+   * Wait for an element by ID
+   */
+  async waitForElementById(id: string, timeout: number = 30000): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.page) {
+      throw new Error('Page not initialized');
+    }
+    
+    process.stderr.write(`[PlaywrightHttpsClient] Waiting for element with id="${id}"...\n`);
+    await this.page.waitForSelector(`#${id}`, { timeout, state: 'visible' });
+    process.stderr.write(`[PlaywrightHttpsClient] Element #${id} found\n`);
+  }
+
+  /**
+   * Type text into an input element by ID
+   */
+  async typeById(id: string, text: string): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.page) {
+      throw new Error('Page not initialized');
+    }
+    
+    process.stderr.write(`[PlaywrightHttpsClient] Typing into element #${id}...\n`);
+    await this.page.fill(`#${id}`, text);
+    process.stderr.write(`[PlaywrightHttpsClient] Text entered into #${id}\n`);
+  }
+
+  /**
+   * Click an element by selector
+   */
+  async clickBySelector(selector: string): Promise<void> {
+    await this.ensureInitialized();
+    if (!this.page) {
+      throw new Error('Page not initialized');
+    }
+    
+    process.stderr.write(`[PlaywrightHttpsClient] Clicking element: ${selector}\n`);
+    await this.page.click(selector);
+    process.stderr.write(`[PlaywrightHttpsClient] Element clicked: ${selector}\n`);
+  }
+
+  /**
+   * Click a submit button (type="submit")
+   */
+  async clickSubmit(): Promise<void> {
+    await this.clickBySelector('[type="submit"]');
+  }
+
+  /**
+   * Wait for URL to start with a specific prefix
+   */
+  async waitForUrlPrefix(prefix: string, timeout: number = 60000): Promise<string> {
+    await this.ensureInitialized();
+    if (!this.page) {
+      throw new Error('Page not initialized');
+    }
+    
+    process.stderr.write(`[PlaywrightHttpsClient] Waiting for URL to start with: ${prefix}...\n`);
+    
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      const currentUrl = this.page.url();
+      if (currentUrl.startsWith(prefix)) {
+        process.stderr.write(`[PlaywrightHttpsClient] URL matched: ${currentUrl}\n`);
+        return currentUrl;
+      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    throw new Error(`Timeout waiting for URL to start with: ${prefix}`);
+  }
+
+  /**
+   * Get current page URL
+   */
+  getCurrentUrl(): string {
+    if (!this.page) {
+      throw new Error('Page not initialized');
+    }
+    return this.page.url();
+  }
+
+  /**
+   * Get the page object for advanced operations
+   */
+  getPage(): Page | null {
+    return this.page;
   }
 }
