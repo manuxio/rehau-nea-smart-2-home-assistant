@@ -273,12 +273,11 @@ class RehauAuthPersistent {
       }
       
       logger.debug('=== LOGIN RESPONSE ===');
-      logger.debug('Response object type:', typeof loginResponse);
-      logger.debug('Response object keys:', loginResponse ? Object.keys(loginResponse) : 'null/undefined');
+      logger.debug('Full response object:', JSON.stringify(loginResponse, null, 2));
       logger.debug('Status:', loginResponse?.statusCode);
       logger.debug('Location header:', loginResponse?.headers?.location);
       logger.debug('Final URL:', loginResponse?.finalUrl);
-      logger.debug('Headers object:', loginResponse?.headers ? Object.keys(loginResponse.headers) : 'no headers');
+      logger.debug('Body length:', loginResponse?.body?.length || 0);
       
       // Extract authorization code or handle MFA from location header or final URL
       const finalLoginUrl = (loginResponse?.headers?.location as string) || loginResponse?.finalUrl;
