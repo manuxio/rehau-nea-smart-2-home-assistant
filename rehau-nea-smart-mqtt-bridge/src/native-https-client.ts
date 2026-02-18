@@ -95,9 +95,20 @@ export class NativeHttpsClient {
             finalUrl: url
           });
         });
+        
+        res.on('error', (err) => {
+          reject(new Error(`Response error: ${err.message}`));
+        });
       });
 
-      req.on('error', reject);
+      req.on('error', (err) => {
+        reject(new Error(`Request error: ${err.message}`));
+      });
+      
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
 
       if (options.body) {
         req.write(options.body);

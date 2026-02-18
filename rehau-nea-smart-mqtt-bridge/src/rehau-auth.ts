@@ -253,19 +253,22 @@ class RehauAuthPersistent {
           'https://accounts.rehau.com/login-srv/login',
           loginData.toString(),
           {
-            maxRedirects: 0,
+            maxRedirects: 5,  // Allow redirects for login POST
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
               'Origin': 'https://accounts.rehau.com',
-              'Referer': `https://accounts.rehau.com/rehau-ui/login?requestId=${requestId}&view_type=login`
+              'Referer': `https://accounts.rehau.com/rehau-ui/login?requestId=${requestId}&view_type=login`,
+              'Connection': 'close'
             }
           }
         );
+        logger.debug('Login POST completed successfully');
       } catch (error: any) {
-        logger.debug('=== LOGIN ERROR ===');
-        logger.debug('Error message:', error.message);
+        logger.error('=== LOGIN ERROR ===');
+        logger.error('Error message:', error.message);
+        logger.error('Error stack:', error.stack);
         throw error;
       }
       
