@@ -108,32 +108,52 @@ export class PlaywrightHttpsClient {
           timeout: 30000
         });
       } else if (method === 'POST' && options.body) {
-        // POST request - use Playwright's route interception to submit form data
-        // This is more reliable than fetch() in page context
-        
-        // Set up request interception for this specific POST
-        await this.page.route(url, async (route) => {
-          await route.continue({
+        // POST request - use page.evaluate with fetch to make the request
+        // This preserves cookies and session while allowing full control over headers
+        const postResult = await this.page.evaluate(async ({ url, body, headers }: { url: string; body: string; headers: Record<string, string> }) => {
+          const res = await fetch(url, {
             method: 'POST',
-            postData: options.body,
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              ...options.headers
-            }
+            headers: headers,
+            body: body,
+            credentials: 'include',
+            redirect: 'manual'
           });
-        });
+          
+          const text = await res.text();
+          const headersObj: Record<string, string> = {};
+          res.headers.forEach((value, key) => {
+            headersObj[key] = value;
+          });
+          
+          return {
+            status: res.status,
+            statusText: res.statusText,
+            headers: headersObj,
+            body: text,
+            url: res.url,
+            redirected: res.redirected
+          };
+        }, { url, body: options.body, headers: options.headers || {} });
 
-        // Navigate to the URL which will trigger our intercepted POST
-        response = await this.page.goto(url, {
-          waitUntil: 'domcontentloaded',
-          timeout: 30000
-        });
-        
-        // Remove the route after use
-        await this.page.unroute(url);
-        
-        if (!response) {
-          throw new Error('No response from POST request');
+        // If we got a redirect, follow it with page.goto
+        if (postResult.status >= 300 && postResult.status < 400 && postResult.headers['location']) {
+          const redirectUrl = postResult.headers['location'];
+          const absoluteRedirectUrl = redirectUrl.startsWith('http') 
+            ? redirectUrl 
+            : new URL(redirectUrl, url).toString();
+          
+          response = await this.page.goto(absoluteRedirectUrl, {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000
+          });
+        } else {
+          // Create a mock response object for non-redirect POST responses
+          response = {
+            status: () => postResult.status,
+            headers: () => postResult.headers,
+            text: async () => postResult.body,
+            url: () => postResult.url
+          } as any;
         }
       } else {
         throw new Error(`Unsupported method: ${method}`);
