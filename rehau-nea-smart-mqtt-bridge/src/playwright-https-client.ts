@@ -1,4 +1,5 @@
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
+import * as fs from 'fs';
 
 interface RequestOptions {
   method?: string;
@@ -37,10 +38,12 @@ export class PlaywrightHttpsClient {
     process.stderr.write('[PlaywrightHttpsClient] Initializing Chromium browser...\n');
     
     try {
-      // Use system Chromium on Linux (Docker) if env var set, otherwise use Playwright default
-      const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+      // Check if system Chromium exists (Docker/Linux), otherwise use Playwright default (Windows)
+      const systemChromiumPath = '/usr/bin/chromium';
+      let executablePath: string | undefined = undefined;
       
-      if (executablePath) {
+      if (fs.existsSync(systemChromiumPath)) {
+        executablePath = systemChromiumPath;
         process.stderr.write(`[PlaywrightHttpsClient] Using system Chromium at: ${executablePath}\n`);
       } else {
         process.stderr.write('[PlaywrightHttpsClient] Using Playwright default browser\n');
@@ -48,7 +51,7 @@ export class PlaywrightHttpsClient {
       
       this.browser = await chromium.launch({
         headless: this.headless,
-        executablePath: executablePath || undefined,
+        executablePath: executablePath,
         args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
