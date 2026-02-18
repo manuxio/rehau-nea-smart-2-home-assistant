@@ -37,17 +37,18 @@ export class PlaywrightHttpsClient {
     process.stderr.write('[PlaywrightHttpsClient] Initializing Chromium browser...\n');
     
     try {
-      // Launch browser in headless mode
-      // Use system Chromium - fallback to common paths if env var not set
-      const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || 
-                            '/usr/bin/chromium' || 
-                            '/usr/bin/chromium-browser';
+      // Use system Chromium on Linux (Docker) if env var set, otherwise use Playwright default
+      const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
       
-      process.stderr.write(`[PlaywrightHttpsClient] Attempting to use Chromium at: ${executablePath}\n`);
+      if (executablePath) {
+        process.stderr.write(`[PlaywrightHttpsClient] Using system Chromium at: ${executablePath}\n`);
+      } else {
+        process.stderr.write('[PlaywrightHttpsClient] Using Playwright default browser\n');
+      }
       
       this.browser = await chromium.launch({
         headless: this.headless,
-        executablePath: executablePath,
+        executablePath: executablePath || undefined,
         args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -56,7 +57,7 @@ export class PlaywrightHttpsClient {
       timeout: 60000
     });
     
-    process.stderr.write(`[PlaywrightHttpsClient] Successfully launched Chromium from: ${executablePath}\n`);
+    process.stderr.write('[PlaywrightHttpsClient] Chromium launched successfully\n');
 
     
 
