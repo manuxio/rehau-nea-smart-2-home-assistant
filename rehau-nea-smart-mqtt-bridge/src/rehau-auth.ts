@@ -616,23 +616,20 @@ class RehauAuthPersistent {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
           },
-          maxRedirects: 0,
-          validateStatus: (status: number) => status === 302
+          maxRedirects: 5
         }
       );
       
-      // Step 8: Extract authorization code from redirect
+      // Step 8: Extract authorization code from final URL
       logger.debug('Step 8: Extracting authorization code...');
-      const location = continueResponse.headers.location;
+      logger.debug('Continue response status:', continueResponse.statusCode);
+      logger.debug('Final URL:', continueResponse.finalUrl);
       
-      if (!location) {
-        throw new Error('No redirect location found after MFA verification');
-      }
-      
-      const redirectUrl = new URL(location);
-      const authCode = redirectUrl.searchParams.get('code');
+      const finalUrl = new URL(continueResponse.finalUrl);
+      const authCode = finalUrl.searchParams.get('code');
       
       if (!authCode) {
+        logger.error('No authorization code in final URL:', continueResponse.finalUrl);
         throw new Error('No authorization code found in redirect URL');
       }
       
