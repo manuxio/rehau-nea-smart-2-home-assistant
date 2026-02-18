@@ -43,9 +43,6 @@ COPY src/ ./src/
 # Build TypeScript to JavaScript
 RUN npm run build
 
-# Install Playwright browsers (Chromium)
-RUN npx playwright install chromium
-
 # Remove dev dependencies to reduce image size
 RUN npm prune --production
 
