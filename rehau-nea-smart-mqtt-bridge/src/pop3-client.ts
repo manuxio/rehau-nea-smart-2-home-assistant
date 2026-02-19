@@ -173,29 +173,51 @@ export class POP3Client {
     const pollInterval = 5000; // 5 seconds
     
     // Get initial count and disconnect
-    const initialCount = await this.getMessageCount();
-    logger.debug(`Initial message count: ${initialCount}`);
-    await this.disconnect();
+    let initialCount: number;
+    try {
+      initialCount = await this.getMessageCount();
+      logger.debug(`Initial message count: ${initialCount}`);
+    } catch (error) {
+      logger.error('Failed to get initial message count:', error);
+      throw error;
+    } finally {
+      await this.disconnect();
+    }
 
     while (Date.now() - startTime < timeoutMs) {
       await new Promise(resolve => setTimeout(resolve, pollInterval));
       
-      // Reconnect to get fresh message count
-      const currentCount = await this.getMessageCount();
-      logger.debug(`Current message count: ${currentCount}`);
+      let currentCount: number;
+      try {
+        // Reconnect to get fresh message count
+        currentCount = await this.getMessageCount();
+        logger.debug(`Current message count: ${currentCount}`);
+      } catch (error) {
+        logger.warn('Error getting message count, will retry:', error);
+        await this.disconnect();
+        continue;
+      }
       
       if (currentCount > initialCount) {
         logger.debug(`New message detected! Count: ${currentCount} (was ${initialCount})`);
         
-        // Check new messages
+        // Check new messages one at a time
         for (let i = initialCount + 1; i <= currentCount; i++) {
-          const message = await this.retrieveMessage(i);
-          
-          if (message.from.toLowerCase().includes(fromAddress.toLowerCase())) {
-            logger.info(`Found email from ${fromAddress}`);
-            return message;
-          } else {
-            logger.debug(`Message ${i} is from ${message.from}, not ${fromAddress}`);
+          try {
+            const message = await this.retrieveMessage(i);
+            
+            if (message.from.toLowerCase().includes(fromAddress.toLowerCase())) {
+              logger.info(`Found email from ${fromAddress}`);
+              await this.disconnect();
+              return message;
+            } else {
+              logger.debug(`Message ${i} is from "${message.from}", not "${fromAddress}"`);
+            }
+          } catch (error) {
+            logger.warn(`Error retrieving message ${i}, skipping:`, error);
+            // Force disconnect and reset on error
+            this.connected = false;
+            this.client = null;
           }
         }
         
