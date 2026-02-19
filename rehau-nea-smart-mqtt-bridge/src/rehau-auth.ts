@@ -810,10 +810,38 @@ class RehauAuthPersistent {
 
   /**
    * Ensure we have a valid access token
-   * Always performs fresh login on first call
+   * First call performs fresh login (no refresh token available)
+   * Subsequent calls try refresh first, fall back to login if needed
+   * 
+   * Set FORCE_FRESH_LOGIN=true to always perform fresh login (old behavior)
    */
   async ensureValidToken(): Promise<void> {
-    // Always perform fresh login
+    // Check if forced fresh login is enabled
+    const forceFreshLogin = process.env.FORCE_FRESH_LOGIN === 'true';
+    
+    if (forceFreshLogin) {
+      logger.info('🔐 FORCE_FRESH_LOGIN enabled - performing fresh login...');
+      await this.login();
+      this.startTokenRefresh();
+      return;
+    }
+    
+    if (this.refreshToken) {
+      // We have a refresh token - try refresh first
+      logger.info('🔄 Attempting token refresh (have refresh token)...');
+      try {
+        await this.refresh();
+        logger.info('✅ Token refreshed successfully via refresh token');
+        this.startTokenRefresh();
+        return;
+      } catch (error) {
+        logger.warn('⚠️ Token refresh failed, falling back to fresh login:', (error as Error).message);
+      }
+    } else {
+      logger.info('🔐 No refresh token available, performing fresh login...');
+    }
+
+    // Fresh login (first time or refresh failed)
     await this.login();
     
     // Start automatic token refresh
