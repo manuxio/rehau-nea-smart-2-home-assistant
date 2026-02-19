@@ -1,5 +1,5 @@
 name: REHAU NEA SMART 2.0 MQTT Bridge
-version: "4.0.13"
+version: "4.0.14"
 slug: rehau_nea_smart_mqtt
 description: TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with automatic 2FA support via POP3
 url: https://github.com/manuxio/rehau-nea-smart-2-home-assistant
@@ -37,6 +37,7 @@ options:
   token_refresh_interval: 21600
   referentials_reload_interval: 86400
   use_group_in_names: false
+  force_fresh_login: false
 schema:
   rehau_email: email
   rehau_password: password
@@ -58,4 +59,5 @@ schema:
   token_refresh_interval: "int(1800,86400)?"
   referentials_reload_interval: "int(3600,604800)?"
   use_group_in_names: bool?
+  force_fresh_login: bool?
 documentation: https://github.com/manuxio/rehau-nea-smart-2-home-assistant/blob/main/rehau-nea-smart-mqtt-bridge/README.md
