@@ -27,6 +27,7 @@ options:
   pop3_timeout: 300000
   pop3_debug: false
   pop3_from_address: "noreply@accounts.rehau.com"
+  pop3_ignore_tls: true
   mqtt_host: "core-mosquitto"
   mqtt_port: 1883
   mqtt_user: ""
@@ -49,6 +50,7 @@ schema:
   pop3_timeout: "int(60000,600000)?"
   pop3_debug: bool?
   pop3_from_address: str?
+  pop3_ignore_tls: bool?
   mqtt_host: str
   mqtt_port: port
   mqtt_user: str?
