@@ -18,7 +18,11 @@
     "parseInstallationData": "ts-node src/parsers/cli-installation-data.ts",
     "parseInstallationV2": "ts-node src/parsers/cli-installation-data-v2.ts",
     "compareParsers": "ts-node src/parsers/compare-parsers.ts",
-    "testValidation": "ts-node src/parsers/test-validation.ts"
+    "testValidation": "ts-node src/parsers/test-validation.ts",
+    "release": "node scripts/release.js patch",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major"
   },
   "keywords": [
     "rehau",

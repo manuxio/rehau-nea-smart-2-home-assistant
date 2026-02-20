@@ -262,22 +262,50 @@ class RehauAuthPersistent {
         code: authCode
       };
       
+      logger.debug('Token exchange request:', {
+        url: 'https://accounts.rehau.com/token-srv/token',
+        grant_type: tokenPayload.grant_type,
+        client_id: tokenPayload.client_id,
+        redirect_uri: tokenPayload.redirect_uri,
+        code_length: authCode.length
+      });
+      
       // Use axios for token exchange (simpler than Playwright for this)
-      const tokenResponse = await axios.post(
-        'https://accounts.rehau.com/token-srv/token',
-        tokenPayload,
-        {
-          headers: {
-            'Content-Type': 'application/json'
+      let tokenResponse;
+      try {
+        tokenResponse = await axios.post(
+          'https://accounts.rehau.com/token-srv/token',
+          tokenPayload,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
           }
+        );
+      } catch (tokenError: any) {
+        logger.error('=== Token Exchange Failed ===');
+        logger.error('HTTP Status:', tokenError.response?.status);
+        logger.error('Status Text:', tokenError.response?.statusText);
+        logger.error('Response Headers:', JSON.stringify(tokenError.response?.headers, null, 2));
+        logger.error('Response Data:', JSON.stringify(tokenError.response?.data, null, 2));
+        logger.error('Error Message:', tokenError.message);
+        if (tokenError.code) {
+          logger.error('Error Code:', tokenError.code);
         }
-      );
+        throw tokenError;
+      }
+
+      if (!tokenResponse.data.access_token || !tokenResponse.data.refresh_token) {
+        logger.error('Invalid token response - missing tokens:', JSON.stringify(tokenResponse.data, null, 2));
+        throw new Error('Token exchange succeeded but response is missing access_token or refresh_token');
+      }
 
       this.accessToken = tokenResponse.data.access_token;
       this.refreshToken = tokenResponse.data.refresh_token;
       this.tokenExpiry = Date.now() + (tokenResponse.data.expires_in * 1000);
 
       logger.info('Tokens obtained successfully');
+      logger.debug('Token expiry:', new Date(this.tokenExpiry).toISOString());
 
       // Step 9: Get user info
       logger.info('Step 9: Fetching user information...');
@@ -286,12 +314,32 @@ class RehauAuthPersistent {
       logger.info('=== Authentication completed successfully ===');
       return true;
     } catch (error) {
-      const axiosError = error as { response?: { data?: unknown; status?: number }; message: string };
       logger.error('=== Authentication failed ===');
-      logger.error('Error:', axiosError.response?.data || axiosError.message);
-      if (axiosError.response?.status === 401) {
-        logger.error('Invalid username or password');
+      
+      if (isAxiosError(error)) {
+        logger.error('Error Type: Axios HTTP Error');
+        logger.error('HTTP Status:', error.response?.status);
+        logger.error('Status Text:', error.response?.statusText);
+        logger.error('Response Data:', JSON.stringify(error.response?.data, null, 2));
+        logger.error('Request URL:', error.config?.url);
+        logger.error('Request Method:', error.config?.method);
+        
+        if (error.response?.status === 401) {
+          logger.error('Authentication rejected - Invalid username or password');
+        } else if (error.response?.status === 400) {
+          logger.error('Bad request - Check authorization code and PKCE parameters');
+        } else if (error.response?.status === 403) {
+          logger.error('Forbidden - Access denied');
+        }
+      } else if (error instanceof Error) {
+        logger.error('Error Type:', error.constructor.name);
+        logger.error('Error Message:', error.message);
+        logger.error('Stack Trace:', error.stack);
+      } else {
+        logger.error('Unknown Error Type:', typeof error);
+        logger.error('Error:', JSON.stringify(error, null, 2));
       }
+      
       throw error;
     } finally {
       // Always cleanup Playwright browser resources to reduce RAM footprint
