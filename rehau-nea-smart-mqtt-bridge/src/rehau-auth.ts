@@ -346,6 +346,7 @@ class RehauAuthPersistent {
             logger.debug(`Token exchange response status: ${res.statusCode}`);
             logger.debug(`Response encoding: ${encoding || 'none'}`);
             logger.debug(`Response length: ${data.length} bytes`);
+            logger.debug(`Response data: ${data}`);
             
             if (res.statusCode === 200) {
               try {
