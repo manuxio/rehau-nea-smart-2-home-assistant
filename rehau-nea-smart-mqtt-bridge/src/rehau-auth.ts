@@ -1,8 +1,5 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as crypto from 'crypto';
-import * as https from 'https';
-import * as zlib from 'zlib';
-import { Readable } from 'stream';
 import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
@@ -275,8 +272,8 @@ class RehauAuthPersistent {
       
       logger.info(`Authorization code obtained: ${authCode.substring(0, 8)}...`);
 
-      // Step 8: Exchange code for tokens (BEFORE browser cleanup to avoid timing issues)
-      logger.info('Step 8: Exchanging authorization code for tokens...');
+      // Step 8: Exchange code for tokens using Playwright (maintains browser session context)
+      logger.info('Step 8: Exchanging authorization code for tokens via browser...');
       logger.debug('Authorization code length:', authCode.length);
       logger.debug('Code verifier length:', codeVerifier.length);
       
@@ -299,117 +296,45 @@ class RehauAuthPersistent {
         auth_code_preview: authCode.substring(0, 10) + '...'
       });
       
-      // Use native https module for better reliability (no axios dependency issues)
-      logger.debug('Creating HTTPS request for token exchange...');
-      const tokenResponse = await new Promise<RehauTokenResponse>((resolve, reject) => {
-        const postData = JSON.stringify(tokenPayload);
-        logger.debug('POST data length:', postData.length);
-        
-        const options = {
-          hostname: 'accounts.rehau.com',
-          port: 443,
-          path: '/token-srv/token',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData),
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Origin': 'https://accounts.rehau.com',
-            'Referer': 'https://accounts.rehau.com/',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin'
-          }
-        };
-        
-        logger.debug('Sending HTTPS request...');
-        const req = https.request(options, (res) => {
-          logger.debug('Received response callback, status:', res.statusCode);
-          const chunks: Buffer[] = [];
-          
-          // Handle response stream based on encoding
-          let responseStream: Readable = res;
-          const encoding = res.headers['content-encoding'];
-          logger.debug('Response encoding:', encoding || 'none');
-          
-          if (encoding === 'gzip') {
-            logger.debug('Setting up gzip decompression');
-            responseStream = res.pipe(zlib.createGunzip());
-          } else if (encoding === 'deflate') {
-            logger.debug('Setting up deflate decompression');
-            responseStream = res.pipe(zlib.createInflate());
-          } else if (encoding === 'br') {
-            logger.debug('Setting up brotli decompression');
-            responseStream = res.pipe(zlib.createBrotliDecompress());
-          }
-          
-          responseStream.on('data', (chunk: Buffer) => {
-            logger.debug('Received data chunk, size:', chunk.length);
-            chunks.push(chunk);
-          });
-          
-          responseStream.on('end', () => {
-            logger.debug('Response stream ended, total chunks:', chunks.length);
-            const data = Buffer.concat(chunks).toString('utf-8');
-            logger.debug(`Token exchange response status: ${res.statusCode}`);
-            logger.debug(`Response encoding: ${encoding || 'none'}`);
-            logger.debug(`Response length: ${data.length} bytes`);
-            logger.debug(`Response data: ${data}`);
-            
-            if (res.statusCode === 200) {
-              try {
-                const response = JSON.parse(data);
-                resolve(response);
-              } catch (parseError) {
-                logger.error('Failed to parse token response:', data);
-                reject(new Error(`Failed to parse token response: ${parseError}`));
-              }
-            } else {
-              logger.error('=== Token Exchange Failed ===');
-              logger.error('HTTP Status:', res.statusCode);
-              logger.error('Status Message:', res.statusMessage);
-              logger.error('Response Headers:', JSON.stringify(res.headers, null, 2));
-              logger.error('Response Body:', data);
-              reject(new Error(`Token exchange failed with status ${res.statusCode}: ${data}`));
-            }
-          });
-          
-          responseStream.on('error', (error) => {
-            logger.error('=== Response Stream Decompression Error ===');
-            logger.error('Error message:', error.message);
-            logger.error('Error code:', (error as any).code);
-            logger.error('Error stack:', error.stack);
-            logger.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-            reject(error);
-          });
-        });
-        
-        req.on('error', (error) => {
-          logger.error('=== Token Exchange Request Failed ===');
-          logger.error('Error Message:', error.message);
-          logger.error('Error Code:', (error as any).code || 'N/A');
-          logger.error('Stack Trace:', error.stack);
-          reject(error);
-        });
-        
-        req.write(postData);
-        req.end();
+      // Use Playwright to make token exchange request (preserves browser session/cookies)
+      logger.debug('Making token exchange request via browser...');
+      const tokenResponse = await client.request('https://accounts.rehau.com/token-srv/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json, text/plain, */*'
+        },
+        body: JSON.stringify(tokenPayload)
       });
+      
+      logger.debug('Token exchange response status:', tokenResponse.status);
+      logger.debug('Response body length:', tokenResponse.body.length);
+      
+      if (tokenResponse.status !== 200) {
+        logger.error('=== Token Exchange Failed ===');
+        logger.error('HTTP Status:', tokenResponse.status);
+        logger.error('Response Headers:', JSON.stringify(tokenResponse.headers, null, 2));
+        logger.error('Response Body:', tokenResponse.body);
+        throw new Error(`Token exchange failed with status ${tokenResponse.status}: ${tokenResponse.body}`);
+      }
+      
+      let parsedTokenResponse: RehauTokenResponse;
+      try {
+        parsedTokenResponse = JSON.parse(tokenResponse.body);
+        logger.debug('Token response parsed successfully');
+      } catch (parseError) {
+        logger.error('Failed to parse token response:', tokenResponse.body);
+        throw new Error(`Failed to parse token response: ${parseError}`);
+      }
 
-      if (!tokenResponse.access_token || !tokenResponse.refresh_token) {
-        logger.error('Invalid token response - missing tokens:', JSON.stringify(tokenResponse, null, 2));
+      if (!parsedTokenResponse.access_token || !parsedTokenResponse.refresh_token) {
+        logger.error('Invalid token response - missing tokens:', JSON.stringify(parsedTokenResponse, null, 2));
         throw new Error('Token exchange succeeded but response is missing access_token or refresh_token');
       }
 
-      this.accessToken = tokenResponse.access_token;
-      this.refreshToken = tokenResponse.refresh_token;
-      this.tokenExpiry = Date.now() + (tokenResponse.expires_in * 1000);
+      this.accessToken = parsedTokenResponse.access_token;
+      this.refreshToken = parsedTokenResponse.refresh_token;
+      this.tokenExpiry = Date.now() + (parsedTokenResponse.expires_in * 1000);
 
       logger.info('Tokens obtained successfully');
       logger.debug('Token expiry:', new Date(this.tokenExpiry).toISOString());
@@ -424,8 +349,13 @@ class RehauAuthPersistent {
           // Setup timer to force reauthentication
           this.simulatedDisconnectTimer = setTimeout(async () => {
             logger.warn(`🔄 SIMULATE_DISCONNECT_AFTER_SECONDS triggered - forcing reauthentication now`);
+            
+            // Invalidate refresh token to force fresh login (simulating server-side token revocation)
+            logger.warn('⚠️ Invalidating refresh token to simulate server disconnect...');
+            this.refreshToken = null;
+            
             try {
-              // Try refresh first
+              // Try refresh first (will fail because we nulled the refresh token)
               logger.info('Attempting token refresh (simulated disconnect)...');
               await this.refresh();
               logger.info('✅ Token refresh successful');

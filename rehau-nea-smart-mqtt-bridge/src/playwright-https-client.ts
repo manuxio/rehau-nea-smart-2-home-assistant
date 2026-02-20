@@ -123,31 +123,51 @@ export class PlaywrightHttpsClient {
           timeout: 30000
         });
       } else if (method === 'POST' && options.body) {
-        // POST request - use page.evaluate with fetch to make the request
+        // POST request - use page.evaluate with XMLHttpRequest for better compatibility
         // This preserves cookies and session while allowing full control over headers
-        const postResult = await this.page.evaluate(async ({ url, body, headers }: { url: string; body: string; headers: Record<string, string> }) => {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: headers,
-            body: body,
-            credentials: 'include',
-            redirect: 'manual'
+        interface XHRResult {
+          status: number;
+          statusText: string;
+          headers: Record<string, string>;
+          body: string;
+          url: string;
+        }
+        
+        const postResult = await this.page.evaluate(async ({ url, body, headers }: { url: string; body: string; headers: Record<string, string> }): Promise<XHRResult> => {
+          return new Promise((resolve, reject) => {
+            const xhr = new (globalThis as any).XMLHttpRequest();
+            xhr.open('POST', url, true);
+            
+            // Set headers
+            for (const [key, value] of Object.entries(headers)) {
+              xhr.setRequestHeader(key, value);
+            }
+            
+            xhr.onload = function() {
+              const headersObj: Record<string, string> = {};
+              const headerLines = xhr.getAllResponseHeaders().split('\r\n');
+              for (const line of headerLines) {
+                const parts = line.split(': ');
+                if (parts.length === 2) {
+                  headersObj[parts[0].toLowerCase()] = parts[1];
+                }
+              }
+              
+              resolve({
+                status: xhr.status,
+                statusText: xhr.statusText,
+                headers: headersObj,
+                body: xhr.responseText,
+                url: xhr.responseURL || url
+              });
+            };
+            
+            xhr.onerror = function() {
+              reject(new Error('XHR request failed'));
+            };
+            
+            xhr.send(body);
           });
-          
-          const text = await res.text();
-          const headersObj: Record<string, string> = {};
-          res.headers.forEach((value, key) => {
-            headersObj[key] = value;
-          });
-          
-          return {
-            status: res.status,
-            statusText: res.statusText,
-            headers: headersObj,
-            body: text,
-            url: res.url,
-            redirected: res.redirected
-          };
         }, { url, body: options.body, headers: options.headers || {} });
 
         // If we got a redirect, follow it with page.goto
