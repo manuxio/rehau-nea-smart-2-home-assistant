@@ -257,6 +257,9 @@ class RehauAuthPersistent {
 
       // Step 8: Exchange code for tokens (BEFORE browser cleanup to avoid timing issues)
       logger.info('Step 8: Exchanging authorization code for tokens...');
+      logger.debug('Authorization code length:', authCode.length);
+      logger.debug('Code verifier length:', codeVerifier.length);
+      
       const tokenPayload = {
         grant_type: 'authorization_code',
         client_id: clientId,
@@ -274,8 +277,10 @@ class RehauAuthPersistent {
       });
       
       // Use native https module for better reliability (no axios dependency issues)
+      logger.debug('Creating HTTPS request for token exchange...');
       const tokenResponse = await new Promise<RehauTokenResponse>((resolve, reject) => {
         const postData = JSON.stringify(tokenPayload);
+        logger.debug('POST data length:', postData.length);
         
         const options = {
           hostname: 'accounts.rehau.com',
@@ -300,26 +305,34 @@ class RehauAuthPersistent {
           }
         };
         
+        logger.debug('Sending HTTPS request...');
         const req = https.request(options, (res) => {
+          logger.debug('Received response callback, status:', res.statusCode);
           const chunks: Buffer[] = [];
           
           // Handle response stream based on encoding
           let responseStream: Readable = res;
           const encoding = res.headers['content-encoding'];
+          logger.debug('Response encoding:', encoding || 'none');
           
           if (encoding === 'gzip') {
+            logger.debug('Setting up gzip decompression');
             responseStream = res.pipe(zlib.createGunzip());
           } else if (encoding === 'deflate') {
+            logger.debug('Setting up deflate decompression');
             responseStream = res.pipe(zlib.createInflate());
           } else if (encoding === 'br') {
+            logger.debug('Setting up brotli decompression');
             responseStream = res.pipe(zlib.createBrotliDecompress());
           }
           
           responseStream.on('data', (chunk: Buffer) => {
+            logger.debug('Received data chunk, size:', chunk.length);
             chunks.push(chunk);
           });
           
           responseStream.on('end', () => {
+            logger.debug('Response stream ended, total chunks:', chunks.length);
             const data = Buffer.concat(chunks).toString('utf-8');
             logger.debug(`Token exchange response status: ${res.statusCode}`);
             logger.debug(`Response encoding: ${encoding || 'none'}`);
@@ -344,7 +357,11 @@ class RehauAuthPersistent {
           });
           
           responseStream.on('error', (error) => {
-            logger.error('Response stream error:', error);
+            logger.error('=== Response Stream Decompression Error ===');
+            logger.error('Error message:', error.message);
+            logger.error('Error code:', (error as any).code);
+            logger.error('Error stack:', error.stack);
+            logger.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
             reject(error);
           });
         });
