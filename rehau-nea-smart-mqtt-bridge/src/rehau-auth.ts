@@ -158,6 +158,7 @@ class RehauAuthPersistent {
   async login(): Promise<boolean> {
     // Use Playwright for interactive browser-based authentication
     const client = new PlaywrightHttpsClient();
+    let browserCleaned = false;
     
     try {
       // Register email for obfuscation before logging
