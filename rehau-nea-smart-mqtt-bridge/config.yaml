@@ -39,6 +39,7 @@ options:
   referentials_reload_interval: 86400
   use_group_in_names: false
   force_fresh_login: false
+  force_token_expired: false
 schema:
   rehau_email: email
   rehau_password: password
@@ -62,4 +63,5 @@ schema:
   referentials_reload_interval: "int(3600,604800)?"
   use_group_in_names: bool?
   force_fresh_login: bool?
+  force_token_expired: bool?
 documentation: https://github.com/manuxio/rehau-nea-smart-2-home-assistant/blob/main/rehau-nea-smart-mqtt-bridge/README.md

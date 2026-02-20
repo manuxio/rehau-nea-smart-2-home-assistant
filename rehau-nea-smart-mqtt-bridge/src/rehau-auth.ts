@@ -972,6 +972,12 @@ class RehauAuthPersistent {
    * Check if token is expired or about to expire
    */
   isTokenExpired(): boolean {
+    // Allow forcing token expiry for testing
+    if (process.env.FORCE_TOKEN_EXPIRED === 'true') {
+      logger.warn('⚠️ FORCE_TOKEN_EXPIRED enabled - simulating expired token');
+      return true;
+    }
+    
     if (!this.tokenExpiry) return true;
     // Consider expired if less than 5 minutes remaining
     return Date.now() >= (this.tokenExpiry - 300000);
