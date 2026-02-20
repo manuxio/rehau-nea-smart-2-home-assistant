@@ -19,6 +19,7 @@
     "parseInstallationV2": "ts-node src/parsers/cli-installation-data-v2.ts",
     "compareParsers": "ts-node src/parsers/compare-parsers.ts",
     "testValidation": "ts-node src/parsers/test-validation.ts",
+    "test:mqtt-disconnect": "ts-node test-mqtt-disconnect.ts",
     "release": "node scripts/release.js patch",
     "release:patch": "node scripts/release.js patch",
     "release:minor": "node scripts/release.js minor",

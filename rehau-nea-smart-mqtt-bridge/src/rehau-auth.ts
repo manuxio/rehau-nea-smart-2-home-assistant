@@ -1,6 +1,8 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as crypto from 'crypto';
 import * as https from 'https';
+import * as zlib from 'zlib';
+import { Readable } from 'stream';
 import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
@@ -299,14 +301,29 @@ class RehauAuthPersistent {
         };
         
         const req = https.request(options, (res) => {
-          let data = '';
+          const chunks: Buffer[] = [];
           
-          res.on('data', (chunk) => {
-            data += chunk;
+          // Handle response stream based on encoding
+          let responseStream: Readable = res;
+          const encoding = res.headers['content-encoding'];
+          
+          if (encoding === 'gzip') {
+            responseStream = res.pipe(zlib.createGunzip());
+          } else if (encoding === 'deflate') {
+            responseStream = res.pipe(zlib.createInflate());
+          } else if (encoding === 'br') {
+            responseStream = res.pipe(zlib.createBrotliDecompress());
+          }
+          
+          responseStream.on('data', (chunk: Buffer) => {
+            chunks.push(chunk);
           });
           
-          res.on('end', () => {
+          responseStream.on('end', () => {
+            const data = Buffer.concat(chunks).toString('utf-8');
             logger.debug(`Token exchange response status: ${res.statusCode}`);
+            logger.debug(`Response encoding: ${encoding || 'none'}`);
+            logger.debug(`Response length: ${data.length} bytes`);
             
             if (res.statusCode === 200) {
               try {
@@ -324,6 +341,11 @@ class RehauAuthPersistent {
               logger.error('Response Body:', data);
               reject(new Error(`Token exchange failed with status ${res.statusCode}: ${data}`));
             }
+          });
+          
+          responseStream.on('error', (error) => {
+            logger.error('Response stream error:', error);
+            reject(error);
           });
         });
         
