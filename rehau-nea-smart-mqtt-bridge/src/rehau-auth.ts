@@ -393,6 +393,7 @@ class RehauAuthPersistent {
       // Cleanup browser AFTER token exchange completes
       logger.info('Cleaning up browser resources...');
       await client.cleanup();
+      browserCleaned = true;
       logger.info('Browser closed');
 
       // Step 9: Get user info
@@ -434,12 +435,14 @@ class RehauAuthPersistent {
       
       throw error;
     } finally {
-      // Ensure browser cleanup on error
-      try {
-        await client.cleanup();
-        logger.debug('Browser cleanup completed (error path)');
-      } catch (cleanupError) {
-        logger.warn('Browser cleanup failed (non-critical):', cleanupError);
+      // Only cleanup if we haven't already done so in the success path
+      if (!browserCleaned) {
+        try {
+          await client.cleanup();
+          logger.debug('Browser cleanup completed (error path)');
+        } catch (cleanupError) {
+          logger.warn('Browser cleanup failed (non-critical):', cleanupError);
+        }
       }
     }
   }
