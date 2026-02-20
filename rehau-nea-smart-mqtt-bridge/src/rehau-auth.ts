@@ -171,6 +171,11 @@ class RehauAuthPersistent {
       const codeVerifier = this.generateCodeVerifier();
       const codeChallenge = this.generateCodeChallenge(codeVerifier);
       const nonce = this.generateNonce();
+      
+      logger.debug('PKCE Parameters:');
+      logger.debug('  Code Verifier:', codeVerifier.substring(0, 10) + '...');
+      logger.debug('  Code Challenge:', codeChallenge.substring(0, 10) + '...');
+      logger.debug('  Nonce:', nonce.substring(0, 10) + '...');
 
       const clientId = '3f5d915d-a06f-42b9-89cc-2e5d63aa96f1';
       const redirectUri = 'https://rehau-smartheating-email-gallery-public.s3.eu-central-1.amazonaws.com/publicimages/preprod/rehau.jpg';
@@ -274,7 +279,10 @@ class RehauAuthPersistent {
         grant_type: tokenPayload.grant_type,
         client_id: tokenPayload.client_id,
         redirect_uri: tokenPayload.redirect_uri,
-        code_length: authCode.length
+        code_length: authCode.length,
+        code_verifier_length: codeVerifier.length,
+        code_verifier_preview: codeVerifier.substring(0, 10) + '...',
+        auth_code_preview: authCode.substring(0, 10) + '...'
       });
       
       // Use native https module for better reliability (no axios dependency issues)
