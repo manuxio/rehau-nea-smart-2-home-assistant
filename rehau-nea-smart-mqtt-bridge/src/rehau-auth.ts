@@ -274,8 +274,8 @@ class RehauAuthPersistent {
 
       // Step 8: Exchange code for tokens using Playwright (maintains browser session context)
       logger.info('Step 8: Exchanging authorization code for tokens via browser...');
-      logger.debug('Authorization code length:', authCode.length);
-      logger.debug('Code verifier length:', codeVerifier.length);
+      logger.debug(`Authorization code length: ${authCode.length}`);
+      logger.debug(`Code verifier length: ${codeVerifier.length}`);
       
       const tokenPayload = {
         grant_type: 'authorization_code',
@@ -307,8 +307,8 @@ class RehauAuthPersistent {
         body: JSON.stringify(tokenPayload)
       });
       
-      logger.debug('Token exchange response status:', tokenResponse.status);
-      logger.debug('Response body length:', tokenResponse.body.length);
+      logger.debug(`Token exchange response status: ${tokenResponse.status}`);
+      logger.debug(`Response body length: ${tokenResponse.body.length}`);
       
       if (tokenResponse.status !== 200) {
         logger.error('=== Token Exchange Failed ===');
@@ -337,7 +337,7 @@ class RehauAuthPersistent {
       this.tokenExpiry = Date.now() + (parsedTokenResponse.expires_in * 1000);
 
       logger.info('Tokens obtained successfully');
-      logger.debug('Token expiry:', new Date(this.tokenExpiry).toISOString());
+      logger.debug(`Token expiry: ${new Date(this.tokenExpiry).toISOString()}`);
       
       // Record first login timestamp and setup simulated disconnect timer
       if (!this.firstLoginTimestamp) {
