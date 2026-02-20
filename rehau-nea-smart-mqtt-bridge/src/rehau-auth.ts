@@ -898,7 +898,7 @@ class RehauAuthPersistent {
       logger.info(`getUserData HTTP Response: status=${response.status}`);
       logger.debug('Response headers:', response.headers);
       
-      debugDump('getUserData API Response', response.data);
+      // debugDump('getUserData API Response', response.data);
 
       // Use V2 parser to extract user data
       const parser = new UserDataParserV2();

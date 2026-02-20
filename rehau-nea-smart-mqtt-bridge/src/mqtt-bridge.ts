@@ -532,7 +532,7 @@ class RehauMQTTBridge {
       }
       
       // Full message dump in debug mode (with redacted sensitive data)
-      debugDump(`REHAU MQTT Message [${topic}]`, payload);
+      // debugDump(`REHAU MQTT Message [${topic}]`, payload);
       
       // Notify all registered handlers
       this.messageHandlers.forEach(handler => {
@@ -680,7 +680,7 @@ class RehauMQTTBridge {
         logger.warn('🔄 Publish failed, attempting HA reconnection...');
         this.handleHaReconnection();
       } else {
-        logger.debug(`Published to Home Assistant: {\n  "topic": "${topic}",\n  "payload": ${typeof payload === 'string' ? `"${payload}"` : JSON.stringify(payload, null, 2)}\n}`);
+        // logger.debug(`Published to Home Assistant: {\n  "topic": "${topic}",\n  "payload": ${typeof payload === 'string' ? `"${payload}"` : JSON.stringify(payload, null, 2)}\n}`);
       }
     });
   }
