@@ -362,6 +362,8 @@ class RehauAuthPersistent {
       );
     }
     
+    let verificationEmail: any = null;
+    
     try {
       const redirectUri = 'https://rehau-smartheating-email-gallery-public.s3.eu-central-1.amazonaws.com/publicimages/preprod/rehau.jpg';
       
@@ -374,7 +376,7 @@ class RehauAuthPersistent {
       logger.info('Step 2: Waiting for verification email from REHAU...');
       const timeout = parseInt(process.env.POP3_TIMEOUT || '600000');
       const fromAddress = process.env.POP3_FROM_ADDRESS || 'noreply@accounts.rehau.com';
-      const verificationEmail = await this.pop3Client.waitForNewMessage(
+      verificationEmail = await this.pop3Client.waitForNewMessage(
         fromAddress,
         timeout
       );
@@ -423,6 +425,17 @@ class RehauAuthPersistent {
       
       logger.info(`Authorization code obtained: ${authCode.substring(0, 8)}...`);
       logger.info('=== MFA flow completed successfully ===');
+      
+      // Step 8: Delete verification email after successful MFA
+      if (verificationEmail && verificationEmail.messageNumber) {
+        try {
+          logger.info('Step 8: Deleting verification email from server...');
+          await this.pop3Client.deleteMessage(verificationEmail.messageNumber);
+          logger.info('Verification email deleted successfully');
+        } catch (deleteError) {
+          logger.warn('Failed to delete verification email (non-critical):', deleteError);
+        }
+      }
       
       return authCode;
       

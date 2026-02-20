@@ -19,6 +19,7 @@ export interface EmailMessage {
   date: Date;
   body: string;
   messageId: string;
+  messageNumber?: number;
 }
 
 export class POP3Client {
@@ -146,7 +147,8 @@ export class POP3Client {
                 subject: parsed.subject || '',
                 date: parsed.date || new Date(),
                 body: parsed.text || parsed.html || '',
-                messageId: parsed.messageId || ''
+                messageId: parsed.messageId || '',
+                messageNumber: messageNumber
               };
 
               logger.debug(`Retrieved message from: ${message.from}, subject: ${message.subject}`);
@@ -234,6 +236,28 @@ export class POP3Client {
 
     logger.error(`Timeout waiting for email from ${fromAddress}`);
     return null;
+  }
+
+  async deleteMessage(messageNumber: number): Promise<void> {
+    await this.connect();
+    
+    return new Promise((resolve, reject) => {
+      const deleHandler = (status: boolean, msgNumber: number, data: string) => {
+        if (msgNumber === messageNumber) {
+          this.client.removeListener('dele', deleHandler);
+          
+          if (status) {
+            logger.info(`Deleted message ${messageNumber} from server`);
+            resolve();
+          } else {
+            reject(new Error(`Failed to delete message ${messageNumber}: ${data}`));
+          }
+        }
+      };
+      
+      this.client.on('dele', deleHandler);
+      this.client.dele(messageNumber);
+    });
   }
 
   extractVerificationCode(emailBody: string): string | null {
