@@ -42,7 +42,7 @@ export class POP3Client {
         this.config.host,
         {
           // @ts-ignore
-          ignoretlserrs: process.env.POP3_IGNORE_TLS !== 'false',
+          ignoretlserrs: process.env.POP3_IGNORE_TLS_ERRORS !== 'false',
           enabletls: this.config.secure,
           debug: false  // Never enable poplib debug - it logs passwords and full messages
         }
