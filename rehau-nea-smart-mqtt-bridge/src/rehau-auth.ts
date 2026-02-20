@@ -39,12 +39,20 @@ class RehauAuthPersistent {
   private tokenRefreshInterval: number;
   private isCleanedUp: boolean = false;
   private pop3Client: POP3Client | null = null;
+  private firstLoginTimestamp: number | null = null;
+  private simulatedDisconnectTimer: NodeJS.Timeout | null = null;
 
   constructor(email: string, password: string) {
     this.email = email;
     this.password = password;
     this.clientId = `app-${crypto.randomUUID()}`;
     this.tokenRefreshInterval = parseInt(process.env.TOKEN_REFRESH_INTERVAL || '21600') * 1000; // Default 6 hours
+    
+    // Setup simulated disconnection timer for testing (if configured)
+    const simulateDisconnectAfter = parseInt(process.env.SIMULATE_DISCONNECT_AFTER_SECONDS || '0');
+    if (simulateDisconnectAfter > 0) {
+      logger.warn(`⚠️ SIMULATE_DISCONNECT_AFTER_SECONDS=${simulateDisconnectAfter} - Will force reauthentication after ${simulateDisconnectAfter} seconds from first login`);
+    }
     
     // Initialize POP3 client if configured
     if (process.env.POP3_EMAIL && process.env.POP3_PASSWORD) {
@@ -119,6 +127,12 @@ class RehauAuthPersistent {
     
     logger.info('Cleaning up RehauAuthPersistent...');
     this.stopTokenRefresh();
+    
+    // Clear simulated disconnect timer
+    if (this.simulatedDisconnectTimer) {
+      clearTimeout(this.simulatedDisconnectTimer);
+      this.simulatedDisconnectTimer = null;
+    }
     
     // Cleanup POP3 connection
     if (this.pop3Client) {
@@ -399,6 +413,15 @@ class RehauAuthPersistent {
 
       logger.info('Tokens obtained successfully');
       logger.debug('Token expiry:', new Date(this.tokenExpiry).toISOString());
+      
+      // Record first login timestamp for simulated disconnect testing
+      if (!this.firstLoginTimestamp) {
+        this.firstLoginTimestamp = Date.now();
+        const simulateDisconnectAfter = parseInt(process.env.SIMULATE_DISCONNECT_AFTER_SECONDS || '0');
+        if (simulateDisconnectAfter > 0) {
+          logger.warn(`⏱️ First login completed - simulated disconnect will trigger in ${simulateDisconnectAfter} seconds`);
+        }
+      }
 
       // Cleanup browser AFTER token exchange completes
       logger.info('Cleaning up browser resources...');
@@ -976,6 +999,16 @@ class RehauAuthPersistent {
     if (process.env.FORCE_TOKEN_EXPIRED === 'true') {
       logger.warn('⚠️ FORCE_TOKEN_EXPIRED enabled - simulating expired token');
       return true;
+    }
+    
+    // Check simulated disconnect timer
+    const simulateDisconnectAfter = parseInt(process.env.SIMULATE_DISCONNECT_AFTER_SECONDS || '0');
+    if (simulateDisconnectAfter > 0 && this.firstLoginTimestamp) {
+      const elapsedSeconds = (Date.now() - this.firstLoginTimestamp) / 1000;
+      if (elapsedSeconds >= simulateDisconnectAfter) {
+        logger.warn(`⚠️ SIMULATE_DISCONNECT_AFTER_SECONDS triggered - ${Math.floor(elapsedSeconds)}s elapsed since first login`);
+        return true;
+      }
     }
     
     if (!this.tokenExpiry) return true;
