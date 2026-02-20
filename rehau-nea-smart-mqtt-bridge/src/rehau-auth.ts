@@ -1,5 +1,6 @@
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import * as crypto from 'crypto';
+import * as https from 'https';
 import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
 import { UserDataParserV2, InstallationDataParserV2, type IInstall } from './parsers';
@@ -252,7 +253,7 @@ class RehauAuthPersistent {
       
       logger.info(`Authorization code obtained: ${authCode.substring(0, 8)}...`);
 
-      // Step 8: Exchange code for tokens
+      // Step 8: Exchange code for tokens (BEFORE browser cleanup to avoid timing issues)
       logger.info('Step 8: Exchanging authorization code for tokens...');
       const tokenPayload = {
         grant_type: 'authorization_code',
@@ -270,42 +271,90 @@ class RehauAuthPersistent {
         code_length: authCode.length
       });
       
-      // Use axios for token exchange (simpler than Playwright for this)
-      let tokenResponse;
-      try {
-        tokenResponse = await axios.post(
-          'https://accounts.rehau.com/token-srv/token',
-          tokenPayload,
-          {
-            headers: {
-              'Content-Type': 'application/json'
-            }
+      // Use native https module for better reliability (no axios dependency issues)
+      const tokenResponse = await new Promise<RehauTokenResponse>((resolve, reject) => {
+        const postData = JSON.stringify(tokenPayload);
+        
+        const options = {
+          hostname: 'accounts.rehau.com',
+          port: 443,
+          path: '/token-srv/token',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData),
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Origin': 'https://accounts.rehau.com',
+            'Referer': 'https://accounts.rehau.com/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin'
           }
-        );
-      } catch (tokenError: any) {
-        logger.error('=== Token Exchange Failed ===');
-        logger.error('HTTP Status:', tokenError.response?.status);
-        logger.error('Status Text:', tokenError.response?.statusText);
-        logger.error('Response Headers:', JSON.stringify(tokenError.response?.headers, null, 2));
-        logger.error('Response Data:', JSON.stringify(tokenError.response?.data, null, 2));
-        logger.error('Error Message:', tokenError.message);
-        if (tokenError.code) {
-          logger.error('Error Code:', tokenError.code);
-        }
-        throw tokenError;
-      }
+        };
+        
+        const req = https.request(options, (res) => {
+          let data = '';
+          
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          
+          res.on('end', () => {
+            logger.debug(`Token exchange response status: ${res.statusCode}`);
+            
+            if (res.statusCode === 200) {
+              try {
+                const response = JSON.parse(data);
+                resolve(response);
+              } catch (parseError) {
+                logger.error('Failed to parse token response:', data);
+                reject(new Error(`Failed to parse token response: ${parseError}`));
+              }
+            } else {
+              logger.error('=== Token Exchange Failed ===');
+              logger.error('HTTP Status:', res.statusCode);
+              logger.error('Status Message:', res.statusMessage);
+              logger.error('Response Headers:', JSON.stringify(res.headers, null, 2));
+              logger.error('Response Body:', data);
+              reject(new Error(`Token exchange failed with status ${res.statusCode}: ${data}`));
+            }
+          });
+        });
+        
+        req.on('error', (error) => {
+          logger.error('=== Token Exchange Request Failed ===');
+          logger.error('Error Message:', error.message);
+          logger.error('Error Code:', (error as any).code || 'N/A');
+          logger.error('Stack Trace:', error.stack);
+          reject(error);
+        });
+        
+        req.write(postData);
+        req.end();
+      });
 
-      if (!tokenResponse.data.access_token || !tokenResponse.data.refresh_token) {
-        logger.error('Invalid token response - missing tokens:', JSON.stringify(tokenResponse.data, null, 2));
+      if (!tokenResponse.access_token || !tokenResponse.refresh_token) {
+        logger.error('Invalid token response - missing tokens:', JSON.stringify(tokenResponse, null, 2));
         throw new Error('Token exchange succeeded but response is missing access_token or refresh_token');
       }
 
-      this.accessToken = tokenResponse.data.access_token;
-      this.refreshToken = tokenResponse.data.refresh_token;
-      this.tokenExpiry = Date.now() + (tokenResponse.data.expires_in * 1000);
+      this.accessToken = tokenResponse.access_token;
+      this.refreshToken = tokenResponse.refresh_token;
+      this.tokenExpiry = Date.now() + (tokenResponse.expires_in * 1000);
 
       logger.info('Tokens obtained successfully');
       logger.debug('Token expiry:', new Date(this.tokenExpiry).toISOString());
+
+      // Cleanup browser AFTER token exchange completes
+      logger.info('Cleaning up browser resources...');
+      await client.cleanup();
+      logger.info('Browser closed');
 
       // Step 9: Get user info
       logger.info('Step 9: Fetching user information...');
@@ -318,11 +367,11 @@ class RehauAuthPersistent {
       
       if (isAxiosError(error)) {
         logger.error('Error Type: Axios HTTP Error');
-        logger.error('HTTP Status:', error.response?.status);
-        logger.error('Status Text:', error.response?.statusText);
-        logger.error('Response Data:', JSON.stringify(error.response?.data, null, 2));
-        logger.error('Request URL:', error.config?.url);
-        logger.error('Request Method:', error.config?.method);
+        logger.error('HTTP Status:', error.response?.status || 'N/A');
+        logger.error('Status Text:', error.response?.statusText || 'N/A');
+        logger.error('Response Data:', error.response?.data ? JSON.stringify(error.response.data, null, 2) : 'N/A');
+        logger.error('Request URL:', error.config?.url || 'N/A');
+        logger.error('Request Method:', error.config?.method?.toUpperCase() || 'N/A');
         
         if (error.response?.status === 401) {
           logger.error('Authentication rejected - Invalid username or password');
@@ -330,11 +379,15 @@ class RehauAuthPersistent {
           logger.error('Bad request - Check authorization code and PKCE parameters');
         } else if (error.response?.status === 403) {
           logger.error('Forbidden - Access denied');
+        } else if (!error.response) {
+          logger.error('No response received - Network error or request failed to send');
         }
       } else if (error instanceof Error) {
         logger.error('Error Type:', error.constructor.name);
         logger.error('Error Message:', error.message);
-        logger.error('Stack Trace:', error.stack);
+        if (error.stack) {
+          logger.error('Stack Trace:', error.stack);
+        }
       } else {
         logger.error('Unknown Error Type:', typeof error);
         logger.error('Error:', JSON.stringify(error, null, 2));
@@ -342,10 +395,13 @@ class RehauAuthPersistent {
       
       throw error;
     } finally {
-      // Always cleanup Playwright browser resources to reduce RAM footprint
-      logger.info('Cleaning up browser resources...');
-      await client.cleanup();
-      logger.info('Browser closed');
+      // Ensure browser cleanup on error
+      try {
+        await client.cleanup();
+        logger.debug('Browser cleanup completed (error path)');
+      } catch (cleanupError) {
+        logger.warn('Browser cleanup failed (non-critical):', cleanupError);
+      }
     }
   }
 
