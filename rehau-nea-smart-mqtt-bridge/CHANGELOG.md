@@ -1,5 +1,94 @@
 # Changelog
 
+## [4.0.21] - 2026-02-20
+
+### 🔧 Refactoring
+- **POP3 TLS Configuration Naming**
+  - Renamed `POP3_IGNORE_TLS` to `POP3_IGNORE_TLS_ERRORS` for better clarity
+  - Updated in all configuration files: `.env.example`, `config.yaml`, and source code
+  - More descriptive name communicates that this setting controls TLS certificate validation error handling
+
+---
+
+## [4.0.20] - 2026-02-20
+
+### ✨ New Features
+- **Configurable POP3 TLS Error Handling**
+  - Added `POP3_IGNORE_TLS_ERRORS` environment variable (default: `true`)
+  - Allows users to enforce strict TLS certificate validation by setting to `false`
+  - Maintains backward compatibility with permissive default behavior
+  - Added to both `.env.example` and `config.yaml` for Home Assistant add-on support
+
+---
+
+## [4.0.19] - 2026-02-20
+
+### 🐛 Critical Bug Fixes
+- **Token Exchange Authentication Fixed**
+  - **Root Cause**: Browser cleanup was happening in `finally` block BEFORE token exchange completed, causing timing conflicts on subsequent authentications
+  - **Impact**: First authentication always worked, but subsequent authentications failed with empty error responses
+  - **Solution**:
+    - Replaced axios with native Node.js `https` module for better reliability
+    - Added proper response decompression handling (gzip, deflate, brotli)
+    - Moved browser cleanup to happen AFTER successful token exchange
+    - Added realistic Chromium browser headers to token exchange requests
+  - **Result**: Token exchange now works consistently on both first and subsequent authentications
+
+### 🔧 Improvements
+- **Enhanced Error Logging**
+  - Comprehensive error logging for token exchange failures
+  - Logs HTTP status, response headers, response body, and full error objects
+  - Better debugging information for authentication issues
+  
+- **Response Decompression**
+  - Proper handling of compressed HTTP responses (gzip, deflate, brotli)
+  - Uses Node.js `zlib` module for reliable decompression
+  - Fixes empty response body issues
+
+- **Browser Headers Simulation**
+  - Added complete Chromium browser headers to HTTPS requests
+  - Includes User-Agent, Accept headers, and security fetch metadata
+  - Prevents server-side filtering or rejection
+
+---
+
+## [4.0.18] - 2026-02-20
+
+### 🔍 Debugging Improvements
+- **Enhanced Token Exchange Error Logging**
+  - Added comprehensive error logging for token exchange failures
+  - Logs all error properties including HTTP status, headers, response data
+  - Captures full error object with `Object.getOwnPropertyNames()` for complete debugging information
+  - Shows "N/A" for undefined properties instead of empty fields
+
+---
+
+## [4.0.17] - 2026-02-20
+
+### ✨ New Features
+- **Automatic Email Cleanup After MFA**
+  - Verification emails automatically deleted from POP3 server after successful 2FA authentication
+  - Improves mailbox hygiene and security
+  - Non-blocking operation - authentication succeeds even if deletion fails
+  - Added `deleteMessage()` method to POP3Client with proper error handling
+
+### 🐛 Bug Fixes
+- **POP3 Connection Management**
+  - Fixed "too many active sessions" error by ensuring proper disconnect after operations
+  - Fixed "read ECONNRESET" errors with improved connection lifecycle management
+  - Fixed "Cannot read properties of null" error by properly managing client state
+  - Added robust error handling and connection state reset on failures
+
+### 🚀 Release Automation
+- **Automated Release Scripts**
+  - Added `npm run release`, `release:patch`, `release:minor`, `release:major` scripts
+  - Automatic version bumping in both `package.json` and `config.yaml`
+  - Generates detailed commit messages with change history
+  - Creates git tags and pushes to remote automatically
+  - Ensures consistent release workflow
+
+---
+
 ## [2.7.8] - 2025-12-11
 
 ### 🐛 Critical Bug Fixes
