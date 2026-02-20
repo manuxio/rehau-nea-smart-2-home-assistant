@@ -414,12 +414,31 @@ class RehauAuthPersistent {
       logger.info('Tokens obtained successfully');
       logger.debug('Token expiry:', new Date(this.tokenExpiry).toISOString());
       
-      // Record first login timestamp for simulated disconnect testing
+      // Record first login timestamp and setup simulated disconnect timer
       if (!this.firstLoginTimestamp) {
         this.firstLoginTimestamp = Date.now();
         const simulateDisconnectAfter = parseInt(process.env.SIMULATE_DISCONNECT_AFTER_SECONDS || '0');
         if (simulateDisconnectAfter > 0) {
           logger.warn(`⏱️ First login completed - simulated disconnect will trigger in ${simulateDisconnectAfter} seconds`);
+          
+          // Setup timer to force reauthentication
+          this.simulatedDisconnectTimer = setTimeout(async () => {
+            logger.warn(`🔄 SIMULATE_DISCONNECT_AFTER_SECONDS triggered - forcing reauthentication now`);
+            try {
+              // Try refresh first
+              logger.info('Attempting token refresh (simulated disconnect)...');
+              await this.refresh();
+              logger.info('✅ Token refresh successful');
+            } catch (refreshError) {
+              logger.warn('⚠️ Token refresh failed, attempting fresh login...');
+              try {
+                await this.login();
+                logger.info('✅ Fresh login successful');
+              } catch (loginError) {
+                logger.error('❌ Fresh login failed:', (loginError as Error).message);
+              }
+            }
+          }, simulateDisconnectAfter * 1000);
         }
       }
 
