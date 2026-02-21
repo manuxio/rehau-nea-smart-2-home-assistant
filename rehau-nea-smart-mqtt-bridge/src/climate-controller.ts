@@ -2356,9 +2356,12 @@ class ClimateController {
     const installName = this.installationNames.get(installId) || installId;
     const circuits = data.data.data;
     
-    logger.info(`🔌 LIVE_EMU Data Received:`);
-    logger.info(`   Installation: ${installName}`);
-    logger.info(`   Circuits: ${Object.keys(circuits).length}`);
+    logger.debug(`🔌 LIVE_EMU Data Received:`);
+    logger.debug(`   Installation: ${installName}`);
+    logger.debug(`   Circuits: ${Object.keys(circuits).length}`);
+    
+    // Build concise summary for INFO level
+    const circuitSummaries: string[] = [];
     
     Object.entries(circuits).forEach(([mcKey, mcData]) => {
       // Skip if circuit is not present (supply temp = 32767 indicates not present)
@@ -2373,12 +2376,16 @@ class ClimateController {
       const opening = mcData.mixed_circuit1_opening;
       const pumpState = mcData.pumpOn === 1 ? 'ON' : 'OFF';
       
-      logger.info(`🔌 ${mcKey} Data:`);
-      logger.info(`   Pump: ${pumpState}`);
-      logger.info(`   Setpoint: ${setpointC}°C`);
-      logger.info(`   Supply: ${supplyC}°C`);
-      logger.info(`   Return: ${returnC}°C`);
-      logger.info(`   Valve Opening: ${opening}%`);
+      // Detailed logs at DEBUG level
+      logger.debug(`🔌 ${mcKey} Data:`);
+      logger.debug(`   Pump: ${pumpState}`);
+      logger.debug(`   Setpoint: ${setpointC}°C`);
+      logger.debug(`   Supply: ${supplyC}°C`);
+      logger.debug(`   Return: ${returnC}°C`);
+      logger.debug(`   Valve Opening: ${opening}%`);
+      
+      // Compact summary for INFO level
+      circuitSummaries.push(`${mcKey}[Pump:${pumpState} Set:${setpointC}°C Sup:${supplyC}°C Ret:${returnC}°C Open:${opening}%]`);
       
       const mcNumber = mcKey.replace('MC', '');
       const baseTopic = `homeassistant/sensor/rehau_${installId}_${mcKey.toLowerCase()}`;
@@ -2514,10 +2521,15 @@ class ClimateController {
         { retain: true }
       );
       
-      logger.info(`📤 Published ${mcKey} to HA:`);
-      logger.info(`   Topics: pump, setpoint, supply, return, opening`);
-      logger.info(`   Base: ${baseTopic}`);
+      logger.debug(`📤 Published ${mcKey} to HA:`);
+      logger.debug(`   Topics: pump, setpoint, supply, return, opening`);
+      logger.debug(`   Base: ${baseTopic}`);
     });
+    
+    // Single INFO line with all circuit data
+    if (circuitSummaries.length > 0) {
+      logger.info(`🔌 LIVE_EMU (${installName}): ${circuitSummaries.join(' ')}`);
+    }
   }
 
   /**
@@ -2528,27 +2540,40 @@ class ClimateController {
     const installName = this.installationNames.get(installId) || installId;
     const controllers = data.data.data;
     
-    logger.info(`🔌 LIVE_DIDO Data Received:`);
-    logger.info(`   Installation: ${installName}`);
-    logger.info(`   Controllers: ${Object.keys(controllers).length}`);
+    logger.debug(`🔌 LIVE_DIDO Data Received:`);
+    logger.debug(`   Installation: ${installName}`);
+    logger.debug(`   Controllers: ${Object.keys(controllers).length}`);
+    
+    // Build concise summary for INFO level
+    const controllerSummaries: string[] = [];
     
     Object.entries(controllers).forEach(([controllerKey, controllerData]) => {
       const controllerNumber = controllerKey.replace(/\D/g, '');
       const diCount = controllerData.DI?.length || 0;
       const doCount = controllerData.DO?.length || 0;
       
-      logger.info(`🔌 ${controllerKey}:`);
-      logger.info(`   Digital Inputs: ${diCount}`);
-      logger.info(`   Digital Outputs: ${doCount}`);
+      logger.debug(`🔌 ${controllerKey}:`);
+      logger.debug(`   Digital Inputs: ${diCount}`);
+      logger.debug(`   Digital Outputs: ${doCount}`);
+      
+      let diStates = '';
+      let doStates = '';
       
       if (controllerData.DI && controllerData.DI.length > 0) {
-        const diStates = controllerData.DI.map((state, idx) => `DI${idx}=${state ? 'ON' : 'OFF'}`).join(', ');
-        logger.info(`   DI States: ${diStates}`);
+        diStates = controllerData.DI.map((state, idx) => `DI${idx}=${state ? 'ON' : 'OFF'}`).join(', ');
+        logger.debug(`   DI States: ${diStates}`);
       }
       
       if (controllerData.DO && controllerData.DO.length > 0) {
-        const doStates = controllerData.DO.map((state, idx) => `DO${idx}=${state ? 'ON' : 'OFF'}`).join(', ');
-        logger.info(`   DO States: ${doStates}`);
+        doStates = controllerData.DO.map((state, idx) => `DO${idx}=${state ? 'ON' : 'OFF'}`).join(', ');
+        logger.debug(`   DO States: ${doStates}`);
+      }
+      
+      // Compact summary for INFO level - only show active states
+      const activeInputs = controllerData.DI?.filter(s => s).length || 0;
+      const activeOutputs = controllerData.DO?.filter(s => s).length || 0;
+      if (diCount > 0 || doCount > 0) {
+        controllerSummaries.push(`${controllerKey}[DI:${activeInputs}/${diCount} DO:${activeOutputs}/${doCount}]`);
       }
       
       // Publish Digital Inputs
@@ -2611,10 +2636,15 @@ class ClimateController {
         });
       }
       
-      logger.info(`📤 Published ${controllerKey} to HA:`);
-      logger.info(`   Topics: ${diCount} DI + ${doCount} DO binary sensors`);
-      logger.info(`   Base: homeassistant/binary_sensor/rehau_${installId}_${controllerKey.toLowerCase()}`);
+      logger.debug(`📤 Published ${controllerKey} to HA:`);
+      logger.debug(`   Topics: ${diCount} DI + ${doCount} DO binary sensors`);
+      logger.debug(`   Base: homeassistant/binary_sensor/rehau_${installId}_${controllerKey.toLowerCase()}`);
     });
+    
+    // Single INFO line with all controller data
+    if (controllerSummaries.length > 0) {
+      logger.info(`🔌 LIVE_DIDO (${installName}): ${controllerSummaries.join(' ')}`);
+    }
   }
 
   /**
