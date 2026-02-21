@@ -1,5 +1,6 @@
 import { chromium, Browser, BrowserContext, Page } from 'playwright';
 import * as fs from 'fs';
+import logger from './logger';
 
 interface RequestOptions {
   method?: string;
@@ -27,7 +28,7 @@ export class PlaywrightHttpsClient {
   constructor(headless?: boolean) {
     // Use environment variable or constructor parameter
     this.headless = headless !== undefined ? headless : (process.env.PLAYWRIGHT_HEADLESS !== 'false');
-    process.stderr.write(`[PlaywrightHttpsClient] Headless mode: ${this.headless}\n`);
+    logger.debug(`Playwright browser headless mode: ${this.headless}`);
   }
 
   private async ensureInitialized(): Promise<void> {
@@ -35,7 +36,7 @@ export class PlaywrightHttpsClient {
       return;
     }
 
-    process.stderr.write('[PlaywrightHttpsClient] Initializing Chromium browser...\n');
+    logger.debug('Initializing Playwright Chromium browser...');
     
     try {
       // Check if system Chromium exists (Docker/Linux), otherwise use Playwright default (Windows)
@@ -44,9 +45,9 @@ export class PlaywrightHttpsClient {
       
       if (fs.existsSync(systemChromiumPath)) {
         executablePath = systemChromiumPath;
-        process.stderr.write(`[PlaywrightHttpsClient] Using system Chromium at: ${executablePath}\n`);
+        logger.debug(`Using system Chromium at: ${executablePath}`);
       } else {
-        process.stderr.write('[PlaywrightHttpsClient] Using Playwright default browser\n');
+        logger.debug('Using Playwright default browser');
       }
       
       this.browser = await chromium.launch({
@@ -60,7 +61,7 @@ export class PlaywrightHttpsClient {
       timeout: 60000
     });
     
-    process.stderr.write('[PlaywrightHttpsClient] Chromium launched successfully\n');
+    logger.debug('Playwright Chromium launched successfully');
 
     
 
@@ -94,9 +95,9 @@ export class PlaywrightHttpsClient {
     });
 
       this.initialized = true;
-      process.stderr.write('[PlaywrightHttpsClient] Browser initialized successfully\n');
+      logger.debug('Playwright browser initialized successfully');
     } catch (error: any) {
-      process.stderr.write(`[PlaywrightHttpsClient] Failed to initialize browser: ${error.message}\n`);
+      logger.error(`Failed to initialize Playwright browser: ${error.message}`);
       throw error;
     }
   }
@@ -111,7 +112,7 @@ export class PlaywrightHttpsClient {
     const method = options.method || 'GET';
     const startTime = Date.now();
     
-    process.stderr.write(`[PlaywrightHttpsClient] ${method} ${url}\n`);
+    logger.debug(`Playwright ${method} ${url}`);
     
     try {
       let response;
@@ -204,16 +205,15 @@ export class PlaywrightHttpsClient {
       const headers = response.headers();
       const finalUrl = this.page.url();
 
-      process.stderr.write(`[PlaywrightHttpsClient] ${method} completed in ${elapsed}ms\n`);
-      process.stderr.write(`[PlaywrightHttpsClient] Status: ${status}\n`);
-      process.stderr.write(`[PlaywrightHttpsClient] Final URL: ${finalUrl}\n`);
-      process.stderr.write(`[PlaywrightHttpsClient] Body length: ${body.length} bytes\n`);
+      logger.debug(`Playwright ${method} completed in ${elapsed}ms - Status: ${status}`);
+      logger.debug(`Final URL: ${finalUrl}`);
+      logger.debug(`Body length: ${body.length} bytes`);
 
       // Log 403 responses for debugging
       if (status === 403) {
-        process.stderr.write(`[PlaywrightHttpsClient] === 403 FORBIDDEN DETECTED ===\n`);
-        process.stderr.write(`[PlaywrightHttpsClient] Response body preview: ${body.substring(0, 500)}\n`);
-        process.stderr.write(`[PlaywrightHttpsClient] Headers: ${JSON.stringify(headers)}\n`);
+        logger.error('=== 403 FORBIDDEN DETECTED ===');
+        logger.error(`Response body preview: ${body.substring(0, 500)}`);
+        logger.error(`Headers: ${JSON.stringify(headers)}`);
       }
 
       return {
@@ -225,7 +225,7 @@ export class PlaywrightHttpsClient {
         finalUrl: finalUrl
       };
     } catch (error: any) {
-      process.stderr.write(`[PlaywrightHttpsClient] Error: ${error.message}\n`);
+      logger.error(`Playwright request error: ${error.message}`);
       throw new Error(`Playwright request failed: ${error.message}`);
     }
   }
@@ -250,37 +250,37 @@ export class PlaywrightHttpsClient {
   }
 
   async cleanup(): Promise<void> {
-    process.stderr.write('[PlaywrightHttpsClient] Cleaning up browser resources...\n');
+    logger.debug('Cleaning up Playwright browser resources...');
     
     try {
       if (this.page) {
-        await this.page.close().catch(() => {});
+        await this.page.close();
         this.page = null;
       }
     } catch (error) {
-      process.stderr.write('[PlaywrightHttpsClient] Error closing page (may already be closed)\n');
+      logger.debug('Error closing page (may already be closed)');
     }
     
     try {
       if (this.context) {
-        await this.context.close().catch(() => {});
+        await this.context.close();
         this.context = null;
       }
     } catch (error) {
-      process.stderr.write('[PlaywrightHttpsClient] Error closing context (may already be closed)\n');
+      logger.debug('Error closing context (may already be closed)');
     }
     
     try {
       if (this.browser) {
-        await this.browser.close().catch(() => {});
+        await this.browser.close();
         this.browser = null;
       }
     } catch (error) {
-      process.stderr.write('[PlaywrightHttpsClient] Error closing browser (may already be closed)\n');
+      logger.debug('Error closing browser (may already be closed)');
     }
     
     this.initialized = false;
-    process.stderr.write('[PlaywrightHttpsClient] Cleanup complete\n');
+    logger.debug('Playwright cleanup complete');
   }
 
   /**
@@ -292,16 +292,16 @@ export class PlaywrightHttpsClient {
       throw new Error('Page not initialized');
     }
     
-    process.stderr.write(`[PlaywrightHttpsClient] Navigating to: ${url}\n`);
+    logger.debug(`Navigating to: ${url}`);
     try {
       await this.page.goto(url, { 
         waitUntil: 'domcontentloaded', 
         timeout: 60000 
       });
-      process.stderr.write(`[PlaywrightHttpsClient] Navigation complete. Current URL: ${this.page.url()}\n`);
+      logger.debug(`Navigation complete. Current URL: ${this.page.url()}`);
     } catch (error: any) {
-      process.stderr.write(`[PlaywrightHttpsClient] Navigation error: ${error.message}\n`);
-      process.stderr.write(`[PlaywrightHttpsClient] Current URL after error: ${this.page.url()}\n`);
+      logger.error(`Navigation error: ${error.message}`);
+      logger.debug(`Current URL after error: ${this.page.url()}`);
       throw error;
     }
   }
@@ -315,9 +315,9 @@ export class PlaywrightHttpsClient {
       throw new Error('Page not initialized');
     }
     
-    process.stderr.write(`[PlaywrightHttpsClient] Waiting for element with id="${id}"...\n`);
+    logger.debug(`Waiting for element with id="${id}"...`);
     await this.page.waitForSelector(`#${id}`, { timeout, state: 'visible' });
-    process.stderr.write(`[PlaywrightHttpsClient] Element #${id} found\n`);
+    logger.debug(`Element #${id} found`);
   }
 
   /**
@@ -329,9 +329,9 @@ export class PlaywrightHttpsClient {
       throw new Error('Page not initialized');
     }
     
-    process.stderr.write(`[PlaywrightHttpsClient] Typing into element #${id}...\n`);
+    logger.debug(`Typing into element #${id}...`);
     await this.page.fill(`#${id}`, text);
-    process.stderr.write(`[PlaywrightHttpsClient] Text entered into #${id}\n`);
+    logger.debug(`Text entered into #${id}`);
   }
 
   /**
@@ -343,9 +343,9 @@ export class PlaywrightHttpsClient {
       throw new Error('Page not initialized');
     }
     
-    process.stderr.write(`[PlaywrightHttpsClient] Clicking element: ${selector}\n`);
+    logger.debug(`Clicking element: ${selector}`);
     await this.page.click(selector);
-    process.stderr.write(`[PlaywrightHttpsClient] Element clicked: ${selector}\n`);
+    logger.debug(`Element clicked: ${selector}`);
   }
 
   /**
@@ -364,13 +364,13 @@ export class PlaywrightHttpsClient {
       throw new Error('Page not initialized');
     }
     
-    process.stderr.write(`[PlaywrightHttpsClient] Waiting for URL to start with: ${prefix}...\n`);
+    logger.debug(`Waiting for URL to start with: ${prefix}...`);
     
     const startTime = Date.now();
     while (Date.now() - startTime < timeout) {
       const currentUrl = this.page.url();
       if (currentUrl.startsWith(prefix)) {
-        process.stderr.write(`[PlaywrightHttpsClient] URL matched: ${currentUrl}\n`);
+        logger.debug(`URL matched: ${currentUrl}`);
         return currentUrl;
       }
       await new Promise(resolve => setTimeout(resolve, 500));
