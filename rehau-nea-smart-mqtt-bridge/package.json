@@ -54,5 +54,8 @@
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
+  },
+  "overrides": {
+    "minimist": "^1.2.8"
   }
 }
