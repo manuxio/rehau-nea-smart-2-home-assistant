@@ -657,7 +657,7 @@ class RehauMQTTBridge {
     
     this.haClient.subscribe(topic, (err) => {
       if (!err) {
-        logger.info(`✅ Subscribed to HA command topic: ${topic}`);
+        logger.debug(`✅ Subscribed to HA command topic: ${topic}`);
       } else {
         logger.error(`❌ Failed to subscribe to ${topic}:`, err);
       }

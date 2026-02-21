@@ -1020,11 +1020,11 @@ class ClimateController {
     const installId = install.unique;
     const installName = install.name;
     
-    logger.info('');
-    logger.info('═══════════════════════════════════════════════════════════════');
-    logger.info('📊 Home Assistant MQTT Discovery Structure');
-    logger.info('═══════════════════════════════════════════════════════════════');
-    logger.info('');
+    logger.debug('');
+    logger.debug('═══════════════════════════════════════════════════════════════');
+    logger.debug('📊 Home Assistant MQTT Discovery Structure');
+    logger.debug('═══════════════════════════════════════════════════════════════');
+    logger.debug('');
     
     // Get all zones for this installation
     const zones: Array<{ zoneNumber: number; zoneName: string; groupName: string; state: ClimateState }> = [];
@@ -1058,15 +1058,15 @@ class ClimateController {
     const sensorCount = zones.length * 5 + 1; // temp + humidity + demanding + demanding_percent + dewpoint per zone + outside temp
     const totalCount = climateCount + sensorCount;
     
-    logger.info(`Installation: ${installName} (${installId})`);
-    logger.info(`Total Entities: ${totalCount} (${climateCount} climate + ${sensorCount} sensors)`);
-    logger.info(`USE_GROUP_IN_NAMES: ${USE_GROUP_IN_NAMES}`);
-    logger.info('');
-    logger.info('homeassistant/');
-    logger.info('│');
+    logger.debug(`Installation: ${installName} (${installId})`);
+    logger.debug(`Total Entities: ${totalCount} (${climateCount} climate + ${sensorCount} sensors)`);
+    logger.debug(`USE_GROUP_IN_NAMES: ${USE_GROUP_IN_NAMES}`);
+    logger.debug('');
+    logger.debug('homeassistant/');
+    logger.debug('│');
     
     // Climate entities
-    logger.info('├─ climate/                                    [Climate Entities]');
+    logger.debug('├─ climate/                                    [Climate Entities]');
     zones.forEach((zone, idx) => {
       const isLast = idx === zones.length;
       const prefix = isLast ? '│  └─' : '│  ├─';
@@ -1084,33 +1084,33 @@ class ClimateController {
         ? `${zone.groupName} ${zone.zoneName}` 
         : zone.zoneName;
       
-      logger.info(`${prefix} rehau_${zone.state.zoneId}/`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ config                               → "${displayName}"`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ object_id                            → "${objectId}"`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ availability                         → "online"`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ current_temperature                  → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ target_temperature                   → ${zone.state.targetTemperature?.toFixed(1) ?? 'N/A'}°C`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ current_humidity                     → ${zone.state.humidity ?? 'N/A'}%`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ mode                                 → "${zone.state.mode}"`);
+      logger.debug(`${prefix} rehau_${zone.state.zoneId}/`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ config                               → "${displayName}"`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ object_id                            → "${objectId}"`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ availability                         → "online"`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ current_temperature                  → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ target_temperature                   → ${zone.state.targetTemperature?.toFixed(1) ?? 'N/A'}°C`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ current_humidity                     → ${zone.state.humidity ?? 'N/A'}%`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ mode                                 → "${zone.state.mode}"`);
       if (zone.state.preset) {
-        logger.info(`${isLast ? '│     ' : '│  │  '}├─ preset                               → "${zone.state.preset}"`);
+        logger.debug(`${isLast ? '│     ' : '│  │  '}├─ preset                               → "${zone.state.preset}"`);
       }
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ mode_command                         ← [subscribed]`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}├─ preset_command                       ← [subscribed]`);
-      logger.info(`${isLast ? '│     ' : '│  │  '}└─ temperature_command                  ← [subscribed]`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ mode_command                         ← [subscribed]`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}├─ preset_command                       ← [subscribed]`);
+      logger.debug(`${isLast ? '│     ' : '│  │  '}└─ temperature_command                  ← [subscribed]`);
     });
     
     // Installation mode control
-    logger.info('│  │');
-    logger.info(`│  └─ rehau_${installId}_mode_control/`);
-    logger.info('│     ├─ config                               → "Mode Control"');
-    logger.info('│     ├─ availability                         → "online"');
-    logger.info('│     ├─ mode_command                         ← [subscribed]');
-    logger.info('│     └─ temperature_command                  ← [subscribed]');
-    logger.info('│');
+    logger.debug('│  │');
+    logger.debug(`│  └─ rehau_${installId}_mode_control/`);
+    logger.debug('│     ├─ config                               → "Mode Control"');
+    logger.debug('│     ├─ availability                         → "online"');
+    logger.debug('│     ├─ mode_command                         ← [subscribed]');
+    logger.debug('│     └─ temperature_command                  ← [subscribed]');
+    logger.debug('│');
     
     // Sensor entities
-    logger.info('└─ sensor/                                     [Sensor Entities]');
+    logger.debug('└─ sensor/                                     [Sensor Entities]');
     zones.forEach((zone, idx) => {
       const isLast = idx === zones.length - 1;
       const prefix = isLast ? '   └─' : '   ├─';
@@ -1126,19 +1126,19 @@ class ClimateController {
       const objectIdBase = `rehau_${groupNameSanitized}_${zoneNameSanitized}`;
       
       // Temperature sensor
-      logger.info(`${prefix} rehau_${zone.state.zoneId}_temperature/`);
-      logger.info(`   │  ├─ config                               → "${displayName} Temperature"`);
-      logger.info(`   │  ├─ object_id                            → "${objectIdBase}_temperature"`);
-      logger.info(`   │  ├─ availability                         → "online"`);
-      logger.info(`   │  └─ state                                → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
+      logger.debug(`${prefix} rehau_${zone.state.zoneId}_temperature/`);
+      logger.debug(`   │  ├─ config                               → "${displayName} Temperature"`);
+      logger.debug(`   │  ├─ object_id                            → "${objectIdBase}_temperature"`);
+      logger.debug(`   │  ├─ availability                         → "online"`);
+      logger.debug(`   │  └─ state                                → ${zone.state.currentTemperature?.toFixed(1) ?? 'N/A'}°C`);
       
       // Humidity sensor
-      logger.info(`   │`);
-      logger.info(`   ├─ rehau_${zone.state.zoneId}_humidity/`);
-      logger.info(`   │  ├─ config                               → "${displayName} Humidity"`);
-      logger.info(`   │  ├─ object_id                            → "${objectIdBase}_humidity"`);
-      logger.info(`   │  ├─ availability                         → "online"`);
-      logger.info(`   │  └─ state                                → ${zone.state.humidity ?? 'N/A'}%`);
+      logger.debug(`   │`);
+      logger.debug(`   ├─ rehau_${zone.state.zoneId}_humidity/`);
+      logger.debug(`   │  ├─ config                               → "${displayName} Humidity"`);
+      logger.debug(`   │  ├─ object_id                            → "${objectIdBase}_humidity"`);
+      logger.debug(`   │  ├─ availability                         → "online"`);
+      logger.debug(`   │  └─ state                                → ${zone.state.humidity ?? 'N/A'}%`);
       
       // Get demanding values from zone channels
       let demandingState = 'N/A';
@@ -1157,42 +1157,42 @@ class ClimateController {
         }
       }
       
-      logger.info(`   │`);
-      logger.info(`   ├─ rehau_${zone.state.zoneId}_demanding/             [binary_sensor]`);
-      logger.info(`   │  ├─ config                               → "${displayName} Demanding"`);
-      logger.info(`   │  ├─ object_id                            → "${objectIdBase}_demanding"`);
-      logger.info(`   │  ├─ availability                         → "online"`);
-      logger.info(`   │  └─ state                                → ${demandingState}`);
+      logger.debug(`   │`);
+      logger.debug(`   ├─ rehau_${zone.state.zoneId}_demanding/             [binary_sensor]`);
+      logger.debug(`   │  ├─ config                               → "${displayName} Demanding"`);
+      logger.debug(`   │  ├─ object_id                            → "${objectIdBase}_demanding"`);
+      logger.debug(`   │  ├─ availability                         → "online"`);
+      logger.debug(`   │  └─ state                                → ${demandingState}`);
       
-      logger.info(`   │`);
-      logger.info(`   ├─ rehau_${zone.state.zoneId}_demanding_percent/`);
-      logger.info(`   │  ├─ config                               → "${displayName} Demanding Percent"`);
-      logger.info(`   │  ├─ object_id                            → "${objectIdBase}_demanding_percent"`);
-      logger.info(`   │  ├─ availability                         → "online"`);
-      logger.info(`   │  └─ state                                → ${demandingPercent}`);
+      logger.debug(`   │`);
+      logger.debug(`   ├─ rehau_${zone.state.zoneId}_demanding_percent/`);
+      logger.debug(`   │  ├─ config                               → "${displayName} Demanding Percent"`);
+      logger.debug(`   │  ├─ object_id                            → "${objectIdBase}_demanding_percent"`);
+      logger.debug(`   │  ├─ availability                         → "online"`);
+      logger.debug(`   │  └─ state                                → ${demandingPercent}`);
       
-      logger.info(`   │`);
-      logger.info(`   ├─ rehau_${zone.state.zoneId}_dewpoint/`);
-      logger.info(`   │  ├─ config                               → "${displayName} Dewpoint"`);
-      logger.info(`   │  ├─ object_id                            → "${objectIdBase}_dewpoint"`);
-      logger.info(`   │  ├─ availability                         → "online"`);
-      logger.info(`   │  └─ state                                → ${dewpoint}`);
+      logger.debug(`   │`);
+      logger.debug(`   ├─ rehau_${zone.state.zoneId}_dewpoint/`);
+      logger.debug(`   │  ├─ config                               → "${displayName} Dewpoint"`);
+      logger.debug(`   │  ├─ object_id                            → "${objectIdBase}_dewpoint"`);
+      logger.debug(`   │  ├─ availability                         → "online"`);
+      logger.debug(`   │  └─ state                                → ${dewpoint}`);
       
       if (!isLast) {
-        logger.info('   │');
+        logger.debug('   │');
       }
     });
     
     // Outside temperature sensor
-    logger.info('   │');
-    logger.info(`   └─ rehau_${installId}_outside_temp/`);
-    logger.info('      ├─ config                               → "Outside Temperature"');
-    logger.info('      ├─ availability                         → "online"');
-    logger.info(`      └─ state                                → ${install.outsideTemperature.celsius?.toFixed(1) ?? 'N/A'}°C`);
+    logger.debug('   │');
+    logger.debug(`   └─ rehau_${installId}_outside_temp/`);
+    logger.debug('      ├─ config                               → "Outside Temperature"');
+    logger.debug('      ├─ availability                         → "online"');
+    logger.debug(`      └─ state                                → ${install.outsideTemperature.celsius?.toFixed(1) ?? 'N/A'}°C`);
     
-    logger.info('');
-    logger.info('═══════════════════════════════════════════════════════════════');
-    logger.info('');
+    logger.debug('');
+    logger.debug('═══════════════════════════════════════════════════════════════');
+    logger.debug('');
   }
 
   private updateZoneFromChannel(zoneKey: string, state: ClimateState, channel: IChannel, installationMode: 'heat' | 'cool'): void {
@@ -1495,7 +1495,7 @@ class ClimateController {
     const topic1 = `homeassistant/climate/rehau_${state.zoneId}/current_temperature`;
     const topic2 = `homeassistant/sensor/rehau_${state.zoneId}_temperature/state`;
     
-    logger.info(`📤 MQTT Publish: ${topic1} = ${temperature}°C (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic1} = ${temperature}°C (${groupName}/${state.zoneName})`);
     
     // Publish to climate entity
     this.mqttBridge.publishToHomeAssistant(
@@ -1519,7 +1519,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/target_temperature`;
     
-    logger.info(`📤 MQTT Publish: ${topic} = ${temperature}°C (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic} = ${temperature}°C (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1535,7 +1535,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/mode`;
     
-    logger.info(`📤 MQTT Publish: ${topic} = ${mode} (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic} = ${mode} (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1554,7 +1554,7 @@ class ClimateController {
     const topic1 = `homeassistant/climate/rehau_${state.zoneId}/current_humidity`;
     const topic2 = `homeassistant/sensor/rehau_${state.zoneId}_humidity/state`;
     
-    logger.info(`📤 MQTT Publish: ${topic1} = ${humidity}% (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic1} = ${humidity}% (${groupName}/${state.zoneName})`);
     
     // Publish to climate entity
     this.mqttBridge.publishToHomeAssistant(
@@ -1579,7 +1579,7 @@ class ClimateController {
     const topic = `homeassistant/binary_sensor/rehau_${state.zoneId}_demanding/state`;
     const value = demanding ? 'ON' : 'OFF';
     
-    logger.info(`📤 MQTT Publish: ${topic} = ${value} (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic} = ${value} (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1595,7 +1595,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/sensor/rehau_${state.zoneId}_demanding_percent/state`;
     
-    logger.info(`📤 MQTT Publish: ${topic} = ${percent} (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic} = ${percent} (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1611,7 +1611,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/sensor/rehau_${state.zoneId}_dewpoint/state`;
     
-    logger.info(`📤 MQTT Publish: ${topic} = ${dewpoint}°C (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic} = ${dewpoint}°C (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1627,7 +1627,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/preset`;
     
-    logger.info(`📤 MQTT Publish: ${topic} = ${preset} (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic} = ${preset} (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1643,7 +1643,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/preset`;
     
-    logger.info(`📤 MQTT Publish: ${topic} = None (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic} = None (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1659,7 +1659,7 @@ class ClimateController {
     const groupName = this.getGroupNameForZone(state.installId, state.zoneNumber);
     const topic = `homeassistant/climate/rehau_${state.zoneId}/target_temperature`;
     
-    logger.info(`📤 MQTT Publish: ${topic} = None (${groupName}/${state.zoneName})`);
+    logger.debug(`📤 MQTT Publish: ${topic} = None (${groupName}/${state.zoneName})`);
     
     this.mqttBridge.publishToHomeAssistant(
       topic,
@@ -1676,7 +1676,7 @@ class ClimateController {
     const zoneState = Array.from(this.installations.values()).find(s => s.zoneId === zoneId);
     if (zoneState) {
       const groupName = this.getGroupNameForZone(zoneState.installId, zoneState.zoneNumber);
-      logger.info(`📤 MQTT Publish: ${topic} = ${state} (${groupName}/${zoneState.zoneName})`);
+      logger.debug(`📤 MQTT Publish: ${topic} = ${state} (${groupName}/${zoneState.zoneName})`);
     }
     
     this.mqttBridge.publishToHomeAssistant(
@@ -1694,7 +1694,7 @@ class ClimateController {
     const zoneState = Array.from(this.installations.values()).find(s => s.zoneId === zoneId);
     if (zoneState) {
       const groupName = this.getGroupNameForZone(zoneState.installId, zoneState.zoneNumber);
-      logger.info(`📤 MQTT Publish: ${topic} = ${state} (${groupName}/${zoneState.zoneName})`);
+      logger.debug(`📤 MQTT Publish: ${topic} = ${state} (${groupName}/${zoneState.zoneName})`);
     }
     
     this.mqttBridge.publishToHomeAssistant(
