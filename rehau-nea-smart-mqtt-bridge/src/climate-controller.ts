@@ -35,6 +35,7 @@ const USE_GROUP_IN_NAMES = process.env.USE_GROUP_IN_NAMES === 'true';
 const COMMAND_RETRY_TIMEOUT = parseInt(process.env.COMMAND_RETRY_TIMEOUT || '30') * 1000; // Default 30 seconds
 const COMMAND_MAX_RETRIES = parseInt(process.env.COMMAND_MAX_RETRIES || '3'); // Default 3 retries
 const COMMAND_CHECK_INTERVAL = 5000; // Check pending commands every 5 seconds
+const DISABLE_REDUNDANT_COMMANDS = process.env.DISABLE_REDUNDANT_COMMANDS === 'true'; // Default false
 
 // Get version from package.json (single source of truth)
 const SW_VERSION = packageJson.version;
@@ -1898,8 +1899,16 @@ class ClimateController {
     
     try {
       if (commandType === 'mode') {
+        logger.info(`Command: mode = ${payload} for zone ${zoneId}`);
+        
         // Mode command: off => mode_used=2, heat/cool => mode_used=0 (comfort)
         if (payload === 'off') {
+          // Check if already off
+          if (DISABLE_REDUNDANT_COMMANDS && state.mode === 'off') {
+            logger.info(`⏭️ Skipping redundant command: zone ${state.zoneName} is already OFF`);
+            return;
+          }
+          
           // Set mode_used to 2 (OFF)
           this.sendRehauCommand(
             installId,
@@ -1911,6 +1920,12 @@ class ClimateController {
           );
           logger.info(`Set zone ${state.zoneName} to OFF`);
         } else if (payload === 'heat' || payload === 'cool') {
+          // Check if already in this mode with comfort preset
+          if (DISABLE_REDUNDANT_COMMANDS && state.mode === payload && state.preset === 'comfort') {
+            logger.info(`⏭️ Skipping redundant command: zone ${state.zoneName} is already ${payload.toUpperCase()} with COMFORT preset`);
+            return;
+          }
+          
           // Set mode_used to 0 (COMFORT) when turning on
           this.sendRehauCommand(
             installId,
@@ -1924,6 +1939,8 @@ class ClimateController {
         }
         
       } else if (commandType === 'preset') {
+        logger.info(`Command: preset = ${payload} for zone ${zoneId}`);
+        
         // Preset command: comfort => mode_used=0, away => mode_used=1, none => mode_used=2 (OFF)
         const presetMap: Record<string, number> = {
           'comfort': 0,
@@ -1933,6 +1950,13 @@ class ClimateController {
         const modeUsed = payload in presetMap ? presetMap[payload] : undefined;
         
         if (modeUsed !== undefined) {
+          // Check if already at this preset
+          const targetPreset = payload === 'none' ? null : payload;
+          if (DISABLE_REDUNDANT_COMMANDS && state.preset === targetPreset) {
+            logger.info(`⏭️ Skipping redundant command: zone ${state.zoneName} is already at preset ${payload}`);
+            return;
+          }
+          
           this.sendRehauCommand(
             installId,
             state.channelZone,
@@ -1979,6 +2003,15 @@ class ClimateController {
         logger.info(`  Installation mode: ${state.installationMode}, Preset: ${state.preset}`);
         logger.info(`  Target setpoint: ${setpointName} (key=${setpointKey})`);
         logger.info(`  Routing: channelZone=${state.channelZone}, controller=${state.controllerNumber}`);
+        
+        // Check if already at this temperature (within 0.1°C tolerance)
+        if (DISABLE_REDUNDANT_COMMANDS && state.targetTemperature !== null && state.targetTemperature !== undefined) {
+          const diff = Math.abs(state.targetTemperature - tempCelsius);
+          if (diff < 0.1) {
+            logger.info(`⏭️ Skipping redundant command: zone ${state.zoneName} target is already ${state.targetTemperature}°C (requested ${tempCelsius}°C)`);
+            return;
+          }
+        }
         
         this.sendRehauCommand(
           installId,

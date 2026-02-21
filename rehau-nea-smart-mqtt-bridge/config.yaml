@@ -42,6 +42,7 @@ options:
   force_token_expired: false
   simulate_disconnect_after_seconds: 0
   playwright_headless: true
+  disable_redundant_commands: false
 schema:
   rehau_email: email
   rehau_password: password
@@ -68,4 +69,5 @@ schema:
   force_token_expired: bool?
   simulate_disconnect_after_seconds: "int(0,3600)?"
   playwright_headless: bool?
+  disable_redundant_commands: bool?
 documentation: https://github.com/manuxio/rehau-nea-smart-2-home-assistant/blob/main/rehau-nea-smart-mqtt-bridge/README.md
