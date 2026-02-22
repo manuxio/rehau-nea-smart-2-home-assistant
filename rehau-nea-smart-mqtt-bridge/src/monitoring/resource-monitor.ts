@@ -21,12 +21,18 @@ export class ResourceMonitor {
   private lastWarning: number = 0;
   private warningCooldown: number = 60000; // 1 minute between warnings
 
-  constructor(memoryWarningThresholdMB: number = 150) {
+  constructor(memoryWarningThresholdMB: number = 250) {
     this.memoryWarningThreshold = memoryWarningThresholdMB * 1024 * 1024; // Convert to bytes
   }
 
   /**
    * Start monitoring resources
+   * 
+   * Note: Normal memory usage for this application:
+   * - 150-200MB: Idle with API and Web UI
+   * - 200-300MB: Active with MQTT and periodic updates
+   * - 300-500MB: During authentication with Playwright browser
+   * - 500MB+: Potential memory leak, investigate
    */
   start(intervalMs: number = 60000): void {
     logger.info(`📊 Starting resource monitoring (every ${intervalMs / 1000}s)`);

@@ -143,7 +143,7 @@ if [ -f "$OPTIONS_FILE" ]; then
   PLAYWRIGHT_IDLE_TIMEOUT="$(jq -r '.playwright_idle_timeout // 300000' "$OPTIONS_FILE" 2>/tmp/jq_playwright_idle.err || echo "300000")"
   echo "[DEBUG] PLAYWRIGHT_IDLE_TIMEOUT='$PLAYWRIGHT_IDLE_TIMEOUT'"
 
-  MEMORY_WARNING_MB="$(jq -r '.memory_warning_mb // 150' "$OPTIONS_FILE" 2>/tmp/jq_memory.err || echo "150")"
+  MEMORY_WARNING_MB="$(jq -r '.memory_warning_mb // 250' "$OPTIONS_FILE" 2>/tmp/jq_memory.err || echo "250")"
   echo "[DEBUG] MEMORY_WARNING_MB='$MEMORY_WARNING_MB'"
 
   STALENESS_WARNING_MS="$(jq -r '.staleness_warning_ms // 600000' "$OPTIONS_FILE" 2>/tmp/jq_stale_warn.err || echo "600000")"
@@ -339,7 +339,7 @@ echo "[DEBUG] Applying defaults for optional variables if needed..."
 : "${SIMULATE_DISCONNECT_AFTER_SECONDS:=0}"
 : "${PLAYWRIGHT_HEADLESS:=true}"
 : "${PLAYWRIGHT_IDLE_TIMEOUT:=300000}"
-: "${MEMORY_WARNING_MB:=150}"
+: "${MEMORY_WARNING_MB:=250}"
 : "${STALENESS_WARNING_MS:=600000}"
 : "${STALENESS_STALE_MS:=1800000}"
 : "${DISABLE_REDUNDANT_COMMANDS:=false}"
