@@ -101,6 +101,30 @@ if [ -f "$OPTIONS_FILE" ]; then
   USE_GROUP_IN_NAMES="$(jq -r '.use_group_in_names // false' "$OPTIONS_FILE" 2>/tmp/jq_use_group.err || echo "false")"
   echo "[DEBUG] USE_GROUP_IN_NAMES='$USE_GROUP_IN_NAMES'"
 
+  LIVE_DATA_INTERVAL="$(jq -r '.live_data_interval // 300' "$OPTIONS_FILE" 2>/tmp/jq_live_data.err || echo "300")"
+  echo "[DEBUG] LIVE_DATA_INTERVAL='$LIVE_DATA_INTERVAL'"
+
+  COMMAND_RETRY_TIMEOUT="$(jq -r '.command_retry_timeout // 30' "$OPTIONS_FILE" 2>/tmp/jq_cmd_timeout.err || echo "30")"
+  echo "[DEBUG] COMMAND_RETRY_TIMEOUT='$COMMAND_RETRY_TIMEOUT'"
+
+  COMMAND_MAX_RETRIES="$(jq -r '.command_max_retries // 3' "$OPTIONS_FILE" 2>/tmp/jq_cmd_retries.err || echo "3")"
+  echo "[DEBUG] COMMAND_MAX_RETRIES='$COMMAND_MAX_RETRIES'"
+
+  FORCE_FRESH_LOGIN="$(jq -r '.force_fresh_login // false' "$OPTIONS_FILE" 2>/tmp/jq_force_login.err || echo "false")"
+  echo "[DEBUG] FORCE_FRESH_LOGIN='$FORCE_FRESH_LOGIN'"
+
+  FORCE_TOKEN_EXPIRED="$(jq -r '.force_token_expired // false' "$OPTIONS_FILE" 2>/tmp/jq_force_expired.err || echo "false")"
+  echo "[DEBUG] FORCE_TOKEN_EXPIRED='$FORCE_TOKEN_EXPIRED'"
+
+  SIMULATE_DISCONNECT_AFTER_SECONDS="$(jq -r '.simulate_disconnect_after_seconds // 0' "$OPTIONS_FILE" 2>/tmp/jq_sim_disconnect.err || echo "0")"
+  echo "[DEBUG] SIMULATE_DISCONNECT_AFTER_SECONDS='$SIMULATE_DISCONNECT_AFTER_SECONDS'"
+
+  PLAYWRIGHT_HEADLESS="$(jq -r '.playwright_headless // true' "$OPTIONS_FILE" 2>/tmp/jq_playwright.err || echo "true")"
+  echo "[DEBUG] PLAYWRIGHT_HEADLESS='$PLAYWRIGHT_HEADLESS'"
+
+  DISABLE_REDUNDANT_COMMANDS="$(jq -r '.disable_redundant_commands // false' "$OPTIONS_FILE" 2>/tmp/jq_redundant.err || echo "false")"
+  echo "[DEBUG] DISABLE_REDUNDANT_COMMANDS='$DISABLE_REDUNDANT_COMMANDS'"
+
   # POP3 optional settings with defaults
   POP3_PORT="$(jq -r '.pop3_port // 995' "$OPTIONS_FILE" 2>/tmp/jq_pop3_port.err || echo "995")"
   echo "[DEBUG] POP3_PORT='$POP3_PORT'"
@@ -142,7 +166,15 @@ if [ -f "$OPTIONS_FILE" ]; then
     ZONE_RELOAD_INTERVAL \
     TOKEN_REFRESH_INTERVAL \
     REFERENTIALS_RELOAD_INTERVAL \
-    USE_GROUP_IN_NAMES
+    USE_GROUP_IN_NAMES \
+    LIVE_DATA_INTERVAL \
+    COMMAND_RETRY_TIMEOUT \
+    COMMAND_MAX_RETRIES \
+    FORCE_FRESH_LOGIN \
+    FORCE_TOKEN_EXPIRED \
+    SIMULATE_DISCONNECT_AFTER_SECONDS \
+    PLAYWRIGHT_HEADLESS \
+    DISABLE_REDUNDANT_COMMANDS
 
   echo "[DEBUG] Configuration exported from options.json"
 
@@ -173,6 +205,14 @@ echo "  ZONE_RELOAD_INTERVAL='${ZONE_RELOAD_INTERVAL:-<unset>}'"
 echo "  TOKEN_REFRESH_INTERVAL='${TOKEN_REFRESH_INTERVAL:-<unset>}'"
 echo "  REFERENTIALS_RELOAD_INTERVAL='${REFERENTIALS_RELOAD_INTERVAL:-<unset>}'"
 echo "  USE_GROUP_IN_NAMES='${USE_GROUP_IN_NAMES:-<unset>}'"
+echo "  LIVE_DATA_INTERVAL='${LIVE_DATA_INTERVAL:-<unset>}'"
+echo "  COMMAND_RETRY_TIMEOUT='${COMMAND_RETRY_TIMEOUT:-<unset>}'"
+echo "  COMMAND_MAX_RETRIES='${COMMAND_MAX_RETRIES:-<unset>}'"
+echo "  FORCE_FRESH_LOGIN='${FORCE_FRESH_LOGIN:-<unset>}'"
+echo "  FORCE_TOKEN_EXPIRED='${FORCE_TOKEN_EXPIRED:-<unset>}'"
+echo "  SIMULATE_DISCONNECT_AFTER_SECONDS='${SIMULATE_DISCONNECT_AFTER_SECONDS:-<unset>}'"
+echo "  PLAYWRIGHT_HEADLESS='${PLAYWRIGHT_HEADLESS:-<unset>}'"
+echo "  DISABLE_REDUNDANT_COMMANDS='${DISABLE_REDUNDANT_COMMANDS:-<unset>}'"
 
 # ---- Validation of required variables ----
 echo "[DEBUG] Validating required environment variables..."
