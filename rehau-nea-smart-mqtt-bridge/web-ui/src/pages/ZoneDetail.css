@@ -17,6 +17,7 @@
 }
 
 .back-button {
+  width: 60px;
   background: rgba(255, 255, 255, 0.2);
   color: white;
   border: none;
@@ -104,7 +105,7 @@
   margin-left: auto;
 }
 
-.control-section, .preset-section, .info-section {
+.control-section, .preset-section, .ring-light-section, .info-section {
   background: white;
   border-radius: 16px;
   padding: 24px;
@@ -112,7 +113,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.control-section h2, .preset-section h2, .info-section h2 {
+.control-section h2, .preset-section h2, .ring-light-section h2, .info-section h2 {
   margin: 0 0 16px 0;
   font-size: 18px;
   color: #333;
@@ -262,4 +263,37 @@
   border: 1px solid #ffe0b2;
   margin: 0;
   line-height: 1.5;
+}
+
+.ring-light-btn {
+  width: 100%;
+  padding: 16px;
+  background: #f5f5f5;
+  color: #666;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ring-light-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+  transform: translateY(-2px);
+}
+
+.ring-light-btn.active {
+  background: linear-gradient(135deg, #ffd700 0%, #ffb700 100%);
+  color: #333;
+  border-color: #ffd700;
+}
+
+.ring-light-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

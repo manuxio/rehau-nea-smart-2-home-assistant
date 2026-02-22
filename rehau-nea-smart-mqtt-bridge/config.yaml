@@ -1,5 +1,5 @@
 name: REHAU NEA SMART 2.0 MQTT Bridge
-version: "5.0.0"
+version: "5.0.1"
 slug: rehau_nea_smart_mqtt
 description: Full-featured REHAU control platform with REST API, Web UI, and OAuth2 POP3 support
 url: https://github.com/manuxio/rehau-nea-smart-2-home-assistant

@@ -12,6 +12,7 @@ interface Zone {
   humidity: number;
   mode: string;
   preset: string;
+  ringLight: string;
   installName: string;
   groupName: string;
 }
@@ -93,6 +94,26 @@ export function ZoneDetail() {
       setTimeout(loadZone, 2000);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to set preset');
+      loadZone(); // Reload on error
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const toggleRingLight = async () => {
+    if (!zone || updating) return;
+    
+    const newState = zone.ringLight === 'ON' ? 'off' : 'on';
+    
+    setUpdating(true);
+    try {
+      await apiClient.put(`/zones/${id}/ring-light`, { state: newState });
+      // Optimistically update UI
+      setZone({ ...zone, ringLight: newState.toUpperCase() });
+      // Reload to get actual state
+      setTimeout(loadZone, 2000);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to toggle ring light');
       loadZone(); // Reload on error
     } finally {
       setUpdating(false);
@@ -216,6 +237,17 @@ export function ZoneDetail() {
               ⏸️ Standby
             </button>
           </div>
+        </div>
+
+        <div className="ring-light-section">
+          <h2>Ring Light</h2>
+          <button 
+            className={`ring-light-btn ${zone.ringLight === 'ON' ? 'active' : ''}`}
+            onClick={toggleRingLight}
+            disabled={updating}
+          >
+            {zone.ringLight === 'ON' ? '💡 Turn Off' : '🔦 Turn On'}
+          </button>
         </div>
 
         <div className="info-section">

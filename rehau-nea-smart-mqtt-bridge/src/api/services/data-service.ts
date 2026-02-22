@@ -59,6 +59,7 @@ export async function getAllZones() {
                 humidity: channel?.humidity || 0,
                 mode: (installData as any).mode || 'heat',
                 preset: channel?.mode === 0 ? 'comfort' : channel?.mode === 1 ? 'reduced' : channel?.mode === 2 ? 'standby' : 'off',
+                ringLight: channel?.config?.ringActivation ? 'ON' : 'OFF',
                 groupName: group.name,
                 installName: install.name,
                 installId: install.unique,

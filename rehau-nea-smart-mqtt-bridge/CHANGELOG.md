@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### ✨ New Features
+- **Ring Light Control**
+  - Added API endpoint `PUT /api/v1/zones/:id/ring-light` for controlling zone ring lights
+  - Added ring light toggle button in web UI zone detail page
+  - Ring light state now included in zone API responses
+  - Visual feedback with golden gradient when ring light is active
+
+---
+
 ## [4.0.21] - 2026-02-20
 
 ### 🔧 Refactoring

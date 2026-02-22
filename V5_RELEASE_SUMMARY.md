@@ -23,6 +23,7 @@
 - [x] JWT authentication
 - [x] WebSocket real-time updates
 - [x] Log export with obfuscation
+- [x] Ring light control (API + Web UI)
 
 ### ✅ Documentation
 - [x] Comprehensive CHANGELOG.md

@@ -369,4 +369,67 @@ router.put('/:id/preset', async (req: Request, res: Response): Promise<void> => 
   }
 });
 
+/**
+ * @swagger
+ * /api/v1/zones/{id}/ring-light:
+ *   put:
+ *     summary: Control zone ring light
+ *     tags: [Zones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               state:
+ *                 type: string
+ *                 enum: [on, off]
+ *     responses:
+ *       200:
+ *         description: Ring light state set successfully
+ */
+router.put('/:id/ring-light', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { state } = req.body;
+    const zoneId = req.params.id;
+    
+    if (state !== 'on' && state !== 'off') {
+      res.status(400).json({ error: 'Invalid state (must be on or off)' });
+      return;
+    }
+    
+    const climateController = getClimateController();
+    
+    enhancedLogger.info(`Sending ring light command for zone: ${zoneId} (${state})`, {
+      component: 'API',
+      direction: 'OUTGOING'
+    });
+    
+    // Send command via climate controller
+    (climateController as any).handleRingLightCommand(zoneId, state);
+    
+    enhancedLogger.info(`Ring light set to ${state} for zone ${zoneId}`, {
+      component: 'API',
+      direction: 'OUTGOING'
+    });
+    
+    res.json({ success: true, state });
+  } catch (error) {
+    enhancedLogger.error('Failed to set ring light', error as Error, {
+      component: 'API',
+      direction: 'INTERNAL'
+    });
+    res.status(500).json({ error: 'Failed to set ring light' });
+  }
+});
+
 export default router;
