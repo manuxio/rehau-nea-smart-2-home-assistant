@@ -105,15 +105,35 @@ router.put('/:id/temperature', async (req: Request, res: Response): Promise<void
     
     const climateController = getClimateController();
     
-    // Get installation ID to build proper zone key
-    const installations = (climateController as any).installationNames;
+    // Get installation ID from the installations map
+    const installations = (climateController as any).installations;
     let installId = '';
-    for (const [id] of installations) {
-      installId = id;
-      break; // Use first installation
+    
+    // Get first installation ID from the Map
+    for (const [key] of installations) {
+      // The key format is already "installId_zone_zoneId", extract just the installId part
+      const parts = key.split('_zone_');
+      if (parts.length > 0) {
+        installId = parts[0];
+        break;
+      }
+    }
+    
+    // If we couldn't get it from installations, try installationNames
+    if (!installId) {
+      const installationNames = (climateController as any).installationNames;
+      for (const [id] of installationNames) {
+        installId = id;
+        break;
+      }
     }
     
     const zoneKey = `${installId}_zone_${zoneId}`;
+    
+    enhancedLogger.info(`Sending temperature command with zoneKey: ${zoneKey}`, {
+      component: 'API',
+      direction: 'OUTGOING'
+    });
     
     // Send command via climate controller
     (climateController as any).handleHomeAssistantCommand({
@@ -179,15 +199,35 @@ router.put('/:id/preset', async (req: Request, res: Response): Promise<void> => 
     
     const climateController = getClimateController();
     
-    // Get installation ID to build proper zone key
-    const installations = (climateController as any).installationNames;
+    // Get installation ID from the installations map
+    const installations = (climateController as any).installations;
     let installId = '';
-    for (const [id] of installations) {
-      installId = id;
-      break; // Use first installation
+    
+    // Get first installation ID from the Map
+    for (const [key] of installations) {
+      // The key format is already "installId_zone_zoneId", extract just the installId part
+      const parts = key.split('_zone_');
+      if (parts.length > 0) {
+        installId = parts[0];
+        break;
+      }
+    }
+    
+    // If we couldn't get it from installations, try installationNames
+    if (!installId) {
+      const installationNames = (climateController as any).installationNames;
+      for (const [id] of installationNames) {
+        installId = id;
+        break;
+      }
     }
     
     const zoneKey = `${installId}_zone_${zoneId}`;
+    
+    enhancedLogger.info(`Sending preset command with zoneKey: ${zoneKey}`, {
+      component: 'API',
+      direction: 'OUTGOING'
+    });
     
     // Send command via climate controller
     (climateController as any).handleHomeAssistantCommand({
