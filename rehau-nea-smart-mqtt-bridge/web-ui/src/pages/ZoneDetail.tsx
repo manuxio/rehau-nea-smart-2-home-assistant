@@ -58,6 +58,7 @@ export function ZoneDetail() {
   const loadZone = async () => {
     try {
       const response = await apiClient.get(`/zones/${id}`);
+      console.log('Zone data received:', response.data);
       setZone(response.data);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load zone');
@@ -103,16 +104,31 @@ export function ZoneDetail() {
   const toggleRingLight = async () => {
     if (!zone || updating) return;
     
+    console.log('=== Ring Light Toggle ===');
+    console.log('Current zone.ringLight:', zone.ringLight);
+    console.log('Type:', typeof zone.ringLight);
+    
     const newState = zone.ringLight === 'ON' ? 'off' : 'on';
+    console.log('Calculated newState:', newState);
+    console.log('Will send to API:', newState);
     
     setUpdating(true);
     try {
-      await apiClient.put(`/zones/${id}/ring-light`, { state: newState });
+      const response = await apiClient.put(`/zones/${id}/ring-light`, { state: newState });
+      console.log('API response:', response.data);
+      
       // Optimistically update UI
-      setZone({ ...zone, ringLight: newState.toUpperCase() });
+      const optimisticState = newState.toUpperCase();
+      console.log('Optimistic update to:', optimisticState);
+      setZone({ ...zone, ringLight: optimisticState });
+      
       // Reload to get actual state
-      setTimeout(loadZone, 2000);
+      setTimeout(() => {
+        console.log('Reloading zone data...');
+        loadZone();
+      }, 2000);
     } catch (err: any) {
+      console.error('Ring light toggle error:', err);
       alert(err.response?.data?.error || 'Failed to toggle ring light');
       loadZone(); // Reload on error
     } finally {
