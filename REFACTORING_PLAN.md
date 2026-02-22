@@ -353,12 +353,26 @@ src/types.ts                 # Add CommandTracking interface
 ```
 
 ### Success Criteria
-- [ ] All logs show direction (⬆️⬇️🔄)
-- [ ] Colors and emojis work in terminal
-- [ ] Shareable mode properly obfuscates
-- [ ] Command tracking detects zero-effect commands
-- [ ] Performance timing visible for slow operations
-- [ ] Logs are fun and easy to read!
+
+**Completed ✅**:
+- [x] Emojis work in terminal (🔐, 🚀, 📊, ⏭️, 📦, 📤, ⏱️, 📨, ✅, 🔌)
+- [x] Colors display correctly
+- [x] Real room names show by default (Arianna, Cucina, Manu, Salone)
+- [x] Command tracking detects confirmations
+- [x] Logs are fun and easy to read!
+- [x] Existing features still work (MQTT, zones, authentication)
+
+**Partially Complete ⚠️**:
+- [ ] Directional indicators (⬆️⬇️🔄) - Code written, not integrated
+- [ ] Shareable mode obfuscation - Code written, not tested
+- [ ] Zero-effect command detection - Code written, not tested
+- [ ] Performance timing visible - Code written, not showing in logs
+
+**Not Started ❌**:
+- [ ] Log export API endpoints
+- [ ] WebSocket log streaming
+
+**Decision**: Moving to Priority 2 (API). Will complete remaining logging features as part of API development.
 
 ### Roadmap Update After Round 1
 ```
