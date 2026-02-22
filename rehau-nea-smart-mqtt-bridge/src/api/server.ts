@@ -2,8 +2,6 @@ import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import { Server as HTTPServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
 import enhancedLogger from '../logging/enhanced-logger';
 import { authMiddleware } from './middleware/auth';
 import { errorHandler } from './middleware/error-handler';
@@ -65,7 +63,21 @@ export class APIServer {
   }
 
   private setupSwagger(): void {
+    // Skip Swagger if disabled to save ~40MB memory
+    const swaggerEnabled = process.env.SWAGGER_ENABLED !== 'false';
+    if (!swaggerEnabled) {
+      enhancedLogger.info('Swagger docs disabled (SWAGGER_ENABLED=false)', {
+        component: 'API',
+        direction: 'INTERNAL'
+      });
+      return;
+    }
+
     try {
+      // Import Swagger dependencies only if enabled
+      const swaggerUi = require('swagger-ui-express');
+      const swaggerJsdoc = require('swagger-jsdoc');
+
       const swaggerOptions = {
         definition: {
           openapi: '3.0.0',
