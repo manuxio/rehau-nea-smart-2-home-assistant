@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { statusAPI } from '../api/client';
 import { BottomNav } from '../components/BottomNav';
 import './Dashboard.css';
@@ -16,6 +17,7 @@ interface SystemStatus {
 export function Dashboard() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadStatus();
@@ -88,13 +90,13 @@ export function Dashboard() {
         <div className="quick-actions">
           <h2>Quick Actions</h2>
           <div className="action-grid">
-            <button className="action-btn">
+            <button className="action-btn" onClick={() => navigate('/zones')}>
               <span className="action-icon">🌡️</span>
               <span className="action-label">View Zones</span>
             </button>
-            <button className="action-btn">
+            <button className="action-btn" onClick={() => navigate('/system')}>
               <span className="action-icon">📊</span>
-              <span className="action-label">View Logs</span>
+              <span className="action-label">System Info</span>
             </button>
           </div>
         </div>

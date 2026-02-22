@@ -1,0 +1,218 @@
+.system-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding-bottom: 100px;
+}
+
+.system-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.system-header h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.install-name {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.system-content {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.system-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.system-card h2 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.outdoor-temp-display {
+  font-size: 48px;
+  font-weight: 700;
+  color: #667eea;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.circuit-item {
+  border: 2px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.circuit-item:last-child {
+  margin-bottom: 0;
+}
+
+.circuit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.circuit-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.pump-status {
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pump-status.on {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.pump-status.off {
+  background: #f5f5f5;
+  color: #757575;
+}
+
+.circuit-data {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.data-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.data-label {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.data-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.zone-demand-item {
+  border: 2px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.zone-demand-item:last-child {
+  margin-bottom: 0;
+}
+
+.zone-demand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.zone-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.demand-status {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.demand-status.active {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.demand-status.inactive {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.zone-demand-data {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.demand-bar-container {
+  flex: 1;
+  height: 24px;
+  background: #f0f0f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.demand-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+}
+
+.demand-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+  min-width: 50px;
+  text-align: right;
+}
+
+.zone-temps {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+  justify-content: center;
+}
+
+.hint {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+}
+
+@media (max-width: 768px) {
+  .system-content {
+    padding: 16px;
+  }
+  
+  .circuit-data {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .outdoor-temp-display {
+    font-size: 40px;
+  }
+}

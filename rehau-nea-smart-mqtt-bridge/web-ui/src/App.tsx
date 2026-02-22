@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Zones } from './pages/Zones';
+import { ZoneDetail } from './pages/ZoneDetail';
+import { System } from './pages/System';
 import { Settings } from './pages/Settings';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
@@ -29,6 +31,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Zones />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/zone/:id"
+          element={
+            <ProtectedRoute>
+              <ZoneDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/system"
+          element={
+            <ProtectedRoute>
+              <System />
             </ProtectedRoute>
           }
         />

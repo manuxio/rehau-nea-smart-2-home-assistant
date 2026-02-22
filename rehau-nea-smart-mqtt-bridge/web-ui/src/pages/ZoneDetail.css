@@ -1,0 +1,239 @@
+.zone-detail-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.zone-detail-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.back-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 12px;
+  width: auto;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: none;
+}
+
+.zone-detail-header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.zone-location {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.zone-detail-content {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.temperature-display {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.current-temperature, .target-temperature {
+  text-align: center;
+}
+
+.temp-label {
+  font-size: 14px;
+  color: #999;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.temp-value {
+  font-size: 48px;
+  font-weight: 700;
+  color: #333;
+}
+
+.humidity-display {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.humidity-icon {
+  font-size: 32px;
+}
+
+.humidity-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+}
+
+.humidity-label {
+  font-size: 14px;
+  color: #999;
+  margin-left: auto;
+}
+
+.control-section, .preset-section, .info-section {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.control-section h2, .preset-section h2, .info-section h2 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.temp-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 12px;
+}
+
+.temp-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  font-size: 32px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.temp-btn:hover {
+  transform: scale(1.1);
+}
+
+.temp-btn:active {
+  transform: scale(0.95);
+}
+
+.temp-display {
+  font-size: 36px;
+  font-weight: 700;
+  color: #333;
+  min-width: 120px;
+  text-align: center;
+}
+
+.preset-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.preset-btn {
+  padding: 16px;
+  background: #f5f5f5;
+  color: #666;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.preset-btn:hover {
+  background: #e8e8e8;
+  transform: translateY(-2px);
+}
+
+.preset-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+}
+
+.control-hint {
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.back-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .temperature-display {
+    padding: 24px;
+  }
+  
+  .temp-value {
+    font-size: 40px;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
