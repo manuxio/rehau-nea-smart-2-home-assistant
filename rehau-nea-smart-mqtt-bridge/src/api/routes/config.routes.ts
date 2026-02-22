@@ -173,7 +173,7 @@ router.get('/', async (_req: Request, res: Response) => {
         enabled: process.env.API_ENABLED !== 'false',
         port: parseInt(process.env.API_PORT || '3000'),
         webUIEnabled: process.env.WEB_UI_ENABLED !== 'false',
-        swaggerUrl: `http://localhost:${process.env.API_PORT || '3000'}/api-docs`
+        swaggerUrl: '/api-docs'  // Relative URL for port forwarding/ingress compatibility
       },
       
       // MQTT Configuration (hide credentials)
