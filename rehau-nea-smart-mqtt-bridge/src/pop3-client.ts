@@ -143,8 +143,12 @@ export class POP3Client {
             try {
               const parsed = await simpleParser(data);
               
+              // Extract email address from FROM header (not display name)
+              // parsed.from?.value is an array of address objects with 'address' and 'name' fields
+              const fromAddress = parsed.from?.value?.[0]?.address || parsed.from?.text || '';
+              
               const message: EmailMessage = {
-                from: parsed.from?.text || '',
+                from: fromAddress,
                 subject: parsed.subject || '',
                 date: parsed.date || new Date(),
                 body: parsed.text || parsed.html || '',
