@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { statusAPI } from '../api/client';
-import { useAuthStore } from '../store/authStore';
+import { BottomNav } from '../components/BottomNav';
 import './Dashboard.css';
 
 interface SystemStatus {
@@ -17,11 +16,11 @@ interface SystemStatus {
 export function Dashboard() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
     loadStatus();
+    const interval = setInterval(loadStatus, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
   }, []);
 
   const loadStatus = async () => {
@@ -33,11 +32,6 @@ export function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
   };
 
   const formatUptime = (seconds: number) => {
@@ -62,7 +56,6 @@ export function Dashboard() {
     <div className="dashboard-container">
       <header className="dashboard-header">
         <h1>🏠 REHAU Control</h1>
-        <button onClick={handleLogout} className="logout-btn">Logout</button>
       </header>
 
       <div className="dashboard-content">
@@ -92,11 +85,22 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="zones-placeholder">
-          <h2>Zones</h2>
-          <p className="coming-soon">Zone controls coming soon...</p>
+        <div className="quick-actions">
+          <h2>Quick Actions</h2>
+          <div className="action-grid">
+            <button className="action-btn">
+              <span className="action-icon">🌡️</span>
+              <span className="action-label">View Zones</span>
+            </button>
+            <button className="action-btn">
+              <span className="action-icon">📊</span>
+              <span className="action-label">View Logs</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      <BottomNav />
     </div>
   );
 }
