@@ -10,6 +10,7 @@ import ClimateController from './climate-controller';
 import { ConfigValidator } from './config-validator';
 import { APIServer } from './api/server';
 import enhancedLogger from './logging/enhanced-logger';
+import { setClimateController, setAuth } from './api/services/data-service';
 
 interface Config {
   rehau: {
@@ -98,6 +99,10 @@ const auth = new RehauAuthPersistent(config.rehau.email, config.rehau.password);
 const mqttBridge = new RehauMQTTBridge(auth, config.mqtt);
 const rehauApi = auth; // RehauAuth has the API methods
 const climateController = new ClimateController(mqttBridge, rehauApi);
+
+// Initialize data service for API
+setAuth(auth);
+setClimateController(climateController);
 
 // Start application
 async function start() {

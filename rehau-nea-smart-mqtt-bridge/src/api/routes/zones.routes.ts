@@ -1,4 +1,6 @@
 import { Router, Request, Response } from 'express';
+import { getAllZones, getZoneById } from '../services/data-service';
+import enhancedLogger from '../../logging/enhanced-logger';
 
 const router = Router();
 
@@ -14,9 +16,17 @@ const router = Router();
  *       200:
  *         description: List of zones
  */
-router.get('/', (_req: Request, res: Response) => {
-  // TODO: Implement
-  res.json({ zones: [] });
+router.get('/', async (_req: Request, res: Response) => {
+  try {
+    const zones = await getAllZones();
+    res.json({ zones });
+  } catch (error) {
+    enhancedLogger.error('Failed to get zones', error as Error, {
+      component: 'API',
+      direction: 'INTERNAL'
+    });
+    res.status(500).json({ error: 'Failed to retrieve zones' });
+  }
 });
 
 /**
@@ -36,10 +46,24 @@ router.get('/', (_req: Request, res: Response) => {
  *     responses:
  *       200:
  *         description: Zone details
+ *       404:
+ *         description: Zone not found
  */
-router.get('/:id', (req: Request, res: Response) => {
-  // TODO: Implement
-  res.json({ id: req.params.id });
+router.get('/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const zone = await getZoneById(req.params.id);
+    if (!zone) {
+      res.status(404).json({ error: 'Zone not found' });
+      return;
+    }
+    res.json(zone);
+  } catch (error) {
+    enhancedLogger.error('Failed to get zone', error as Error, {
+      component: 'API',
+      direction: 'INTERNAL'
+    });
+    res.status(500).json({ error: 'Failed to retrieve zone' });
+  }
 });
 
 export default router;
