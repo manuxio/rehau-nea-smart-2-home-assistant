@@ -108,13 +108,14 @@ export class APIServer {
     // Serve web UI for all other routes (SPA fallback)
     const path = require('path');
     const webUIPath = path.join(__dirname, '../../web-ui/dist');
-    this.app.get('*', (req: Request, res: Response) => {
+    this.app.get('*', (req: Request, res: Response): void => {
       // Skip API routes
       if (req.path.startsWith('/api/') || req.path.startsWith('/health')) {
-        return res.status(404).json({
+        res.status(404).json({
           error: 'Endpoint not found',
           path: req.originalUrl
         });
+        return;
       }
       // Serve index.html for all other routes
       res.sendFile(path.join(webUIPath, 'index.html'));

@@ -8,6 +8,8 @@ import RehauAuthPersistent from './rehau-auth';
 import RehauMQTTBridge from './mqtt-bridge';
 import ClimateController from './climate-controller';
 import { ConfigValidator } from './config-validator';
+import { APIServer } from './api/server';
+import enhancedLogger from './logging/enhanced-logger';
 
 interface Config {
   rehau: {
@@ -168,6 +170,35 @@ async function start() {
     }
     
     logger.info('🚀 REHAU NEA SMART 2.0 MQTT Bridge started successfully');
+    
+    // Start API server
+    const apiEnabled = process.env.API_ENABLED !== 'false';
+    if (apiEnabled) {
+      const apiPort = parseInt(process.env.API_PORT || '3000');
+      const apiServer = new APIServer(apiPort);
+      
+      try {
+        await apiServer.start();
+        enhancedLogger.info(`🚀 API server started on port ${apiPort}`, {
+          component: 'API',
+          direction: 'INTERNAL'
+        });
+        enhancedLogger.info(`📚 Swagger docs available at http://localhost:${apiPort}/api-docs`, {
+          component: 'API',
+          direction: 'INTERNAL'
+        });
+      } catch (error) {
+        enhancedLogger.error('Failed to start API server', error as Error, {
+          component: 'API',
+          direction: 'INTERNAL'
+        });
+      }
+    } else {
+      enhancedLogger.info('API server disabled (API_ENABLED=false)', {
+        component: 'API',
+        direction: 'INTERNAL'
+      });
+    }
     
     // Request LIVE data for all installations (initial)
     logger.info('📊 Requesting initial LIVE data from installations...');
