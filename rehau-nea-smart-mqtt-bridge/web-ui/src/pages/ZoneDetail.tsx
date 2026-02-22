@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import { BottomNav } from '../components/BottomNav';
 import './ZoneDetail.css';
 
 interface Zone {
@@ -22,12 +23,36 @@ export function ZoneDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [pendingTemp, setPendingTemp] = useState<number | null>(null);
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadZone();
     const interval = setInterval(loadZone, 10000); // Refresh every 10s
     return () => clearInterval(interval);
   }, [id]);
+
+  // Debounced temperature setter
+  useEffect(() => {
+    if (pendingTemp === null) return;
+    
+    // Clear existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // Set new timer
+    debounceTimer.current = setTimeout(() => {
+      sendTemperature(pendingTemp);
+      setPendingTemp(null);
+    }, 1000); // 1 second debounce
+    
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [pendingTemp]);
 
   const loadZone = async () => {
     try {
@@ -40,18 +65,17 @@ export function ZoneDetail() {
     }
   };
 
-  const setTemperature = async (newTemp: number) => {
-    if (!zone || updating) return;
+  const sendTemperature = async (newTemp: number) => {
+    if (!zone) return;
     
     setUpdating(true);
     try {
       await apiClient.put(`/zones/${id}/temperature`, { temperature: newTemp });
-      // Optimistically update UI
-      setZone({ ...zone, targetTemperature: newTemp });
       // Reload to get actual state
-      setTimeout(loadZone, 1000);
+      setTimeout(loadZone, 2000);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to set temperature');
+      loadZone(); // Reload on error
     } finally {
       setUpdating(false);
     }
@@ -66,9 +90,10 @@ export function ZoneDetail() {
       // Optimistically update UI
       setZone({ ...zone, preset: newPreset });
       // Reload to get actual state
-      setTimeout(loadZone, 1000);
+      setTimeout(loadZone, 2000);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to set preset');
+      loadZone(); // Reload on error
     } finally {
       setUpdating(false);
     }
@@ -76,10 +101,12 @@ export function ZoneDetail() {
 
   const adjustTemperature = (delta: number) => {
     if (!zone) return;
-    const currentTarget = zone.targetTemperature > 0 ? zone.targetTemperature : 20;
+    const currentTarget = pendingTemp !== null ? pendingTemp : (zone.targetTemperature > 0 ? zone.targetTemperature : 20);
     const newTemp = Math.round((currentTarget + delta) * 2) / 2; // Round to 0.5
     if (newTemp >= 5 && newTemp <= 35) {
-      setTemperature(newTemp);
+      setPendingTemp(newTemp);
+      // Optimistically update display
+      setZone({ ...zone, targetTemperature: newTemp });
     }
   };
 
@@ -206,6 +233,8 @@ export function ZoneDetail() {
           </div>
         </div>
       </div>
+
+      <BottomNav />
     </div>
   );
 }

@@ -105,10 +105,20 @@ router.put('/:id/temperature', async (req: Request, res: Response): Promise<void
     
     const climateController = getClimateController();
     
+    // Get installation ID to build proper zone key
+    const installations = (climateController as any).installationNames;
+    let installId = '';
+    for (const [id] of installations) {
+      installId = id;
+      break; // Use first installation
+    }
+    
+    const zoneKey = `${installId}_zone_${zoneId}`;
+    
     // Send command via climate controller
     (climateController as any).handleHomeAssistantCommand({
       type: 'ha_command',
-      zoneId,
+      zoneId: zoneKey,
       command: 'temperature',
       value: temperature
     });
@@ -169,10 +179,20 @@ router.put('/:id/preset', async (req: Request, res: Response): Promise<void> => 
     
     const climateController = getClimateController();
     
+    // Get installation ID to build proper zone key
+    const installations = (climateController as any).installationNames;
+    let installId = '';
+    for (const [id] of installations) {
+      installId = id;
+      break; // Use first installation
+    }
+    
+    const zoneKey = `${installId}_zone_${zoneId}`;
+    
     // Send command via climate controller
     (climateController as any).handleHomeAssistantCommand({
       type: 'ha_command',
-      zoneId,
+      zoneId: zoneKey,
       command: 'preset',
       value: preset
     });
