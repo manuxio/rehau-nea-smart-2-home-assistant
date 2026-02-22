@@ -304,6 +304,16 @@ router.put('/:id/preset', async (req: Request, res: Response): Promise<void> => 
       return;
     }
     
+    // Map Home Assistant presets to REHAU presets
+    const presetMap: { [key: string]: string } = {
+      'comfort': 'comfort',
+      'reduced': 'away',      // HA "reduced" = REHAU "away"
+      'standby': 'none',      // HA "standby" = REHAU "none"
+      'off': 'none'           // HA "off" = REHAU "none"
+    };
+    
+    const rehauPreset = presetMap[preset];
+    
     const climateController = getClimateController();
     
     // Get installation ID from the installations map
@@ -330,7 +340,7 @@ router.put('/:id/preset', async (req: Request, res: Response): Promise<void> => 
     }
     
     
-    enhancedLogger.info(`Sending preset command for zone: ${zoneId}`, {
+    enhancedLogger.info(`Sending preset command for zone: ${zoneId} (${preset} -> ${rehauPreset})`, {
       component: 'API',
       direction: 'OUTGOING'
     });
@@ -341,10 +351,10 @@ router.put('/:id/preset', async (req: Request, res: Response): Promise<void> => 
       installId: installId,
       zoneNumber: zoneId,  // This is the actual zoneId (MongoDB ObjectId)
       commandType: 'preset',
-      payload: preset
+      payload: rehauPreset  // Use mapped REHAU preset
     });
     
-    enhancedLogger.info(`Preset set to ${preset} for zone ${zoneId}`, {
+    enhancedLogger.info(`Preset set to ${preset} (REHAU: ${rehauPreset}) for zone ${zoneId}`, {
       component: 'API',
       direction: 'OUTGOING'
     });
