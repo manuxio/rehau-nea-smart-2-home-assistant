@@ -137,11 +137,15 @@ export function ZoneDetail() {
   return (
     <div className="zone-detail-container">
       <header className="zone-detail-header">
-        <button onClick={() => navigate('/zones')} className="back-button">
-          ← Back
-        </button>
-        <h1>{zone.name}</h1>
-        <div className="zone-location">{zone.groupName}</div>
+        <div className="header-content">
+          <button onClick={() => navigate('/zones')} className="back-button">
+            ←
+          </button>
+          <div className="header-text">
+            <h1>{zone.name}</h1>
+            <div className="zone-location">{zone.groupName}</div>
+          </div>
+        </div>
       </header>
 
       <div className="zone-detail-content">

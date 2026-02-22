@@ -13,32 +13,48 @@
   z-index: 100;
 }
 
+.zone-detail-header .header-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zone-detail-header .header-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .back-button {
   background: rgba(255, 255, 255, 0.2);
   color: white;
   border: none;
-  padding: 8px 16px;
+  padding: 8px 12px;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 20px;
   cursor: pointer;
-  margin-bottom: 12px;
-  width: auto;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .back-button:hover {
   background: rgba(255, 255, 255, 0.3);
-  transform: none;
 }
 
 .zone-detail-header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .zone-location {
   font-size: 14px;
   opacity: 0.9;
-  margin-top: 4px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .zone-detail-content {
