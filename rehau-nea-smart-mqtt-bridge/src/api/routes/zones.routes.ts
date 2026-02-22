@@ -414,8 +414,8 @@ router.put('/:id/ring-light', async (req: Request, res: Response): Promise<void>
       direction: 'OUTGOING'
     });
     
-    // Send command via climate controller
-    (climateController as any).handleRingLightCommand(zoneId, state);
+    // Send command via climate controller (convert to uppercase)
+    (climateController as any).handleRingLightCommand(zoneId, state.toUpperCase());
     
     enhancedLogger.info(`Ring light set to ${state} for zone ${zoneId}`, {
       component: 'API',
