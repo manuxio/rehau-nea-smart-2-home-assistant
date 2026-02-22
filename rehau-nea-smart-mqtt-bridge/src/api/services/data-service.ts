@@ -36,6 +36,7 @@ export function getInstallations(): any[] {
 // Get zones for all installations
 export async function getAllZones() {
   const auth = getAuth();
+  const controller = getClimateController();
   const installations = auth.getInstalls();
   
   const zones: any[] = [];
@@ -51,11 +52,26 @@ export async function getAllZones() {
               // Get data from the first channel (thermostat)
               const channel = zone.channels && zone.channels[0];
               
+              // Get state from climate controller for accurate target temperature
+              const zoneKey = `${install.unique}_zone_${zone.id}`;
+              const zoneState = (controller as any).installations?.get(zoneKey);
+              
+              // Get target temperature - prefer controller state, fallback to channel data
+              // Validate temperature is in reasonable range (5-35°C)
+              let targetTemp = 0;
+              if (zoneState?.targetTemperature && zoneState.targetTemperature >= 5 && zoneState.targetTemperature <= 35) {
+                targetTemp = zoneState.targetTemperature;
+              } else if (channel?.setpointTemperature?.celsius && 
+                         channel.setpointTemperature.celsius >= 5 && 
+                         channel.setpointTemperature.celsius <= 35) {
+                targetTemp = channel.setpointTemperature.celsius;
+              }
+              
               zones.push({
                 id: zone.id,
                 name: zone.name,
                 temperature: channel?.currentTemperature?.celsius || 0,
-                targetTemperature: channel?.setpointTemperature?.celsius || 0,
+                targetTemperature: targetTemp,
                 humidity: channel?.humidity || 0,
                 mode: (installData as any).mode || 'heat',
                 preset: channel?.mode === 0 ? 'comfort' : channel?.mode === 1 ? 'reduced' : channel?.mode === 2 ? 'standby' : 'off',

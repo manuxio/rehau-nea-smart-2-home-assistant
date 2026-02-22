@@ -1,50 +1,63 @@
 .settings-container {
   min-height: 100vh;
-  background: var(--bg-primary, #f5f5f5);
+  background: var(--bg-primary);
   padding-bottom: 80px;
 }
 
 .settings-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 16px 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
+.settings-header .header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .settings-header h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 24px;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: -0.5px;
 }
 
 .settings-content {
-  padding: 20px;
-  max-width: 600px;
+  padding: 24px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
 .settings-section {
-  background: var(--bg-secondary, white);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px var(--shadow, rgba(0, 0, 0, 0.1));
+  background: var(--bg-card);
+  border-radius: 24px;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
 }
 
 .settings-section h2 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
-  color: var(--text-primary, #333);
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .setting-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .setting-item:last-child {
@@ -54,77 +67,84 @@
 .setting-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .setting-label {
   font-weight: 600;
-  color: var(--text-primary, #333);
-  font-size: 16px;
+  color: var(--text-primary);
+  font-size: 15px;
 }
 
 .setting-description {
-  font-size: 14px;
-  color: var(--text-secondary, #666);
+  font-size: 13px;
+  color: var(--text-secondary);
 }
 
 .setting-value {
   font-size: 14px;
-  color: var(--text-secondary, #666);
+  color: var(--text-secondary);
 }
 
 .setting-link {
-  color: #667eea;
+  color: var(--accent-green);
   text-decoration: none;
   font-size: 14px;
-  font-weight: 500;
-  transition: color 0.2s;
+  font-weight: 600;
+  transition: color 0.3s;
 }
 
 .setting-link:hover {
-  color: #764ba2;
+  color: var(--accent-blue);
   text-decoration: underline;
 }
 
 .theme-toggle-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .theme-toggle-btn:hover {
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
 }
 
 .theme-toggle-btn:active {
-  transform: scale(0.95);
+  transform: translateY(0);
 }
 
 .logout-btn {
-  background: #f44336;
-  color: white;
+  background: var(--accent-orange);
+  color: var(--bg-primary);
   border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 16px;
+  padding: 16px 28px;
+  border-radius: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
   width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .logout-btn:hover {
-  transform: scale(1.02);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
 }
 
 .logout-btn:active {
-  transform: scale(0.98);
+  transform: translateY(0);
 }
 
 @media (max-width: 768px) {
@@ -133,6 +153,6 @@
   }
   
   .settings-section {
-    padding: 16px;
+    padding: 20px;
   }
 }

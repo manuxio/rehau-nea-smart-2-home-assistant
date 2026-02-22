@@ -130,17 +130,31 @@ body.dark-mode textarea {
   border-color: var(--border-color);
 }
 
-/* Keep gradients and primary buttons bright in dark mode */
+/* Headers use solid background */
 body.dark-mode .dashboard-header,
 body.dark-mode .zones-header,
 body.dark-mode .zone-detail-header,
 body.dark-mode .system-header {
-  background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+  background: var(--bg-secondary);
 }
 
-body.dark-mode .action-btn,
-body.dark-mode .temp-btn,
+body.dark-mode .action-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .temp-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 body.dark-mode .preset-btn.active {
-  background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
-  color: white;
+  background: var(--accent-green);
+  color: var(--bg-primary);
 }

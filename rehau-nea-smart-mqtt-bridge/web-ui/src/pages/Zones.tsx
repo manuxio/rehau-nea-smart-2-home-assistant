@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 import { BottomNav } from '../components/BottomNav';
 import { useNavigate } from 'react-router-dom';
+import { Thermometer, Droplets, Home, Moon, Pause } from 'lucide-react';
 import './Zones.css';
 
 interface Zone {
@@ -48,18 +49,27 @@ export function Zones() {
   };
 
   const formatTemperature = (temp: number) => {
-    if (temp <= 0) return '-';
-    return `${temp.toFixed(1)}°`;
+    if (!temp || temp <= 0) return 'Off';
+    return `${temp.toFixed(1)}°C`;
   };
 
   const getPresetLabel = (preset: string) => {
     const labels: Record<string, string> = {
-      'comfort': '🏠 Comfort',
-      'reduced': '🌙 Reduced',
-      'standby': '⏸️ Standby',
-      'off': '⏹️ Off'
+      'comfort': 'Comfort',
+      'reduced': 'Reduced',
+      'standby': 'Standby',
+      'off': 'Off'
     };
     return labels[preset] || preset;
+  };
+
+  const getPresetIcon = (preset: string) => {
+    switch(preset) {
+      case 'comfort': return <Home size={16} />;
+      case 'reduced': return <Moon size={16} />;
+      case 'standby': return <Pause size={16} />;
+      default: return null;
+    }
   };
 
   if (loading) {
@@ -84,14 +94,15 @@ export function Zones() {
     <div className="zones-container">
       <div className="zones-header">
         <div className="header-content">
-          <h1>🌡️ Zones</h1>
+          <Thermometer size={24} />
+          <h1>Zones</h1>
           <span className="install-name">{installName}</span>
         </div>
         {systemStatus.outdoorTemperature !== undefined && 
          systemStatus.outdoorTemperature >= -30 && 
          systemStatus.outdoorTemperature <= 70 && (
           <div className="outdoor-temp">
-            🌤️ {systemStatus.outdoorTemperature.toFixed(1)}°C
+            {systemStatus.outdoorTemperature.toFixed(1)}°C
           </div>
         )}
       </div>
@@ -117,26 +128,26 @@ export function Zones() {
               </div>
               
               <div className="zone-temp">
-                <div className="current-temp">
-                  <span className="temp-value">{zone.temperature.toFixed(1)}°</span>
-                  <span className="temp-label">Current</span>
-                </div>
-                <div className="temp-arrow">→</div>
-                <div className="target-temp">
-                  <span className="temp-value">{formatTemperature(zone.targetTemperature)}</span>
-                  <span className="temp-label">Target</span>
+                <div className="temp-display-simple">
+                  <div className="temp-value">{zone.temperature.toFixed(1)}</div>
+                  <div className="temp-unit">°C</div>
                 </div>
               </div>
               
               <div className="zone-info">
                 <div className="info-item">
-                  <span className="info-icon">💧</span>
-                  <span>{zone.humidity}%</span>
+                  <span className="info-label">Target</span>
+                  <span className="info-value">{formatTemperature(zone.targetTemperature)}</span>
                 </div>
                 <div className="info-item">
-                  <span className="info-icon">🎯</span>
-                  <span>{getPresetLabel(zone.preset)}</span>
+                  <Droplets size={16} className="info-icon" />
+                  <span className="info-value">{zone.humidity}%</span>
                 </div>
+              </div>
+              
+              <div className="preset-display">
+                {getPresetIcon(zone.preset)}
+                <span className="preset-text">{getPresetLabel(zone.preset)}</span>
               </div>
               
               <button 
@@ -146,7 +157,7 @@ export function Zones() {
                   navigate(`/zone/${zone.id}`);
                 }}
               >
-                Control
+                Adjust
               </button>
             </div>
           ))}

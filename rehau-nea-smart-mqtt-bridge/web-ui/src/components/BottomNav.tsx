@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Home, Thermometer, Activity, Settings } from 'lucide-react';
 import './BottomNav.css';
 
 export function BottomNav() {
@@ -13,7 +14,7 @@ export function BottomNav() {
         className={`nav-item ${isActive('/') ? 'active' : ''}`}
         onClick={() => navigate('/')}
       >
-        <span className="nav-icon">🏠</span>
+        <Home size={22} className="nav-icon" />
         <span className="nav-label">Dashboard</span>
       </button>
       
@@ -21,7 +22,7 @@ export function BottomNav() {
         className={`nav-item ${isActive('/zones') ? 'active' : ''}`}
         onClick={() => navigate('/zones')}
       >
-        <span className="nav-icon">🌡️</span>
+        <Thermometer size={22} className="nav-icon" />
         <span className="nav-label">Zones</span>
       </button>
       
@@ -29,7 +30,7 @@ export function BottomNav() {
         className={`nav-item ${isActive('/system') ? 'active' : ''}`}
         onClick={() => navigate('/system')}
       >
-        <span className="nav-icon">📊</span>
+        <Activity size={22} className="nav-icon" />
         <span className="nav-label">System</span>
       </button>
       
@@ -37,7 +38,7 @@ export function BottomNav() {
         className={`nav-item ${isActive('/settings') ? 'active' : ''}`}
         onClick={() => navigate('/settings')}
       >
-        <span className="nav-icon">⚙️</span>
+        <Settings size={22} className="nav-icon" />
         <span className="nav-label">Settings</span>
       </button>
     </nav>

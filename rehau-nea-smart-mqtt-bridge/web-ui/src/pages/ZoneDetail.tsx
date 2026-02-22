@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { BottomNav } from '../components/BottomNav';
+import { ArrowLeft, Droplets, Minus, Plus, Home, Moon, Pause, Lightbulb } from 'lucide-react';
 import './ZoneDetail.css';
 
 interface Zone {
@@ -137,13 +138,11 @@ export function ZoneDetail() {
   };
 
   const adjustTemperature = (delta: number) => {
-    if (!zone) return;
-    const currentTarget = pendingTemp !== null ? pendingTemp : (zone.targetTemperature > 0 ? zone.targetTemperature : 20);
+    if (!zone || zone.preset === 'standby') return;
+    const currentTarget = getDisplayTemp();
     const newTemp = Math.round((currentTarget + delta) * 2) / 2; // Round to 0.5
     if (newTemp >= 5 && newTemp <= 35) {
       setPendingTemp(newTemp);
-      // Optimistically update display
-      setZone({ ...zone, targetTemperature: newTemp });
     }
   };
 
@@ -166,34 +165,43 @@ export function ZoneDetail() {
     );
   }
 
-  const formatTemperature = (temp: number) => {
-    if (temp <= 0) return 'Off';
-    return `${temp.toFixed(1)}°C`;
+  const getDisplayTemp = () => {
+    if (pendingTemp !== null) return pendingTemp;
+    if (zone && zone.targetTemperature > 0) return zone.targetTemperature;
+    return 20;
   };
 
   return (
     <div className="zone-detail-container">
       <header className="zone-detail-header">
         <button onClick={() => navigate('/zones')} className="back-button">
-          ←
+          <ArrowLeft size={20} />
         </button>
-        <h1>Zone: {zone.name}</h1>
+        <h1>{zone.name}</h1>
       </header>
 
       <div className="zone-detail-content">
         <div className="temperature-display">
-          <div className="current-temperature">
-            <div className="temp-label">Current</div>
-            <div className="temp-value">{zone.temperature.toFixed(1)}°</div>
-          </div>
-          <div className="target-temperature">
-            <div className="temp-label">Target</div>
-            <div className="temp-value">{formatTemperature(zone.targetTemperature)}</div>
+          <div className="temp-main">
+            <div className="temp-label">Current Temperature</div>
+            <div className="temp-value-large">
+              {zone.temperature.toFixed(1)}<span className="temp-unit-large">°C</span>
+            </div>
+            {zone.preset !== 'standby' && zone.targetTemperature > 0 && (
+              <div className="temp-target-info">
+                Target: {zone.targetTemperature.toFixed(1)}°C
+              </div>
+            )}
+            {zone.preset === 'standby' && (
+              <div className="temp-target-info">
+                Standby Mode
+              </div>
+            )}
           </div>
         </div>
 
         <div className="humidity-display">
-          <span className="humidity-icon">💧</span>
+          <Droplets size={20} className="humidity-icon" />
           <span className="humidity-value">{zone.humidity}%</span>
           <span className="humidity-label">Humidity</span>
         </div>
@@ -212,15 +220,15 @@ export function ZoneDetail() {
                   onClick={() => adjustTemperature(-0.5)}
                   disabled={updating}
                 >
-                  -
+                  <Minus size={20} />
                 </button>
-                <span className="temp-display">{formatTemperature(zone.targetTemperature)}</span>
+                <span className="temp-display">{getDisplayTemp().toFixed(1)}°C</span>
                 <button 
                   className="temp-btn" 
                   onClick={() => adjustTemperature(0.5)}
                   disabled={updating}
                 >
-                  +
+                  <Plus size={20} />
                 </button>
               </div>
               {updating && <p className="control-hint">Updating...</p>}
@@ -236,21 +244,24 @@ export function ZoneDetail() {
               onClick={() => setPreset('comfort')}
               disabled={updating}
             >
-              🏠 Comfort
+              <Home size={18} />
+              <span>Comfort</span>
             </button>
             <button 
               className={`preset-btn ${zone.preset === 'reduced' ? 'active' : ''}`}
               onClick={() => setPreset('reduced')}
               disabled={updating}
             >
-              🌙 Reduced
+              <Moon size={18} />
+              <span>Reduced</span>
             </button>
             <button 
               className={`preset-btn ${zone.preset === 'standby' ? 'active' : ''}`}
               onClick={() => setPreset('standby')}
               disabled={updating}
             >
-              ⏸️ Standby
+              <Pause size={18} />
+              <span>Standby</span>
             </button>
           </div>
         </div>
@@ -262,7 +273,8 @@ export function ZoneDetail() {
             onClick={toggleRingLight}
             disabled={updating}
           >
-            {zone.ringLight === 'ON' ? '💡 Turn Off' : '🔦 Turn On'}
+            <Lightbulb size={18} />
+            <span>{zone.ringLight === 'ON' ? 'Turn Off' : 'Turn On'}</span>
           </button>
         </div>
 

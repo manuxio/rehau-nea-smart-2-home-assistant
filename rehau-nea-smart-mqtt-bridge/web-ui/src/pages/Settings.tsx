@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { BottomNav } from '../components/BottomNav';
+import { Settings as SettingsIcon, Sun, Moon } from 'lucide-react';
 import './Settings.css';
 
 interface Config {
@@ -111,9 +112,13 @@ export function Settings() {
 
   return (
     <div className="settings-container">
-      <header className="settings-header">
-        <h1>⚙️ Settings</h1>
-      </header>
+      <div className="settings-header">
+        <div className="header-content">
+          <SettingsIcon size={24} />
+          <h1>Settings</h1>
+          <div style={{ width: 24 }}></div>
+        </div>
+      </div>
 
       <div className="settings-content">
         <div className="settings-section">
@@ -126,7 +131,17 @@ export function Settings() {
               </span>
             </div>
             <button className="theme-toggle-btn" onClick={toggleDarkMode}>
-              {darkMode ? '☀️ Light' : '🌙 Dark'}
+              {darkMode ? (
+                <>
+                  <Sun size={16} style={{ marginRight: '6px' }} />
+                  Light
+                </>
+              ) : (
+                <>
+                  <Moon size={16} style={{ marginRight: '6px' }} />
+                  Dark
+                </>
+              )}
             </button>
           </div>
         </div>

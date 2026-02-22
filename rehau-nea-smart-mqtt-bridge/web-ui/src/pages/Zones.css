@@ -1,14 +1,14 @@
 .zones-container {
   min-height: 100vh;
-  background: var(--bg-primary, #f5f5f5);
+  background: var(--bg-primary);
   padding-bottom: 80px;
 }
 
 .zones-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 16px 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -26,45 +26,48 @@
 
 .zones-header h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 24px;
+  font-weight: 600;
   white-space: nowrap;
+  letter-spacing: -0.5px;
 }
 
 .zones-header .install-name {
-  font-size: 14px;
-  opacity: 0.9;
+  font-size: 13px;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .outdoor-temp {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .zones-grid {
-  padding: 20px;
+  padding: 24px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
 .zone-card {
-  background: white;
-  border-radius: 16px;
+  background: var(--bg-card);
+  border-radius: 8px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.2s ease;
   cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .zone-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .zone-header {
@@ -76,115 +79,151 @@
 
 .zone-header h3 {
   margin: 0;
-  font-size: 20px;
-  color: #333;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .mode-badge {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
 }
 
 .mode-heat {
-  background: #ffebee;
-  color: #c62828;
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--accent-orange);
 }
 
 .mode-cool {
-  background: #e3f2fd;
-  color: #1565c0;
+  background: rgba(74, 158, 255, 0.15);
+  color: var(--accent-blue);
 }
 
 .mode-off {
-  background: #f5f5f5;
-  color: #757575;
+  background: rgba(139, 149, 165, 0.15);
+  color: var(--text-secondary);
 }
 
 .zone-temp {
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  margin: 24px 0;
-  padding: 20px;
-  background: #f9f9f9;
-  border-radius: 12px;
+  justify-content: center;
+  margin: 32px 0;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
 }
 
-.current-temp,
-.target-temp {
+.temp-display-simple {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .temp-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: #333;
+  font-size: 64px;
+  font-weight: 300;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -2px;
 }
 
-.temp-label {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
-  text-transform: uppercase;
-}
-
-.temp-arrow {
+.temp-unit {
   font-size: 24px;
-  color: #999;
+  font-weight: 300;
+  color: var(--text-secondary);
 }
 
 .zone-info {
-  display: flex;
-  gap: 16px;
-  margin: 20px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 24px 0;
 }
 
 .info-item {
-  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 12px;
-  background: #f9f9f9;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #666;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.info-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .info-icon {
-  font-size: 18px;
+  color: var(--text-secondary);
 }
 
 .zone-control-btn {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .zone-control-btn:hover {
-  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .zone-control-btn:active {
-  transform: translateY(0);
+  transform: scale(0.98);
+}
+
+.preset-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.preset-text {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #999;
+  color: var(--text-secondary);
 }
 
 .empty-state p {
@@ -193,27 +232,29 @@
 
 .empty-state .hint {
   font-size: 14px;
-  color: #bbb;
+  color: var(--text-secondary);
+  opacity: 0.6;
 }
 
 .error-message {
-  background: #fee;
-  color: #c33;
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--accent-orange);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: 6px;
   text-align: center;
+  margin: 20px;
 }
 
 .loading {
   text-align: center;
   padding: 60px 20px;
   font-size: 18px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {
   .zones-header h1 {
-    font-size: 18px;
+    font-size: 20px;
   }
   
   .zones-grid {
@@ -222,6 +263,6 @@
   }
   
   .temp-value {
-    font-size: 28px;
+    font-size: 56px;
   }
 }

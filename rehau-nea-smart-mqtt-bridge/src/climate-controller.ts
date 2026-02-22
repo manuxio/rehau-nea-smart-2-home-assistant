@@ -213,7 +213,10 @@ class ClimateController {
         }
         
         // Get target temperature (already converted to Celsius)
-        if (channel.setpointTemperature.celsius !== null) {
+        // Validate temperature is in reasonable range (5-35°C)
+        if (channel.setpointTemperature.celsius !== null && 
+            channel.setpointTemperature.celsius >= 5 && 
+            channel.setpointTemperature.celsius <= 35) {
           targetTemp = channel.setpointTemperature.celsius;
         }
       }
@@ -1261,7 +1264,9 @@ class ClimateController {
     // Target temperature (process AFTER mode to know if zone is off)
     // Only publish if zone is not off
     if (state.mode !== 'off') {
-      if (channel.setpointTemperature.celsius !== null) {
+      if (channel.setpointTemperature.celsius !== null &&
+          channel.setpointTemperature.celsius >= 5 &&
+          channel.setpointTemperature.celsius <= 35) {
         const targetTemp = channel.setpointTemperature.celsius;
         // if (targetTemp !== state.targetTemperature) {
           state.targetTemperature = targetTemp;

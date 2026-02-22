@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient, statusAPI } from '../api/client';
 import { BottomNav } from '../components/BottomNav';
+import { Home, Cloud, Thermometer, Activity } from 'lucide-react';
 import './Dashboard.css';
 
 interface SystemStatus {
@@ -81,14 +82,16 @@ export function Dashboard() {
     <div className="dashboard-container">
       <header className="dashboard-header">
         <div className="header-content">
-          <h1>🏠 BetteRehau</h1>
+          <Home size={24} />
+          <h1>BetteRehau</h1>
           {installation && <span className="install-name">{installation.name}</span>}
         </div>
         {systemStatus.outdoorTemperature !== undefined && 
          systemStatus.outdoorTemperature >= -30 && 
          systemStatus.outdoorTemperature <= 70 && (
           <div className="outdoor-temp">
-            🌤️ {systemStatus.outdoorTemperature.toFixed(1)}°C
+            <Cloud size={16} />
+            <span>{systemStatus.outdoorTemperature.toFixed(1)}°C</span>
           </div>
         )}
       </header>
@@ -98,11 +101,11 @@ export function Dashboard() {
           <h2>Quick Actions</h2>
           <div className="action-grid">
             <button className="action-btn" onClick={() => navigate('/zones')}>
-              <span className="action-icon">🌡️</span>
+              <Thermometer size={32} className="action-icon" />
               <span className="action-label">View Zones</span>
             </button>
             <button className="action-btn" onClick={() => navigate('/system')}>
-              <span className="action-icon">📊</span>
+              <Activity size={32} className="action-icon" />
               <span className="action-label">System Info</span>
             </button>
           </div>

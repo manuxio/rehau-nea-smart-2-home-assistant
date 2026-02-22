@@ -3,84 +3,99 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--bg-primary);
   padding: 20px;
 }
 
 .login-card {
-  background: white;
-  border-radius: 16px;
-  padding: 40px;
+  background: var(--bg-card);
+  border-radius: 24px;
+  padding: 48px;
   width: 100%;
-  max-width: 400px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 420px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .login-card h1 {
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   font-size: 32px;
   text-align: center;
-  color: #333;
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.5px;
 }
 
 .subtitle {
   text-align: center;
-  color: #666;
-  margin: 0 0 32px 0;
+  color: var(--text-secondary);
+  margin: 0 0 40px 0;
   font-size: 14px;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .form-group input {
   width: 100%;
-  padding: 14px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary);
+  border-radius: 12px;
   font-size: 16px;
-  transition: border-color 0.3s;
+  transition: all 0.3s ease;
   box-sizing: border-box;
+}
+
+.form-group input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--accent-green);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 button {
   width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  padding: 16px;
+  background: var(--accent-green);
+  color: var(--bg-primary);
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 button:hover:not(:disabled) {
-  transform: translateY(-2px);
+  background: #00c49a;
+  box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3);
 }
 
 button:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .error {
-  background: #fee;
-  color: #c33;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  background: rgba(255, 107, 53, 0.15);
+  color: var(--accent-orange);
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 20px;
   font-size: 14px;
   text-align: center;
+  border: 1px solid rgba(255, 107, 53, 0.3);
 }
