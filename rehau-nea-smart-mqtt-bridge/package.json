@@ -5,7 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "build": "tsc",
+    "build": "npm run build:backend && npm run build:web-ui",
+    "build:backend": "tsc",
+    "build:web-ui": "cd web-ui && npm install && npm run build",
     "dev": "ts-node src/index.ts",
     "watch": "tsc --watch",
     "test": "jest",
