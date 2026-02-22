@@ -2670,10 +2670,17 @@ class ClimateController {
     let commandDesc = '';
     switch (command.commandType) {
       case 'mode':
-        const mode = command.data.mode_permanent !== undefined 
-          ? (command.data.mode_permanent === 1 ? 'HEAT' : command.data.mode_permanent === 0 ? 'AUTO' : `UNKNOWN (${command.data.mode_permanent})`)
-          : 'UNKNOWN (undefined)';
-        commandDesc = `Set mode to ${mode}`;
+        // Check if this is actually a preset command (uses key 15 = mode_used)
+        if (command.data['15'] !== undefined) {
+          const presetValue = command.data['15'];
+          const presetName = presetValue === 0 ? 'comfort' : presetValue === 1 ? 'away' : presetValue === 2 ? 'standby/none' : `unknown (${presetValue})`;
+          commandDesc = `Set preset to ${presetName}`;
+        } else {
+          const mode = command.data.mode_permanent !== undefined 
+            ? (command.data.mode_permanent === 1 ? 'HEAT' : command.data.mode_permanent === 0 ? 'AUTO' : `UNKNOWN (${command.data.mode_permanent})`)
+            : 'UNKNOWN (undefined)';
+          commandDesc = `Set mode to ${mode}`;
+        }
         break;
       case 'preset':
         const preset = command.data.preset_mode !== undefined
