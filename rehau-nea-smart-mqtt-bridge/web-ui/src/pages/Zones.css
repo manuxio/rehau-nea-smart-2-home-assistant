@@ -212,16 +212,13 @@
 }
 
 @media (max-width: 768px) {
-  .zones-container {
-    padding: 16px;
-  }
-  
-  .zones-container h1 {
-    font-size: 24px;
+  .zones-header h1 {
+    font-size: 18px;
   }
   
   .zones-grid {
     grid-template-columns: 1fr;
+    padding: 16px;
   }
   
   .temp-value {
