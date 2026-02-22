@@ -48,14 +48,17 @@ export async function getAllZones() {
         for (const group of (installData as any).groups) {
           if (group.zones) {
             for (const zone of group.zones) {
+              // Get data from the first channel (thermostat)
+              const channel = zone.channels && zone.channels[0];
+              
               zones.push({
                 id: zone.id,
                 name: zone.name,
-                temperature: (zone as any).temperature || 0,
-                targetTemperature: (zone as any).setpoint_h_normal || 0,
-                humidity: (zone as any).humidity || 0,
+                temperature: channel?.currentTemperature?.celsius || 0,
+                targetTemperature: channel?.setpointTemperature?.celsius || 0,
+                humidity: channel?.humidity || 0,
                 mode: (installData as any).mode || 'heat',
-                preset: (zone as any).mode || 'comfort',
+                preset: channel?.mode === 0 ? 'comfort' : channel?.mode === 1 ? 'reduced' : channel?.mode === 2 ? 'standby' : 'off',
                 groupName: group.name,
                 installName: install.name,
                 installId: install.unique,
