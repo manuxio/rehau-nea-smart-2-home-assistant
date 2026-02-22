@@ -89,9 +89,9 @@ options:
   simulate_disconnect_after_seconds: 0
 
 schema:
-  # REHAU Account
-  rehau_email: email
-  rehau_password: password
+  # REHAU Account (required - must be configured by user)
+  rehau_email: email?
+  rehau_password: password?
   
   # MQTT Broker
   mqtt_host: str
@@ -99,9 +99,9 @@ schema:
   mqtt_user: str?
   mqtt_password: password?
   
-  # POP3 Configuration
+  # POP3 Configuration (required if 2FA is enabled)
   pop3_provider: list(basic|gmail|outlook)?
-  pop3_email: email
+  pop3_email: email?
   pop3_password: password?
   pop3_host: str?
   pop3_port: port?
