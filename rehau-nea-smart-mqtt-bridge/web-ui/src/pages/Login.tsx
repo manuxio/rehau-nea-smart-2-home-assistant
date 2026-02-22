@@ -31,8 +31,8 @@ export function Login() {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1>🏠 REHAU Control</h1>
-        <p className="subtitle">NEA Smart 2.0</p>
+        <h1>🏠 BetteRehau</h1>
+        <p className="subtitle">Better REHAU NEA Smart 2.0</p>
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">

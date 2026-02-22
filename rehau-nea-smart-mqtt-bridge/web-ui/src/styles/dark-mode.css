@@ -1,0 +1,146 @@
+/* Dark Mode Styles */
+:root {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f9f9f9;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --border-color: #e0e0e0;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --gradient-start: #667eea;
+  --gradient-end: #764ba2;
+}
+
+body.dark-mode {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --bg-tertiary: #3a3a3a;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-tertiary: #808080;
+  --border-color: #404040;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --gradient-start: #667eea;
+  --gradient-end: #764ba2;
+}
+
+body.dark-mode {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Apply theme variables to common elements */
+.dashboard-container,
+.zones-container,
+.zone-detail-container,
+.system-container,
+.settings-container {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.status-card,
+.quick-actions,
+.zone-card,
+.control-section,
+.preset-section,
+.info-section,
+.system-card,
+.settings-section {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+/* Dark backgrounds for small areas */
+body.dark-mode .status-item,
+body.dark-mode .info-item,
+body.dark-mode .zone-temp,
+body.dark-mode .temperature-display,
+body.dark-mode .humidity-display,
+body.dark-mode .circuit-data,
+body.dark-mode .zone-demand-item {
+  background: var(--bg-tertiary) !important;
+}
+
+body.dark-mode .current-temp,
+body.dark-mode .target-temp,
+body.dark-mode .current-temperature,
+body.dark-mode .target-temperature {
+  color: var(--text-primary) !important;
+}
+
+.label,
+.info-label,
+.temp-label,
+.data-label {
+  color: var(--text-secondary) !important;
+}
+
+.value,
+.info-value,
+.temp-value,
+.data-value {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode .zone-card {
+  border: 1px solid var(--border-color);
+}
+
+body.dark-mode .temp-display,
+body.dark-mode .zone-name,
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3 {
+  color: var(--text-primary);
+}
+
+body.dark-mode .preset-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .preset-btn:hover:not(:disabled) {
+  background: var(--bg-secondary);
+}
+
+body.dark-mode .disabled-message {
+  background: #3a2f00;
+  color: #ffb74d;
+  border-color: #5a4500;
+}
+
+body.dark-mode .humidity-display {
+  background: var(--bg-secondary);
+}
+
+body.dark-mode .humidity-value,
+body.dark-mode .humidity-label {
+  color: var(--text-primary) !important;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Keep gradients and primary buttons bright in dark mode */
+body.dark-mode .dashboard-header,
+body.dark-mode .zones-header,
+body.dark-mode .zone-detail-header,
+body.dark-mode .system-header {
+  background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+}
+
+body.dark-mode .action-btn,
+body.dark-mode .temp-btn,
+body.dark-mode .preset-btn.active {
+  background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+  color: white;
+}

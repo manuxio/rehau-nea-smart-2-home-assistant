@@ -1,22 +1,49 @@
 .dashboard-container {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--bg-primary, #f5f5f5);
   padding-bottom: 80px;
 }
 
 .dashboard-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 20px;
+  padding: 16px 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
+.outdoor-temp {
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.95;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .dashboard-header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+.install-name {
+  font-size: 14px;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dashboard-content {

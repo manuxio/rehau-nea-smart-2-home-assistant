@@ -24,78 +24,187 @@ export class PlaywrightHttpsClient {
   private page: Page | null = null;
   private initialized: boolean = false;
   private headless: boolean = true;
+  private lastUsed: number = 0;
+  private idleTimeout: number;
+  private idleCheckInterval: NodeJS.Timeout | null = null;
+  private isClosing: boolean = false;
 
   constructor(headless?: boolean) {
     // Use environment variable or constructor parameter
     this.headless = headless !== undefined ? headless : (process.env.PLAYWRIGHT_HEADLESS !== 'false');
+    
+    // Idle timeout in milliseconds (default 5 minutes)
+    this.idleTimeout = parseInt(process.env.PLAYWRIGHT_IDLE_TIMEOUT || '300') * 1000;
+    
     logger.debug(`Playwright browser headless mode: ${this.headless}`);
+    logger.debug(`Playwright idle timeout: ${this.idleTimeout / 1000}s`);
+    
+    // Start idle check timer
+    this.startIdleCheck();
+  }
+
+  /**
+   * Start periodic idle check
+   */
+  private startIdleCheck(): void {
+    // Check every minute
+    this.idleCheckInterval = setInterval(() => {
+      this.checkIdle();
+    }, 60000);
+  }
+
+  /**
+   * Check if browser is idle and close if needed
+   */
+  private async checkIdle(): Promise<void> {
+    if (!this.initialized || !this.browser || this.isClosing) {
+      return;
+    }
+
+    const idleTime = Date.now() - this.lastUsed;
+    
+    if (idleTime > this.idleTimeout) {
+      logger.info(`🎭 Browser idle for ${Math.floor(idleTime / 1000)}s, closing...`);
+      await this.closeBrowser();
+    }
+  }
+
+  /**
+   * Close browser and cleanup
+   */
+  private async closeBrowser(): Promise<void> {
+    if (this.isClosing || !this.browser) {
+      return;
+    }
+
+    this.isClosing = true;
+
+    try {
+      logger.debug('🎭 Closing Playwright browser...');
+      
+      if (this.page) {
+        await this.page.close().catch(() => {});
+        this.page = null;
+      }
+      
+      if (this.context) {
+        await this.context.close().catch(() => {});
+        this.context = null;
+      }
+      
+      if (this.browser) {
+        await this.browser.close().catch(() => {});
+        this.browser = null;
+      }
+      
+      this.initialized = false;
+      logger.info('✅ Playwright browser closed');
+    } catch (error) {
+      logger.error('Error closing browser:', (error as Error).message);
+    } finally {
+      this.isClosing = false;
+    }
   }
 
   private async ensureInitialized(): Promise<void> {
     if (this.initialized && this.browser && this.context && this.page) {
+      // Update last used time
+      this.lastUsed = Date.now();
       return;
     }
 
-    logger.debug('Initializing Playwright Chromium browser...');
+    logger.info('🎭 Initializing Playwright Chromium browser...');
     
     try {
-      // Check if system Chromium exists (Docker/Linux), otherwise use Playwright default (Windows)
+      // Detect platform and set appropriate executable path
+      const isWindows = process.platform === 'win32';
       const systemChromiumPath = '/usr/bin/chromium';
       let executablePath: string | undefined = undefined;
       
-      if (fs.existsSync(systemChromiumPath)) {
+      if (!isWindows && fs.existsSync(systemChromiumPath)) {
         executablePath = systemChromiumPath;
         logger.debug(`Using system Chromium at: ${executablePath}`);
       } else {
-        logger.debug('Using Playwright default browser');
+        logger.debug('Using Playwright bundled browser');
       }
+      
+      // Optimized browser args for minimal resource usage
+      const browserArgs = [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
+        '--disable-hang-monitor',
+        '--disable-popup-blocking',
+        '--disable-prompt-on-repost',
+        '--metrics-recording-only',
+        '--no-first-run',
+        '--safebrowsing-disable-auto-update',
+        '--mute-audio',
+        '--disable-sync'
+      ];
       
       this.browser = await chromium.launch({
         headless: this.headless,
         executablePath: executablePath,
-        args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-blink-features=AutomationControlled'
-      ],
-      timeout: 60000
-    });
+        args: browserArgs,
+        timeout: 60000
+      });
     
-    logger.debug('Playwright Chromium launched successfully');
+      logger.debug('✅ Playwright Chromium launched successfully');
 
-    
+      // Create browser context with realistic settings
+      this.context = await this.browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1920, height: 1080 },
+        locale: 'en-US',
+        timezoneId: 'Europe/Rome',
+        acceptDownloads: false,
+        ignoreHTTPSErrors: false,
+        javaScriptEnabled: true
+      });
 
-    // Create browser context with realistic settings
-    this.context = await this.browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      viewport: { width: 1920, height: 1080 },
-      locale: 'en-US',
-      timezoneId: 'Europe/Rome',
-      acceptDownloads: false,
-      ignoreHTTPSErrors: false,
-      javaScriptEnabled: true
-    });
+      // Create a new page
+      this.page = await this.context.newPage();
+      
+      // Block unnecessary resources to speed up page loads
+      await this.page.route('**/*', (route) => {
+        const resourceType = route.request().resourceType();
+        // Block images, stylesheets, fonts, and media during auth
+        if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+          route.abort();
+        } else {
+          route.continue();
+        }
+      });
 
-    // Create a new page
-    this.page = await this.context.newPage();
-
-    // Set extra headers to look more like a real browser
-    await this.page.setExtraHTTPHeaders({
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'DNT': '1',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-      'Sec-Fetch-Dest': 'document',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'none',
-      'Sec-Fetch-User': '?1',
-      'Cache-Control': 'max-age=0'
-    });
+      // Set extra headers to look more like a real browser
+      await this.page.setExtraHTTPHeaders({
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0'
+      });
 
       this.initialized = true;
-      logger.debug('Playwright browser initialized successfully');
+      this.lastUsed = Date.now();
+      logger.info('✅ Playwright browser initialized successfully');
     } catch (error: any) {
       logger.error(`Failed to initialize Playwright browser: ${error.message}`);
       throw error;
@@ -252,34 +361,15 @@ export class PlaywrightHttpsClient {
   async cleanup(): Promise<void> {
     logger.debug('Cleaning up Playwright browser resources...');
     
-    try {
-      if (this.page) {
-        await this.page.close();
-        this.page = null;
-      }
-    } catch (error) {
-      logger.debug('Error closing page (may already be closed)');
+    // Stop idle check
+    if (this.idleCheckInterval) {
+      clearInterval(this.idleCheckInterval);
+      this.idleCheckInterval = null;
     }
     
-    try {
-      if (this.context) {
-        await this.context.close();
-        this.context = null;
-      }
-    } catch (error) {
-      logger.debug('Error closing context (may already be closed)');
-    }
+    // Close browser
+    await this.closeBrowser();
     
-    try {
-      if (this.browser) {
-        await this.browser.close();
-        this.browser = null;
-      }
-    } catch (error) {
-      logger.debug('Error closing browser (may already be closed)');
-    }
-    
-    this.initialized = false;
     logger.debug('Playwright cleanup complete');
   }
 
@@ -394,5 +484,18 @@ export class PlaywrightHttpsClient {
    */
   getPage(): Page | null {
     return this.page;
+  }
+
+  /**
+   * Get browser status
+   */
+  getStatus(): { initialized: boolean; idleTime: number; memoryUsage?: number } {
+    const idleTime = this.initialized ? Date.now() - this.lastUsed : 0;
+    
+    return {
+      initialized: this.initialized,
+      idleTime,
+      memoryUsage: this.browser ? undefined : 0 // Browser closed = 0 memory
+    };
   }
 }

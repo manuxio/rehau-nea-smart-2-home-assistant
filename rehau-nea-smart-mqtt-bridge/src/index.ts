@@ -11,6 +11,9 @@ import { ConfigValidator } from './config-validator';
 import { APIServer } from './api/server';
 import enhancedLogger from './logging/enhanced-logger';
 import { setClimateController, setAuth } from './api/services/data-service';
+import { StatusPublisher } from './ha-integration/status-publisher';
+import { StalenessDetector } from './monitoring/staleness-detector';
+import { ResourceMonitor } from './monitoring/resource-monitor';
 
 interface Config {
   rehau: {
@@ -100,6 +103,16 @@ const mqttBridge = new RehauMQTTBridge(auth, config.mqtt);
 const rehauApi = auth; // RehauAuth has the API methods
 const climateController = new ClimateController(mqttBridge, rehauApi);
 
+// Initialize monitoring and status reporting
+const statusPublisher = new StatusPublisher(mqttBridge);
+const stalenessDetector = new StalenessDetector({
+  warningThreshold: parseInt(process.env.STALENESS_WARNING_MS || '600000'), // 10 min
+  staleThreshold: parseInt(process.env.STALENESS_STALE_MS || '1800000')     // 30 min
+});
+const resourceMonitor = new ResourceMonitor(
+  parseInt(process.env.MEMORY_WARNING_MB || '150')
+);
+
 // Initialize data service for API
 setAuth(auth);
 setClimateController(climateController);
@@ -176,8 +189,55 @@ async function start() {
     
     logger.info('🚀 REHAU NEA SMART 2.0 MQTT Bridge started successfully');
     
+    // Start monitoring services
+    logger.info('📊 Starting monitoring services...');
+    
+    // Start resource monitoring
+    resourceMonitor.start(60000); // Check every minute
+    
+    // Start staleness detection
+    stalenessDetector.start(60000); // Check every minute
+    
+    // Register zones with staleness detector
+    for (const install of installs) {
+      const fullInstallData = await auth.getInstallationData(install);
+      if (fullInstallData.groups) {
+        fullInstallData.groups.forEach(group => {
+          if (group.zones) {
+            group.zones.forEach(zone => {
+              stalenessDetector.registerZone(zone.id, zone.name);
+            });
+          }
+        });
+      }
+    }
+    
+    // Set up auto-refresh on stale detection
+    stalenessDetector.onStale(async (_zoneId, zoneName) => {
+      logger.warn(`🔄 Triggering refresh for stale zone: ${zoneName}`);
+      try {
+        // Reload all installations (simple approach)
+        for (const install of installs) {
+          const fullInstallData = await auth.getInstallationData(install);
+          climateController.updateInstallationData(fullInstallData);
+        }
+      } catch (error) {
+        logger.error(`Failed to refresh stale zone ${zoneName}:`, (error as Error).message);
+      }
+    });
+    
+    // Initialize HA status publisher
+    await statusPublisher.initialize();
+    statusPublisher.setBridgeStatus('connected');
+    statusPublisher.setAuthStatus('authenticated');
+    statusPublisher.setMQTTQuality('excellent');
+    
+    logger.info('✅ Monitoring services started');
+    
     // Start API server
-    const apiEnabled = process.env.API_ENABLED !== 'false';
+    const webUIEnabled = process.env.WEB_UI_ENABLED !== 'false';
+    const apiEnabled = process.env.API_ENABLED !== 'false' || webUIEnabled; // If WEB_UI is enabled, API must be enabled
+    
     if (apiEnabled) {
       const apiPort = parseInt(process.env.API_PORT || '3000');
       const apiServer = new APIServer(apiPort);
@@ -188,6 +248,14 @@ async function start() {
           component: 'API',
           direction: 'INTERNAL'
         });
+        
+        if (webUIEnabled) {
+          enhancedLogger.info(`🌐 Web UI available at http://localhost:${apiPort}`, {
+            component: 'API',
+            direction: 'INTERNAL'
+          });
+        }
+        
         enhancedLogger.info(`📚 Swagger docs available at http://localhost:${apiPort}/api-docs`, {
           component: 'API',
           direction: 'INTERNAL'
@@ -199,7 +267,7 @@ async function start() {
         });
       }
     } else {
-      enhancedLogger.info('API server disabled (API_ENABLED=false)', {
+      enhancedLogger.info('API server disabled (API_ENABLED=false, WEB_UI_ENABLED=false)', {
         component: 'API',
         direction: 'INTERNAL'
       });
@@ -297,13 +365,20 @@ async function shutdown(exitCode: number): Promise<void> {
     climateController.cleanup();
     logger.info('✅ ClimateController cleaned up');
     
-    // Step 3: Cleanup MQTT Bridge
-    logger.info('Step 3: Cleaning up MQTT Bridge...');
+    // Step 3: Cleanup monitoring services
+    logger.info('Step 3: Cleaning up monitoring services...');
+    resourceMonitor.stop();
+    stalenessDetector.stop();
+    statusPublisher.cleanup();
+    logger.info('✅ Monitoring services cleaned up');
+    
+    // Step 4: Cleanup MQTT Bridge
+    logger.info('Step 4: Cleaning up MQTT Bridge...');
     await mqttBridge.cleanup();
     logger.info('✅ MQTT Bridge cleaned up');
     
-    // Step 4: Cleanup Auth
-    logger.info('Step 4: Cleaning up Auth...');
+    // Step 5: Cleanup Auth
+    logger.info('Step 5: Cleaning up Auth...');
     auth.cleanup();
     logger.info('✅ Auth cleaned up');
     
@@ -332,9 +407,11 @@ process.on('SIGINT', async () => {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', async (error: Error) => {
-  logger.error('❌ Uncaught Exception:', error.message);
-  logger.error('Error:', error);
-  logger.error('Stack:', error.stack);
+  logger.error('❌ Uncaught Exception:', error?.message || 'Unknown error');
+  logger.error('Error:', error || 'No error object');
+  logger.error('Stack:', error?.stack || 'No stack trace');
+  logger.error('Error type:', typeof error);
+  logger.error('Error keys:', error ? Object.keys(error) : 'null/undefined');
   await shutdown(1);
 });
 

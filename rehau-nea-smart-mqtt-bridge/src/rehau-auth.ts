@@ -38,6 +38,11 @@ class RehauAuthPersistent {
   private pop3Client: POP3Client | null = null;
   private firstLoginTimestamp: number | null = null;
   private simulatedDisconnectTimer: NodeJS.Timeout | null = null;
+  
+  // Statistics tracking
+  private startTime: number = Date.now();
+  private tokenRefreshCount: number = 0;
+  private fullAuthCount: number = 0;
 
   constructor(email: string, password: string) {
     this.email = email;
@@ -335,6 +340,9 @@ class RehauAuthPersistent {
       this.accessToken = parsedTokenResponse.access_token;
       this.refreshToken = parsedTokenResponse.refresh_token;
       this.tokenExpiry = Date.now() + (parsedTokenResponse.expires_in * 1000);
+      
+      // Increment full authentication counter
+      this.fullAuthCount++;
 
       logger.info('Tokens obtained successfully');
       logger.debug(`Token expiry: ${new Date(this.tokenExpiry).toISOString()}`);
@@ -923,6 +931,9 @@ class RehauAuthPersistent {
       this.accessToken = response.data.access_token;
       this.refreshToken = response.data.refresh_token;
       this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+      
+      // Increment token refresh counter
+      this.tokenRefreshCount++;
 
       logger.debug('Tokens obtained');
 
@@ -1027,6 +1038,40 @@ class RehauAuthPersistent {
 
   isAuthenticated(): boolean {
     return this.accessToken !== null;
+  }
+
+  /**
+   * Get system statistics
+   */
+  getStatistics() {
+    const uptime = Date.now() - this.startTime;
+    return {
+      uptime: uptime,
+      uptimeFormatted: this.formatUptime(uptime),
+      tokenRefreshCount: this.tokenRefreshCount,
+      fullAuthCount: this.fullAuthCount,
+      startTime: this.startTime
+    };
+  }
+
+  /**
+   * Format uptime in human-readable format
+   */
+  private formatUptime(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) {
+      return `${days}d ${hours % 24}h ${minutes % 60}m`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds % 60}s`;
+    } else {
+      return `${seconds}s`;
+    }
   }
 
   /**

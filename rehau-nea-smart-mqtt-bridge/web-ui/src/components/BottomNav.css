@@ -3,13 +3,18 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
-  border-top: 1px solid #e0e0e0;
+  background: var(--bg-secondary, white);
+  border-top: 1px solid var(--border-color, #e0e0e0);
   display: flex;
   justify-content: space-around;
   padding: 8px 0;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -2px 8px var(--shadow, rgba(0, 0, 0, 0.1));
   z-index: 1000;
+}
+
+body.dark-mode .bottom-nav {
+  background: var(--bg-secondary);
+  border-top-color: var(--border-color);
 }
 
 .nav-item {
@@ -23,13 +28,13 @@
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  color: #999;
+  color: var(--text-tertiary, #999);
   width: auto;
 }
 
 .nav-item:hover {
   transform: none;
-  background: #f5f5f5;
+  background: var(--bg-tertiary, #f5f5f5);
 }
 
 .nav-item.active {

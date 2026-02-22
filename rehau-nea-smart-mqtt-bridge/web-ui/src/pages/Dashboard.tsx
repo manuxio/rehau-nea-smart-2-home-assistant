@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { statusAPI } from '../api/client';
+import { apiClient, statusAPI } from '../api/client';
 import { BottomNav } from '../components/BottomNav';
 import './Dashboard.css';
 
@@ -14,32 +14,55 @@ interface SystemStatus {
   version: string;
 }
 
+interface SystemStats {
+  uptime: number;
+  uptimeFormatted: string;
+  tokenRefreshCount: number;
+  fullAuthCount: number;
+  startTime: number;
+}
+
+interface Installation {
+  name: string;
+}
+
+interface SystemStatusExtended {
+  outdoorTemperature?: number;
+}
+
 export function Dashboard() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [stats, setStats] = useState<SystemStats | null>(null);
+  const [installation, setInstallation] = useState<Installation | null>(null);
+  const [systemStatus, setSystemStatus] = useState<SystemStatusExtended>({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadStatus();
-    const interval = setInterval(loadStatus, 30000); // Refresh every 30s
+    loadData();
+    const interval = setInterval(loadData, 30000); // Refresh every 30s
     return () => clearInterval(interval);
   }, []);
 
-  const loadStatus = async () => {
+  const loadData = async () => {
     try {
-      const data = await statusAPI.getSystem();
-      setStatus(data);
+      const [statusData, statsData, installData, sysStatusData] = await Promise.all([
+        statusAPI.getSystem(),
+        apiClient.get('/stats'),
+        apiClient.get('/installations'),
+        apiClient.get('/status/system').catch(() => ({ data: {} }))
+      ]);
+      setStatus(statusData);
+      setStats(statsData.data);
+      setSystemStatus(sysStatusData.data || {});
+      if (installData.data.installations && installData.data.installations.length > 0) {
+        setInstallation({ name: installData.data.installations[0].name });
+      }
     } catch (error) {
-      console.error('Failed to load status:', error);
+      console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatUptime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
   };
 
   const formatMemory = (bytes: number) => {
@@ -57,36 +80,20 @@ export function Dashboard() {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <h1>🏠 REHAU Control</h1>
+        <div className="header-content">
+          <h1>🏠 BetteRehau</h1>
+          {installation && <span className="install-name">{installation.name}</span>}
+        </div>
+        {systemStatus.outdoorTemperature !== undefined && 
+         systemStatus.outdoorTemperature >= -30 && 
+         systemStatus.outdoorTemperature <= 70 && (
+          <div className="outdoor-temp">
+            🌤️ {systemStatus.outdoorTemperature.toFixed(1)}°C
+          </div>
+        )}
       </header>
 
       <div className="dashboard-content">
-        <div className="status-card">
-          <h2>System Status</h2>
-          {status && (
-            <div className="status-info">
-              <div className="status-item">
-                <span className="label">Status:</span>
-                <span className={`value status-${status.status}`}>
-                  {status.status === 'running' ? '✅ Running' : '❌ Stopped'}
-                </span>
-              </div>
-              <div className="status-item">
-                <span className="label">Uptime:</span>
-                <span className="value">{formatUptime(status.uptime)}</span>
-              </div>
-              <div className="status-item">
-                <span className="label">Memory:</span>
-                <span className="value">{formatMemory(status.memory.heapUsed)}</span>
-              </div>
-              <div className="status-item">
-                <span className="label">Version:</span>
-                <span className="value">{status.version}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
         <div className="quick-actions">
           <h2>Quick Actions</h2>
           <div className="action-grid">
@@ -100,6 +107,48 @@ export function Dashboard() {
             </button>
           </div>
         </div>
+
+        <div className="status-card">
+          <h2>System Status</h2>
+          {status && (
+            <div className="status-info">
+              <div className="status-item">
+                <span className="label">Status:</span>
+                <span className={`value status-${status.status}`}>
+                  {status.status === 'running' ? '✅ Running' : '❌ Stopped'}
+                </span>
+              </div>
+              <div className="status-item">
+                <span className="label">Uptime:</span>
+                <span className="value">{stats?.uptimeFormatted || 'N/A'}</span>
+              </div>
+              <div className="status-item">
+                <span className="label">Memory:</span>
+                <span className="value">{formatMemory(status.memory.heapUsed)}</span>
+              </div>
+              <div className="status-item">
+                <span className="label">Version:</span>
+                <span className="value">{status.version}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {stats && (
+          <div className="status-card">
+            <h2>Authentication Statistics</h2>
+            <div className="status-info">
+              <div className="status-item">
+                <span className="label">Full Authentications:</span>
+                <span className="value">{stats.fullAuthCount}</span>
+              </div>
+              <div className="status-item">
+                <span className="label">Token Refreshes:</span>
+                <span className="value">{stats.tokenRefreshCount}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <BottomNav />

@@ -1,19 +1,52 @@
-# Support both Home Assistant addon (BUILD_FROM) and standalone (node:20-alpine) builds
-ARG BUILD_FROM=node:20.14-alpine
+# Multi-stage build for REHAU NEA SMART 2.0 MQTT Bridge
+# Stage 1: Build web UI
+FROM node:20-alpine AS web-builder
+
+WORKDIR /web-ui
+
+# Copy web UI package files
+COPY web-ui/package*.json ./
+
+# Install web UI dependencies
+RUN npm ci
+
+# Copy web UI source
+COPY web-ui/ ./
+
+# Build web UI
+RUN npm run build
+
+# Stage 2: Build backend
+FROM node:20-alpine AS backend-builder
+
+WORKDIR /app
+
+# Copy backend package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install backend dependencies (including dev for build)
+RUN npm ci
+
+# Copy backend source
+COPY src/ ./src/
+
+# Build backend TypeScript
+RUN npm run build
+
+# Stage 3: Final runtime image
+ARG BUILD_FROM=node:20-alpine
 FROM $BUILD_FROM
 
-# Install Node.js and npm if not already present (needed for HA base images)
-# This check works for both HA addon builds (BUILD_FROM) and standalone (node:20-alpine)
+# Install Node.js if not present (for HA base images)
 RUN if ! command -v node > /dev/null 2>&1; then \
       apk add --no-cache nodejs npm; \
     fi
 
-# Install wget for healthcheck and jq for JSON parsing (needed for HA addon config)
-RUN apk add --no-cache wget jq
-
-# Install Playwright dependencies for Chromium
-# These are required for running headless Chromium browser
+# Install runtime dependencies
 RUN apk add --no-cache \
+    wget \
+    jq \
     chromium \
     nss \
     freetype \
@@ -22,38 +55,38 @@ RUN apk add --no-cache \
     ttf-freefont \
     font-noto-emoji
 
-# Set Playwright to use system-installed Chromium
-# Alpine Linux has chromium at /usr/bin/chromium (not chromium-browser)
+# Set Playwright to use system Chromium
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium \
+    NODE_ENV=production
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy backend package files
 COPY package*.json ./
-COPY tsconfig.json ./
 
-# Install all dependencies (including dev dependencies for build)
-RUN npm ci
+# Install production dependencies only
+RUN npm ci --production
 
-# Copy TypeScript source files
-COPY src/ ./src/
+# Copy built backend from builder
+COPY --from=backend-builder /app/dist ./dist
 
-# Build TypeScript to JavaScript
-RUN npm run build
+# Copy built web UI from builder
+COPY --from=web-builder /web-ui/dist ./web-ui/dist
 
-# Remove dev dependencies to reduce image size
-RUN npm prune --production
+# Copy PWA files
+COPY web-ui/public/sw.js ./web-ui/dist/sw.js
+COPY web-ui/public/manifest.json ./web-ui/dist/manifest.json
 
 # Copy run script
-COPY run.sh /
-
-# Make run script executable
+COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
-# Health check to monitor Node.js process (API-less design)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD pidof node > /dev/null || exit 1
+# Expose API/Web UI port
+EXPOSE 3000
 
-CMD [ "/run.sh" ]
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+CMD ["/run.sh"]

@@ -84,6 +84,7 @@ export async function getZoneById(zoneId: string) {
 // Get system details (mixed circuits, zone demands, etc.)
 export async function getSystemDetails() {
   const auth = getAuth();
+  const controller = getClimateController();
   const installations = auth.getInstalls();
   
   if (installations.length === 0) {
@@ -92,22 +93,46 @@ export async function getSystemDetails() {
   
   const install = installations[0];
   const installData = await auth.getInstallationData(install);
+  const installId = install.unique;
   
   const mixedCircuits: any[] = [];
   const zones: any[] = [];
   
-  // Get mixed circuits data
-  if ((installData as any).mixedCircuits) {
-    for (const mc of (installData as any).mixedCircuits) {
+  // Get mixed circuits data from LIVE_EMU
+  const liveEMUData = controller.getLiveEMUData(installId);
+  if (liveEMUData) {
+    // LIVE_EMU data structure: { MC0: {...}, MC1: {...}, MC2: {...} }
+    Object.keys(liveEMUData).forEach((circuitKey) => {
+      const circuit = liveEMUData[circuitKey];
+      const circuitNumber = parseInt(circuitKey.replace('MC', ''));
+      
+      // Temperature conversion: REHAU stores as Fahrenheit * 10
+      // Convert to Celsius: (F - 32) / 1.8
+      // Value 32767 indicates not present/inactive - return null
+      // Also check for converted values around -17.8°C which indicate offline circuits
+      const convertTemp = (rawValue: number): number | null => {
+        if (rawValue === undefined || rawValue === null) return null;
+        // Check for sentinel values before conversion
+        if (rawValue === 32767 || rawValue === -32768 || rawValue === 0) return null;
+        
+        const fahrenheit = rawValue / 10;
+        const celsius = Math.round(((fahrenheit - 32) / 1.8) * 10) / 10;
+        
+        // Additional check: if result is around -17.8°C, it's likely a sentinel
+        if (celsius < -15 || celsius > 100) return null;
+        
+        return celsius;
+      };
+      
       mixedCircuits.push({
-        number: mc.number || 0,
-        pumpOn: mc.pump?.on || false,
-        setTemperature: mc.setTemperature?.celsius || 0,
-        supplyTemperature: mc.supplyTemperature?.celsius || 0,
-        returnTemperature: mc.returnTemperature?.celsius || 0,
-        valveOpening: mc.valveOpening || 0,
+        number: circuitNumber,
+        pumpOn: circuit.pumpOn === 1,
+        setTemperature: convertTemp(circuit.mixed_circuit1_setpoint),
+        supplyTemperature: convertTemp(circuit.mixed_circuit1_supply),
+        returnTemperature: convertTemp(circuit.mixed_circuit1_return),
+        valveOpening: circuit.mixed_circuit1_opening || 0,
       });
-    }
+    });
   }
   
   // Get zone demands
@@ -132,7 +157,7 @@ export async function getSystemDetails() {
     installation: {
       name: install.name,
       mode: (installData as any).mode || 'heat',
-      outdoorTemperature: (install as any).outsideTemperature,
+      outdoorTemperature: (installData as any).outsideTemperature?.celsius,
     },
     mixedCircuits,
     zones,

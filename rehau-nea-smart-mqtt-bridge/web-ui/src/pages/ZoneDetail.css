@@ -6,7 +6,7 @@
 .zone-detail-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 20px;
+  padding: 16px 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
@@ -250,4 +250,16 @@
   .info-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.disabled-message {
+  text-align: center;
+  font-size: 14px;
+  color: #ff9800;
+  background: #fff3e0;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #ffe0b2;
+  margin: 0;
+  line-height: 1.5;
 }

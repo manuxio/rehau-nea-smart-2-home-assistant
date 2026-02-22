@@ -83,8 +83,13 @@ export function Zones() {
   return (
     <div className="zones-container">
       <div className="zones-header">
-        <h1>🌡️ {installName}</h1>
-        {systemStatus.outdoorTemperature !== undefined && (
+        <div className="header-content">
+          <h1>🌡️ Zones</h1>
+          <span className="install-name">{installName}</span>
+        </div>
+        {systemStatus.outdoorTemperature !== undefined && 
+         systemStatus.outdoorTemperature >= -30 && 
+         systemStatus.outdoorTemperature <= 70 && (
           <div className="outdoor-temp">
             🌤️ {systemStatus.outdoorTemperature.toFixed(1)}°C
           </div>

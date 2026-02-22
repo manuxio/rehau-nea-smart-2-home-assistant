@@ -24,7 +24,7 @@ export function ZoneDetail() {
   const [error, setError] = useState('');
   const [updating, setUpdating] = useState(false);
   const [pendingTemp, setPendingTemp] = useState<number | null>(null);
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimer = useRef<number | null>(null);
 
   useEffect(() => {
     loadZone();
@@ -164,24 +164,32 @@ export function ZoneDetail() {
 
         <div className="control-section">
           <h2>Temperature Control</h2>
-          <div className="temp-control">
-            <button 
-              className="temp-btn" 
-              onClick={() => adjustTemperature(-0.5)}
-              disabled={updating}
-            >
-              -
-            </button>
-            <span className="temp-display">{formatTemperature(zone.targetTemperature)}</span>
-            <button 
-              className="temp-btn" 
-              onClick={() => adjustTemperature(0.5)}
-              disabled={updating}
-            >
-              +
-            </button>
-          </div>
-          {updating && <p className="control-hint">Updating...</p>}
+          {zone.preset === 'standby' ? (
+            <p className="control-hint disabled-message">
+              Temperature control is disabled in Standby mode. Switch to Comfort or Reduced to adjust temperature.
+            </p>
+          ) : (
+            <>
+              <div className="temp-control">
+                <button 
+                  className="temp-btn" 
+                  onClick={() => adjustTemperature(-0.5)}
+                  disabled={updating}
+                >
+                  -
+                </button>
+                <span className="temp-display">{formatTemperature(zone.targetTemperature)}</span>
+                <button 
+                  className="temp-btn" 
+                  onClick={() => adjustTemperature(0.5)}
+                  disabled={updating}
+                >
+                  +
+                </button>
+              </div>
+              {updating && <p className="control-hint">Updating...</p>}
+            </>
+          )}
         </div>
 
         <div className="preset-section">

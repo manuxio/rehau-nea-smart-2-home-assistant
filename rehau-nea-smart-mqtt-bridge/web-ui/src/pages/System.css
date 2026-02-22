@@ -1,28 +1,38 @@
 .system-container {
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 100px;
+  background: var(--bg-primary, #f5f5f5);
+  padding-bottom: 80px;
 }
 
 .system-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 20px;
+  padding: 16px 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
-.system-header h1 {
-  margin: 0;
-  font-size: 24px;
+.system-header .header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.install-name {
+.system-header h1 {
+  margin: 0;
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+.system-header .install-name {
   font-size: 14px;
   opacity: 0.9;
-  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .system-content {
@@ -38,6 +48,55 @@
   margin-bottom: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+
+.tool-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+  text-align: left;
+}
+
+.tool-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.tool-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.tool-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tool-description {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.tool-arrow {
+  font-size: 24px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
 
 .system-card h2 {
   margin: 0 0 20px 0;
@@ -218,4 +277,34 @@
   .outdoor-temp-display {
     font-size: 40px;
   }
+}
+
+/* Dark mode support */
+body.dark-mode .system-card {
+  background: var(--bg-secondary);
+}
+
+body.dark-mode .system-card h2,
+body.dark-mode .circuit-header h3,
+body.dark-mode .zone-name,
+body.dark-mode .data-value,
+body.dark-mode .demand-value {
+  color: var(--text-primary);
+}
+
+body.dark-mode .data-item {
+  background: var(--bg-tertiary);
+}
+
+body.dark-mode .data-label {
+  color: var(--text-secondary);
+}
+
+body.dark-mode .circuit-item,
+body.dark-mode .zone-demand-item {
+  border-color: var(--border-color);
+}
+
+body.dark-mode .demand-bar-container {
+  background: var(--bg-tertiary);
 }

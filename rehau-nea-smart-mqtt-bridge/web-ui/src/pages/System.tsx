@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { BottomNav } from '../components/BottomNav';
 import './System.css';
@@ -12,9 +13,9 @@ interface SystemData {
   mixedCircuits: Array<{
     number: number;
     pumpOn: boolean;
-    setTemperature: number;
-    supplyTemperature: number;
-    returnTemperature: number;
+    setTemperature: number | null;
+    supplyTemperature: number | null;
+    returnTemperature: number | null;
     valveOpening: number;
   }>;
   zones: Array<{
@@ -30,6 +31,7 @@ export function System() {
   const [data, setData] = useState<SystemData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
@@ -69,11 +71,25 @@ export function System() {
   return (
     <div className="system-container">
       <header className="system-header">
-        <h1>📊 System Details</h1>
-        <div className="install-name">{data.installation.name}</div>
+        <div className="header-content">
+          <h1>📊 System Details</h1>
+          <div className="install-name">{data.installation.name}</div>
+        </div>
       </header>
 
       <div className="system-content">
+        <div className="system-card">
+          <h2>🔧 System Tools</h2>
+          <button className="tool-button" onClick={() => navigate('/logs')}>
+            <span className="tool-icon">📋</span>
+            <div className="tool-info">
+              <span className="tool-title">View System Logs</span>
+              <span className="tool-description">View, filter, and download system logs</span>
+            </div>
+            <span className="tool-arrow">→</span>
+          </button>
+        </div>
+
         {data.installation.outdoorTemperature !== undefined && (
           <div className="system-card">
             <h2>🌤️ Outdoor Temperature</h2>
@@ -96,15 +112,21 @@ export function System() {
               <div className="circuit-data">
                 <div className="data-item">
                   <span className="data-label">Set</span>
-                  <span className="data-value">{circuit.setTemperature}°C</span>
+                  <span className="data-value">
+                    {circuit.setTemperature !== null ? `${circuit.setTemperature}°C` : '-'}
+                  </span>
                 </div>
                 <div className="data-item">
                   <span className="data-label">Supply</span>
-                  <span className="data-value">{circuit.supplyTemperature}°C</span>
+                  <span className="data-value">
+                    {circuit.supplyTemperature !== null ? `${circuit.supplyTemperature}°C` : '-'}
+                  </span>
                 </div>
                 <div className="data-item">
                   <span className="data-label">Return</span>
-                  <span className="data-value">{circuit.returnTemperature}°C</span>
+                  <span className="data-value">
+                    {circuit.returnTemperature !== null ? `${circuit.returnTemperature}°C` : '-'}
+                  </span>
                 </div>
                 <div className="data-item">
                   <span className="data-label">Valve</span>

@@ -1,7 +1,7 @@
 name: REHAU NEA SMART 2.0 MQTT Bridge
-version: "4.0.39"
+version: "5.0.0"
 slug: rehau_nea_smart_mqtt
-description: TypeScript-based MQTT bridge for REHAU NEA SMART 2.0 heating systems with automatic 2FA support via POP3
+description: Full-featured REHAU control platform with REST API, Web UI, and OAuth2 POP3 support
 url: https://github.com/manuxio/rehau-nea-smart-2-home-assistant
 arch:
   - aarch64
@@ -12,62 +12,149 @@ arch:
 init: false
 startup: application
 boot: auto
+ingress: true
+ingress_port: 3000
+panel_icon: mdi:radiator
 ports:
   3000/tcp: 3000
 ports_description:
-  3000/tcp: REST API port
+  3000/tcp: REST API and Web UI port
 options:
+  # REHAU Account
   rehau_email: ""
   rehau_password: ""
-  pop3_email: ""
-  pop3_password: ""
-  pop3_host: "pop.gmx.net"
-  pop3_port: 995
-  pop3_secure: true
-  pop3_timeout: 300000
-  pop3_debug: false
-  pop3_from_address: "noreply@accounts.rehau.com"
-  pop3_ignore_tls_errors: true
+  
+  # MQTT Broker
   mqtt_host: "core-mosquitto"
   mqtt_port: 1883
   mqtt_user: ""
   mqtt_password: ""
+  
+  # POP3 Configuration (for 2FA)
+  pop3_provider: "basic"
+  pop3_email: ""
+  pop3_password: ""
+  pop3_host: "pop.gmx.com"
+  pop3_port: 995
+  pop3_secure: true
+  pop3_timeout: 600000
+  pop3_debug: false
+  pop3_from_address: "noreply@accounts.rehau.com"
+  pop3_ignore_tls_errors: true
+  
+  # OAuth2 Configuration (for Gmail/Outlook)
+  pop3_oauth2_client_id: ""
+  pop3_oauth2_client_secret: ""
+  pop3_oauth2_refresh_token: ""
+  pop3_oauth2_tenant_id: "common"
+  
+  # REST API & Web UI
+  api_enabled: true
+  web_ui_enabled: true
   api_port: 3000
+  api_username: "admin"
+  api_password: ""
+  jwt_secret: ""
+  
+  # Logging
   log_level: "info"
+  log_show_ok_requests: false
+  
+  # Intervals (seconds)
   zone_reload_interval: 300
   token_refresh_interval: 21600
   referentials_reload_interval: 86400
+  live_data_interval: 300
+  
+  # Commands
+  command_retry_timeout: 30
+  command_max_retries: 3
+  disable_redundant_commands: true
+  
+  # Display
   use_group_in_names: false
+  
+  # Playwright
+  playwright_headless: true
+  playwright_idle_timeout: 300
+  
+  # Monitoring
+  memory_warning_mb: 150
+  staleness_warning_ms: 600000
+  staleness_stale_ms: 1800000
+  
+  # Testing/Debugging
   force_fresh_login: false
   force_token_expired: false
   simulate_disconnect_after_seconds: 0
-  playwright_headless: true
-  disable_redundant_commands: false
+
 schema:
+  # REHAU Account
   rehau_email: email
   rehau_password: password
+  
+  # MQTT Broker
+  mqtt_host: str
+  mqtt_port: port
+  mqtt_user: str?
+  mqtt_password: password?
+  
+  # POP3 Configuration
+  pop3_provider: list(basic|gmail|outlook)?
   pop3_email: email
-  pop3_password: password
-  pop3_host: str
-  pop3_port: port
+  pop3_password: password?
+  pop3_host: str?
+  pop3_port: port?
   pop3_secure: bool?
   pop3_timeout: "int(60000,600000)?"
   pop3_debug: bool?
   pop3_from_address: str?
   pop3_ignore_tls_errors: bool?
-  mqtt_host: str
-  mqtt_port: port
-  mqtt_user: str?
-  mqtt_password: password?
-  api_port: port
-  log_level: list(debug|info|warn|error)
+  
+  # OAuth2 Configuration
+  pop3_oauth2_client_id: str?
+  pop3_oauth2_client_secret: password?
+  pop3_oauth2_refresh_token: password?
+  pop3_oauth2_tenant_id: str?
+  
+  # REST API & Web UI
+  api_enabled: bool?
+  web_ui_enabled: bool?
+  api_port: port?
+  api_username: str?
+  api_password: password?
+  jwt_secret: password?
+  
+  # Logging
+  log_level: list(debug|info|warn|error)?
+  log_show_ok_requests: bool?
+  
+  # Intervals
   zone_reload_interval: "int(30,86400)?"
   token_refresh_interval: "int(1800,86400)?"
   referentials_reload_interval: "int(3600,604800)?"
+  live_data_interval: "int(30,3600)?"
+  
+  # Commands
+  command_retry_timeout: "int(10,120)?"
+  command_max_retries: "int(1,10)?"
+  disable_redundant_commands: bool?
+  
+  # Display
   use_group_in_names: bool?
+  
+  # Playwright
+  playwright_headless: bool?
+  playwright_idle_timeout: "int(0,600)?"
+  
+  # Monitoring
+  memory_warning_mb: "int(50,500)?"
+  staleness_warning_ms: "int(60000,3600000)?"
+  staleness_stale_ms: "int(300000,7200000)?"
+  
+  # Testing/Debugging
   force_fresh_login: bool?
   force_token_expired: bool?
   simulate_disconnect_after_seconds: "int(0,3600)?"
-  playwright_headless: bool?
-  disable_redundant_commands: bool?
+
 documentation: https://github.com/manuxio/rehau-nea-smart-2-home-assistant/blob/main/rehau-nea-smart-mqtt-bridge/README.md

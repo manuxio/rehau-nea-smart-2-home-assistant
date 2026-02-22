@@ -9,12 +9,55 @@ const router = Router();
  * /api/v1/zones:
  *   get:
  *     summary: List all zones
+ *     description: Returns a list of all heating zones with their current status
  *     tags: [Zones]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of zones
+ *         description: List of zones retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 zones:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         description: Zone unique identifier
+ *                       name:
+ *                         type: string
+ *                         description: Zone name
+ *                       temperature:
+ *                         type: number
+ *                         format: float
+ *                         description: Current temperature in °C
+ *                       targetTemperature:
+ *                         type: number
+ *                         format: float
+ *                         description: Target temperature in °C
+ *                       humidity:
+ *                         type: integer
+ *                         description: Current humidity percentage
+ *                       mode:
+ *                         type: string
+ *                         enum: [heat, cool, off]
+ *                         description: Current operating mode
+ *                       preset:
+ *                         type: string
+ *                         enum: [comfort, reduced, standby, off]
+ *                         description: Current preset mode
+ *                       installName:
+ *                         type: string
+ *                         description: Installation name
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {
@@ -34,6 +77,7 @@ router.get('/', async (_req: Request, res: Response) => {
  * /api/v1/zones/{id}:
  *   get:
  *     summary: Get zone details
+ *     description: Returns detailed information about a specific zone
  *     tags: [Zones]
  *     security:
  *       - bearerAuth: []
@@ -43,11 +87,43 @@ router.get('/', async (_req: Request, res: Response) => {
  *         required: true
  *         schema:
  *           type: string
+ *         description: Zone unique identifier
  *     responses:
  *       200:
- *         description: Zone details
+ *         description: Zone details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 temperature:
+ *                   type: number
+ *                   format: float
+ *                 targetTemperature:
+ *                   type: number
+ *                   format: float
+ *                 humidity:
+ *                   type: integer
+ *                 mode:
+ *                   type: string
+ *                   enum: [heat, cool, off]
+ *                 preset:
+ *                   type: string
+ *                   enum: [comfort, reduced, standby, off]
+ *                 installName:
+ *                   type: string
+ *                 groupName:
+ *                   type: string
  *       404:
  *         description: Zone not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
  */
 router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -71,6 +147,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
  * /api/v1/zones/{id}/temperature:
  *   put:
  *     summary: Set zone temperature
+ *     description: Sets the target temperature for a specific zone
  *     tags: [Zones]
  *     security:
  *       - bearerAuth: []
@@ -80,18 +157,41 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
  *         required: true
  *         schema:
  *           type: string
+ *         description: Zone unique identifier
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - temperature
  *             properties:
  *               temperature:
  *                 type: number
+ *                 format: float
+ *                 minimum: 5
+ *                 maximum: 35
+ *                 description: Target temperature in °C (5-35)
  *     responses:
  *       200:
  *         description: Temperature set successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 temperature:
+ *                   type: number
+ *                   format: float
+ *       400:
+ *         description: Invalid temperature value
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
  */
 router.put('/:id/temperature', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -128,16 +228,16 @@ router.put('/:id/temperature', async (req: Request, res: Response): Promise<void
       }
     }
     
-    const zoneKey = `${installId}_zone_${zoneId}`;
     
     const command = {
       type: 'ha_command',
-      zoneId: zoneKey,
-      command: 'temperature',
-      value: temperature
+      installId: installId,
+      zoneNumber: zoneId,  // This is the actual zoneId (MongoDB ObjectId)
+      commandType: 'temperature',
+      payload: temperature.toString()
     };
     
-    enhancedLogger.info(`Sending temperature command with zoneKey: ${zoneKey}`, {
+    enhancedLogger.info(`Sending temperature command for zone: ${zoneId}`, {
       component: 'API',
       direction: 'OUTGOING'
     });
@@ -229,9 +329,8 @@ router.put('/:id/preset', async (req: Request, res: Response): Promise<void> => 
       }
     }
     
-    const zoneKey = `${installId}_zone_${zoneId}`;
     
-    enhancedLogger.info(`Sending preset command with zoneKey: ${zoneKey}`, {
+    enhancedLogger.info(`Sending preset command for zone: ${zoneId}`, {
       component: 'API',
       direction: 'OUTGOING'
     });
@@ -239,9 +338,10 @@ router.put('/:id/preset', async (req: Request, res: Response): Promise<void> => 
     // Send command via climate controller
     (climateController as any).handleHomeAssistantCommand({
       type: 'ha_command',
-      zoneId: zoneKey,
-      command: 'preset',
-      value: preset
+      installId: installId,
+      zoneNumber: zoneId,  // This is the actual zoneId (MongoDB ObjectId)
+      commandType: 'preset',
+      payload: preset
     });
     
     enhancedLogger.info(`Preset set to ${preset} for zone ${zoneId}`, {

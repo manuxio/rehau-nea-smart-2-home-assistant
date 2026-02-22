@@ -26,6 +26,14 @@ export function BottomNav() {
       </button>
       
       <button
+        className={`nav-item ${isActive('/system') ? 'active' : ''}`}
+        onClick={() => navigate('/system')}
+      >
+        <span className="nav-icon">📊</span>
+        <span className="nav-label">System</span>
+      </button>
+      
+      <button
         className={`nav-item ${isActive('/settings') ? 'active' : ''}`}
         onClick={() => navigate('/settings')}
       >

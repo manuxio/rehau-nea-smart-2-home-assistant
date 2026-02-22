@@ -6,6 +6,12 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
 
   res.on('finish', () => {
     const duration = Date.now() - start;
+    const showOkRequests = process.env.LOG_SHOW_OK_REQUESTS === 'true';
+    
+    // Skip logging 200 OK responses unless explicitly enabled
+    if (res.statusCode === 200 && !showOkRequests) {
+      return;
+    }
     
     enhancedLogger.info(`${req.method} ${req.path} ${res.statusCode}`, {
       component: 'API',

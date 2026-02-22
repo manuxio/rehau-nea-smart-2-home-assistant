@@ -48,6 +48,10 @@ class ClimateController {
   private channelToZoneKey: Map<string, string>; // Map channelId -> zoneKey for fast lookup
   private channelZoneToChannelId: Map<number, string>; // Cache channelZone -> channel ID mapping
   
+  // LIVE data storage
+  private liveEMUData: Map<string, any> = new Map(); // Map installId -> LIVE_EMU data
+  private liveDIDOData: Map<string, any> = new Map(); // Map installId -> LIVE_DIDO data
+  
   // Command queue and retry mechanism
   private commandQueue: QueuedCommand[] = [];
   private pendingCommand: PendingCommand | null = null;
@@ -2356,6 +2360,9 @@ class ClimateController {
     const installName = this.installationNames.get(installId) || installId;
     const circuits = data.data.data;
     
+    // Store the LIVE_EMU data for API access
+    this.liveEMUData.set(installId, circuits);
+    
     logger.debug(`🔌 LIVE_EMU Data Received:`);
     logger.debug(`   Installation: ${installName}`);
     logger.debug(`   Circuits: ${Object.keys(circuits).length}`);
@@ -2539,6 +2546,9 @@ class ClimateController {
     const installId = data.data.unique;
     const installName = this.installationNames.get(installId) || installId;
     const controllers = data.data.data;
+    
+    // Store the LIVE_DIDO data for API access
+    this.liveDIDOData.set(installId, controllers);
     
     logger.debug(`🔌 LIVE_DIDO Data Received:`);
     logger.debug(`   Installation: ${installName}`);
@@ -2808,6 +2818,20 @@ class ClimateController {
     if (data.lock !== undefined) return 'lock';
     
     return 'mode'; // Default fallback
+  }
+
+  /**
+   * Get LIVE_EMU data for an installation
+   */
+  public getLiveEMUData(installId: string): any {
+    return this.liveEMUData.get(installId);
+  }
+
+  /**
+   * Get LIVE_DIDO data for an installation
+   */
+  public getLiveDIDOData(installId: string): any {
+    return this.liveDIDOData.get(installId);
   }
 
   /**
