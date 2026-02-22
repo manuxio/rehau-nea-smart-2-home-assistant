@@ -80,3 +80,61 @@ export async function getZoneById(zoneId: string) {
   const zones = await getAllZones();
   return zones.find(z => z.id === zoneId);
 }
+
+// Get system details (mixed circuits, zone demands, etc.)
+export async function getSystemDetails() {
+  const auth = getAuth();
+  const installations = auth.getInstalls();
+  
+  if (installations.length === 0) {
+    throw new Error('No installations found');
+  }
+  
+  const install = installations[0];
+  const installData = await auth.getInstallationData(install);
+  
+  const mixedCircuits: any[] = [];
+  const zones: any[] = [];
+  
+  // Get mixed circuits data
+  if ((installData as any).mixedCircuits) {
+    for (const mc of (installData as any).mixedCircuits) {
+      mixedCircuits.push({
+        number: mc.number || 0,
+        pumpOn: mc.pump?.on || false,
+        setTemperature: mc.setTemperature?.celsius || 0,
+        supplyTemperature: mc.supplyTemperature?.celsius || 0,
+        returnTemperature: mc.returnTemperature?.celsius || 0,
+        valveOpening: mc.valveOpening || 0,
+      });
+    }
+  }
+  
+  // Get zone demands
+  if ((installData as any).groups) {
+    for (const group of (installData as any).groups) {
+      if (group.zones) {
+        for (const zone of group.zones) {
+          const channel = zone.channels && zone.channels[0];
+          zones.push({
+            name: zone.name,
+            temperature: channel?.currentTemperature?.celsius || 0,
+            targetTemperature: channel?.setpointTemperature?.celsius || 0,
+            demand: channel?.demand || 0,
+            demandState: channel?.demandState || false,
+          });
+        }
+      }
+    }
+  }
+  
+  return {
+    installation: {
+      name: install.name,
+      mode: (installData as any).mode || 'heat',
+      outdoorTemperature: (install as any).outsideTemperature,
+    },
+    mixedCircuits,
+    zones,
+  };
+}

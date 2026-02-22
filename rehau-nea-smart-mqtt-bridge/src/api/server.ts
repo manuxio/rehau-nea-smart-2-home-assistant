@@ -13,6 +13,7 @@ import installationsRoutes from './routes/installations.routes';
 import zonesRoutes from './routes/zones.routes';
 import statusRoutes from './routes/status.routes';
 import logsRoutes from './routes/logs.routes';
+import systemRoutes from './routes/system.routes';
 
 export class APIServer {
   private app: Express;
@@ -104,6 +105,7 @@ export class APIServer {
     this.app.use('/api/v1/zones', authMiddleware, zonesRoutes);
     this.app.use('/api/v1/status', authMiddleware, statusRoutes);
     this.app.use('/api/v1/logs', authMiddleware, logsRoutes);
+    this.app.use('/api/v1/system', authMiddleware, systemRoutes);
 
     // Serve web UI for all other routes (SPA fallback)
     const path = require('path');

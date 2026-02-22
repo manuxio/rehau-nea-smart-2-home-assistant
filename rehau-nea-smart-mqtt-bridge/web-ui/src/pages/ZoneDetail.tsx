@@ -21,6 +21,7 @@ export function ZoneDetail() {
   const [zone, setZone] = useState<Zone | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     loadZone();
@@ -36,6 +37,49 @@ export function ZoneDetail() {
       setError(err.response?.data?.message || 'Failed to load zone');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const setTemperature = async (newTemp: number) => {
+    if (!zone || updating) return;
+    
+    setUpdating(true);
+    try {
+      await apiClient.put(`/zones/${id}/temperature`, { temperature: newTemp });
+      // Optimistically update UI
+      setZone({ ...zone, targetTemperature: newTemp });
+      // Reload to get actual state
+      setTimeout(loadZone, 1000);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to set temperature');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const setPreset = async (newPreset: string) => {
+    if (!zone || updating) return;
+    
+    setUpdating(true);
+    try {
+      await apiClient.put(`/zones/${id}/preset`, { preset: newPreset });
+      // Optimistically update UI
+      setZone({ ...zone, preset: newPreset });
+      // Reload to get actual state
+      setTimeout(loadZone, 1000);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to set preset');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const adjustTemperature = (delta: number) => {
+    if (!zone) return;
+    const currentTarget = zone.targetTemperature > 0 ? zone.targetTemperature : 20;
+    const newTemp = Math.round((currentTarget + delta) * 2) / 2; // Round to 0.5
+    if (newTemp >= 5 && newTemp <= 35) {
+      setTemperature(newTemp);
     }
   };
 
@@ -94,27 +138,50 @@ export function ZoneDetail() {
         <div className="control-section">
           <h2>Temperature Control</h2>
           <div className="temp-control">
-            <button className="temp-btn">-</button>
+            <button 
+              className="temp-btn" 
+              onClick={() => adjustTemperature(-0.5)}
+              disabled={updating}
+            >
+              -
+            </button>
             <span className="temp-display">{formatTemperature(zone.targetTemperature)}</span>
-            <button className="temp-btn">+</button>
+            <button 
+              className="temp-btn" 
+              onClick={() => adjustTemperature(0.5)}
+              disabled={updating}
+            >
+              +
+            </button>
           </div>
-          <p className="control-hint">Temperature control coming soon</p>
+          {updating && <p className="control-hint">Updating...</p>}
         </div>
 
         <div className="preset-section">
           <h2>Preset Mode</h2>
           <div className="preset-buttons">
-            <button className={`preset-btn ${zone.preset === 'comfort' ? 'active' : ''}`}>
+            <button 
+              className={`preset-btn ${zone.preset === 'comfort' ? 'active' : ''}`}
+              onClick={() => setPreset('comfort')}
+              disabled={updating}
+            >
               🏠 Comfort
             </button>
-            <button className={`preset-btn ${zone.preset === 'reduced' ? 'active' : ''}`}>
+            <button 
+              className={`preset-btn ${zone.preset === 'reduced' ? 'active' : ''}`}
+              onClick={() => setPreset('reduced')}
+              disabled={updating}
+            >
               🌙 Reduced
             </button>
-            <button className={`preset-btn ${zone.preset === 'standby' ? 'active' : ''}`}>
+            <button 
+              className={`preset-btn ${zone.preset === 'standby' ? 'active' : ''}`}
+              onClick={() => setPreset('standby')}
+              disabled={updating}
+            >
               ⏸️ Standby
             </button>
           </div>
-          <p className="control-hint">Preset control coming soon</p>
         </div>
 
         <div className="info-section">

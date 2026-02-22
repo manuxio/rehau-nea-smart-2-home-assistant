@@ -134,12 +134,17 @@
   transition: transform 0.2s;
 }
 
-.temp-btn:hover {
+.temp-btn:hover:not(:disabled) {
   transform: scale(1.1);
 }
 
-.temp-btn:active {
+.temp-btn:active:not(:disabled) {
   transform: scale(0.95);
+}
+
+.temp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .temp-display {
@@ -170,7 +175,7 @@
   width: 100%;
 }
 
-.preset-btn:hover {
+.preset-btn:hover:not(:disabled) {
   background: #e8e8e8;
   transform: translateY(-2px);
 }
@@ -179,6 +184,11 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border-color: #667eea;
+}
+
+.preset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .control-hint {
