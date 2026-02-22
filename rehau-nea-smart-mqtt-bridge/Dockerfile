@@ -32,7 +32,7 @@ RUN npm ci
 COPY src/ ./src/
 
 # Build backend TypeScript
-RUN npm run build
+RUN npm run build:docker
 
 # Stage 3: Final runtime image
 # Use node:20-alpine as base (can be overridden for HA addon)
