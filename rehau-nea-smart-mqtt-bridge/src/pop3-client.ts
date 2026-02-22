@@ -209,12 +209,21 @@ export class POP3Client {
           try {
             const message = await this.retrieveMessage(i);
             
-            if (message.from.toLowerCase().includes(fromAddress.toLowerCase())) {
-              logger.info(`Found email from ${fromAddress}`);
+            // Check both sender AND subject to handle forwarded emails
+            // Forwarded emails change the From header but keep the subject (with prefix like "I:" or "Fwd:")
+            const fromMatches = message.from.toLowerCase().includes(fromAddress.toLowerCase());
+            const subjectMatches = message.subject.toLowerCase().includes('welcome to your rehau account');
+            
+            if (fromMatches || subjectMatches) {
+              if (fromMatches) {
+                logger.info(`Found email from ${fromAddress}`);
+              } else {
+                logger.info(`Found REHAU verification email by subject (forwarded from ${message.from})`);
+              }
               await this.disconnect();
               return message;
             } else {
-              logger.debug(`Message ${i} is from "${message.from}", not "${fromAddress}"`);
+              logger.debug(`Message ${i} is from "${message.from}", subject: "${message.subject}" - not a REHAU verification email`);
             }
           } catch (error) {
             logger.warn(`Error retrieving message ${i}, skipping:`, error);
