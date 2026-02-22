@@ -35,13 +35,8 @@ COPY src/ ./src/
 RUN npm run build
 
 # Stage 3: Final runtime image
-ARG BUILD_FROM=node:20-alpine
-FROM $BUILD_FROM
-
-# Install Node.js if not present (for HA base images)
-RUN if ! command -v node > /dev/null 2>&1; then \
-      apk add --no-cache nodejs npm; \
-    fi
+# Use node:20-alpine as base (can be overridden for HA addon)
+FROM node:20-alpine
 
 # Install runtime dependencies
 RUN apk add --no-cache \
