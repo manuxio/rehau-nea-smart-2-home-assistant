@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@types/mailparser": "^3.4.6",
-    "@types/node": "^20.10.0",
+    "@types/node": "^25.3.0",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
