@@ -130,18 +130,25 @@ router.put('/:id/temperature', async (req: Request, res: Response): Promise<void
     
     const zoneKey = `${installId}_zone_${zoneId}`;
     
+    const command = {
+      type: 'ha_command',
+      zoneId: zoneKey,
+      command: 'temperature',
+      value: temperature
+    };
+    
     enhancedLogger.info(`Sending temperature command with zoneKey: ${zoneKey}`, {
       component: 'API',
       direction: 'OUTGOING'
     });
     
-    // Send command via climate controller
-    (climateController as any).handleHomeAssistantCommand({
-      type: 'ha_command',
-      zoneId: zoneKey,
-      command: 'temperature',
-      value: temperature
+    enhancedLogger.info(`Command object: ${JSON.stringify(command)}`, {
+      component: 'API',
+      direction: 'OUTGOING'
     });
+    
+    // Send command via climate controller
+    (climateController as any).handleHomeAssistantCommand(command);
     
     enhancedLogger.info(`Temperature set to ${temperature}°C for zone ${zoneId}`, {
       component: 'API',
