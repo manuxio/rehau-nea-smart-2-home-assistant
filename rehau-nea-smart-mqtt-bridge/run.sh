@@ -114,6 +114,12 @@ if [ -f "$OPTIONS_FILE" ]; then
   POP3_DEBUG="$(jq -r '.pop3_debug // false' "$OPTIONS_FILE" 2>/tmp/jq_pop3_debug.err || echo "false")"
   echo "[DEBUG] POP3_DEBUG='$POP3_DEBUG'"
 
+  POP3_FROM_ADDRESS="$(jq -r '.pop3_from_address // "noreply@accounts.rehau.com"' "$OPTIONS_FILE" 2>/tmp/jq_pop3_from.err || echo "noreply@accounts.rehau.com")"
+  echo "[DEBUG] POP3_FROM_ADDRESS='$POP3_FROM_ADDRESS'"
+
+  POP3_IGNORE_TLS_ERRORS="$(jq -r '.pop3_ignore_tls_errors // true' "$OPTIONS_FILE" 2>/tmp/jq_pop3_tls.err || echo "true")"
+  echo "[DEBUG] POP3_IGNORE_TLS_ERRORS='$POP3_IGNORE_TLS_ERRORS'"
+
   echo "[DEBUG] Exporting variables from JSON..."
   export \
     REHAU_EMAIL \
@@ -125,6 +131,8 @@ if [ -f "$OPTIONS_FILE" ]; then
     POP3_SECURE \
     POP3_TIMEOUT \
     POP3_DEBUG \
+    POP3_FROM_ADDRESS \
+    POP3_IGNORE_TLS_ERRORS \
     MQTT_HOST \
     MQTT_PORT \
     MQTT_USER \
@@ -153,6 +161,8 @@ echo "  POP3_PORT='${POP3_PORT:-<unset>}'"
 echo "  POP3_SECURE='${POP3_SECURE:-<unset>}'"
 echo "  POP3_TIMEOUT='${POP3_TIMEOUT:-<unset>}'"
 echo "  POP3_DEBUG='${POP3_DEBUG:-<unset>}'"
+echo "  POP3_FROM_ADDRESS='${POP3_FROM_ADDRESS:-<unset>}'"
+echo "  POP3_IGNORE_TLS_ERRORS='${POP3_IGNORE_TLS_ERRORS:-<unset>}'"
 echo "  MQTT_HOST='${MQTT_HOST:-<unset>}'"
 echo "  MQTT_PORT='${MQTT_PORT:-<unset>}'"
 echo "  MQTT_USER='${MQTT_USER:-<unset>}'"
