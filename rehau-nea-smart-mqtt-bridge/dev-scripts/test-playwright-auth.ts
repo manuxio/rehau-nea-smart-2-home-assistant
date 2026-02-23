@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { PlaywrightHttpsClient } from './src/playwright-https-client';
+import { PlaywrightHttpsClient } from '../src/playwright-https-client';
 import * as crypto from 'crypto';
 
 dotenv.config();

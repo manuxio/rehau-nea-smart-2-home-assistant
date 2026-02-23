@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
-import RehauAuthPersistent from './src/rehau-auth';
-import RehauMQTTBridge from './src/mqtt-bridge';
-import logger from './src/logger';
+import RehauAuthPersistent from '../src/rehau-auth';
+import RehauMQTTBridge from '../src/mqtt-bridge';
+import logger from '../src/logger';
 
 // Load environment variables
 dotenv.config();
