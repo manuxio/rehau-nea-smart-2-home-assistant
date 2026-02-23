@@ -17,6 +17,7 @@ import {
 } from './types';
 import type { IInstall, IChannel, IZone, IGroup } from './parsers';
 import packageJson from '../package.json';
+import type { StalenessDetector } from './monitoring/staleness-detector';
 
 interface ExtendedZoneInfo {
   zoneId: string;
@@ -47,6 +48,7 @@ class ClimateController {
   private installationData: Map<string, IInstall>; // Map installId -> IInstall data
   private channelToZoneKey: Map<string, string>; // Map channelId -> zoneKey for fast lookup
   private channelZoneToChannelId: Map<number, string>; // Cache channelZone -> channel ID mapping
+  private stalenessDetector: StalenessDetector | null = null; // Optional staleness detector
   
   // LIVE data storage
   private liveEMUData: Map<string, any> = new Map(); // Map installId -> LIVE_EMU data
@@ -97,6 +99,13 @@ class ClimateController {
         }
       }
     });
+  }
+
+  /**
+   * Set the staleness detector instance for updating zone freshness
+   */
+  setStalenessDetector(detector: StalenessDetector): void {
+    this.stalenessDetector = detector;
   }
 
   initializeInstallation(install: IInstall): void {
@@ -1014,6 +1023,11 @@ class ClimateController {
               
               // Update all values
               this.updateZoneFromChannel(zoneKey, state, channel, installationMode);
+              
+              // Reset staleness timer for this zone (data from getInstallationData is fresh)
+              if (this.stalenessDetector) {
+                this.stalenessDetector.updateZone(zone.id);
+              }
             }
           });
         }
@@ -1354,6 +1368,12 @@ class ClimateController {
 
   private updateZoneFromRawChannel(zoneKey: string, state: ClimateState, rawChannel: RawChannelData, installationMode: 'heat' | 'cool'): void {
     // Handle raw MQTT channel data (not typed IChannel)
+    
+    // Reset staleness timer for this zone (MQTT realtime data is fresh)
+    if (this.stalenessDetector) {
+      this.stalenessDetector.updateZone(state.zoneId);
+    }
+    
     // Current temperature
     if (rawChannel.temp_zone !== undefined) {
       const temp = this.convertTemp(rawChannel.temp_zone);

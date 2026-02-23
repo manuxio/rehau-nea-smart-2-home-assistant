@@ -198,6 +198,9 @@ async function start() {
     // Start staleness detection
     stalenessDetector.start(60000); // Check every minute
     
+    // Pass staleness detector to climate controller
+    climateController.setStalenessDetector(stalenessDetector);
+    
     // Register zones with staleness detector
     for (const install of installs) {
       const fullInstallData = await auth.getInstallationData(install);
