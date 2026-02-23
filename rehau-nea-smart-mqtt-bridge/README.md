@@ -1,292 +1,484 @@
 # REHAU NEA SMART 2.0 MQTT Bridge
 
+<div align="center">
+
+![Version](https://img.shields.io/badge/Version-5.1.5-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg?logo=typescript)
+![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg?logo=node.js)
+![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react)
+![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg?logo=docker)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![MQTT](https://img.shields.io/badge/MQTT-5.0-brightgreen.svg)
+![Playwright](https://img.shields.io/badge/Playwright-1.40-45ba4b.svg?logo=playwright)
+
+**Enterprise-grade MQTT bridge with modern web interface for REHAU NEA SMART 2.0 heating systems**
+
+[Features](#-features) • [Installation](#-installation) • [Configuration](#-configuration) • [API Docs](#-api-documentation) • [Troubleshooting](#-troubleshooting)
+
+</div>
+
+---
+
+## 📋 Table of Contents
+
+- [Overview](#-overview)
+- [Features](#-features)
+- [Screenshots](#-screenshots)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [API Documentation](#-api-documentation)
+- [Web UI](#-web-ui)
+- [Home Assistant Integration](#-home-assistant-integration)
+- [Troubleshooting](#-troubleshooting)
+- [Development](#-development)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## 🎯 Overview
+
+The REHAU NEA SMART 2.0 MQTT Bridge is a professional-grade integration solution that connects REHAU heating systems to Home Assistant and other MQTT-based platforms. Built with TypeScript and modern web technologies, it provides:
+
+- **Real-time MQTT Bridge** - Bidirectional communication with REHAU cloud services
+- **Modern Web UI** - Progressive Web App with mobile-first responsive design
+- **REST API** - Complete programmatic access with OpenAPI/Swagger documentation
+- **Automatic 2FA** - Seamless POP3-based email verification
+- **Cloudflare Bypass** - Playwright-powered browser automation
+- **Enterprise Features** - Monitoring, logging, health checks, and more
+
+### Architecture
+
 ```
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⣤⣤⣤⣶⣶⣿⣿⣿⣿⣿⣿⣶⣶⣤⣤⣄⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣤⡾⠛⠉⠀⠀⠀⠀⠈⠉⠛⠛⢋⣠⣤⣝⡻⣿⣿⣿⣿⣿⣿⣿⣿⣦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠟⠁⠀⠀⠀⠀⣀⣠⣤⣬⣿⣿⣿⣿⣿⣿⣿⣿⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡿⠃⠀⢀⣠⣤⣼⣿⣿⣿⡿⠿⢿⣿⣿⣿⣿⡘⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣿⠟⠛⠛⠛⢷⡄⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⠋⠀⠀⣴⣿⣿⡟⠋⣉⣁⣀⣀⣤⣾⣿⣿⡿⠋⠀⠀⠙⣿⣿⣿⣿⣿⣿⣿⣿⡟⠈⢻⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⠀⠀⠀⠀⢸⡇⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡟⠁⠀⠀⠀⠈⠻⣯⣄⣀⠈⠙⠻⣿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠈⠻⣿⣄⠻⣿⣿⣿⡇⠀⣼⣿⣿⣿⣿⣧⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⢿⡀⠀⠀⠀⢸⡇⢸⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡟⠀⢰⣄⣀⠀⢠⣤⣀⠈⠉⠉⠀⠀⠀⠉⠁⠀⠀⣠⣴⣾⣷⣦⡀⠀⠈⢿⣿⣝⣿⣿⡇⠀⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠘⠷⣶⣶⣶⠟⠁⢸⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣿⠀⠀⣸⣿⣿⣿⣦⠙⠻⢷⣦⣄⠀⢤⣤⣴⣶⣾⣿⣿⣿⣿⣿⣿⣿⣦⡀⠀⠈⠛⠀⠙⠀⠸⣿⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⡀⠀⠛⠋⠉⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⢠⣿⣿⣿⠛⠁⠀⠀⠀⠀⠈⠛⢦⠙⠿⣿⣿⣿⣿⣿⣿⡿⠿⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠈⠿⢃⣾⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣧⣀⠈⠛⠛⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠁⠀⠈⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡟⣿⣿⣷⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢻⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣧⣘⠛⠛⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢘⡇⠀⠀⠀⠀⠀⠀⠀⢿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣿⣿⣿⣶⣦⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⡇⠀⣀⣠⣤⣤⡄⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⣿⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⡇⠈⠛⠛⠛⠟⠂⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿⣿⣿⣿⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣿⣿⣿⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⣤⣶⣶⣶⣶⣶⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⠛⠿⣿⣿⣿⠀⠀⠀⠀⠀⠀⢀⣠⣤⣶⣶⣶⣶⣦⣤⣤⣀⠀⠀⠀⠀⠀⢀⣴⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⡇⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣷⣄⠈⢿⣿⡦⠀⠀⠀⣠⣾⡿⠛⠛⣿⣿⣿⣿⣿⣿⣿⣿⠇⠀⠀⠀⢀⣿⣿⣿⣿⠿⣿⣿⡿⠛⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⡶⠾⣿⣿⠀⠀⠀⠀⠀⠀⢸⣇⣀⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠹⣦⠀⠉⠀⠀⠀⠘⠋⠁⢀⣾⣿⣿⣿⣿⠏⠛⣿⠛⠁⠀⠀⠀⠀⠈⣿⣿⡟⠁⠀⠀⠀⠀⠀⠛⠛⠛⠛⢿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⣴⡏⠁⠀⠀⠈⣿⠀⠀⠀⠀⠀⠀⠈⣿⠛⠛⠋⠙⠻⣦⠀⠀⠀⠀⠀⠀⠀⢉⢰⣤⣿⣧⣰⣧⠀⠀⠀⠀⠀⠉⠉⠉⠀⠀⠀⠀⣼⠟⠀⠀⠀⠀⠀⠀⠀⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿⣿⣿⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⢀⡟⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⢿⡇⠀⠀⠀⠀⠸⣧⠀⠀⠀⠀⠀⠀⢸⣼⣿⣿⡈⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⢰⣿⠀⠀⠀⠀⠀⠀⠀⠸⣿⡀⠀⠀⠀⠀⢹⣷⠶⠶⢶⣤⡀⠈⢿⡇⠙⠁⠀⠀⢰⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣇⣸⣿⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⣼⣷⡀⠀⠀⠀⠸⡟⠀⠀⠀⠀⠀⠀⠀⠀⠙⠃⠀⠀⠀⠀⠀⠹⣧⡀⠀⠈⢿⣆⠈⢷⡄⠀⠀⠀⣦⠙⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⠀⠀⠀⠀⠀⠀⠀⠻⠟⠋⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⣴⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⢾⣿⣧⠀⠙⢦⡀⠀⢹⣆⠘⣷⡄⠀⠀⠀⠀⠀⠀⠀⣠⣾⠟⠿⣦⣄⡀⠀⠀⢀⣠⣶⣾⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⣾⣿⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⣰⡟⠉⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⢿⡆⠀⠈⠷⣤⣨⣿⠀⠙⣷⡄⠀⠀⠀⠀⠀⣰⣿⡟⠀⠀⠙⢿⣷⣶⣤⣾⣿⣿⣿⣿⣿⣿⣦⡀⠀⠀⠀⠀⢠⣿⣿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⢀⣼⠏⠀⠀⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠈⠉⠹⣇⠀⠈⠁⠀⠀⠀⠀⢠⣿⣿⠃⠀⠀⠀⠀⠈⠙⠻⢿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⠀⢀⣾⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⣰⣿⡇⠀⠀⠀⢻⡿⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⡇⠀⠀⠀⠀⠀⠀⢿⡄⠀⠀⠀⠀⠀⠀⠘⣿⣿⣦⣤⣤⣤⣤⣤⣤⣴⠶⠿⠿⠛⠛⢻⣿⣿⡇⠀⠀⠀⣼⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⣰⣿⣿⠄⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⡆⠀⠀⠀⠀⠀⢠⣿⡇⠀⠀⠀⠀⠀⢀⣾⣷⡀⠀⠀⠀⠀⠀⠀⠈⠙⠻⣿⣧⣤⣀⣀⣀⣀⣀⣀⣠⣴⣾⣿⣿⣿⠃⠀⠀⠀⣿⣿⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⢠⣿⠛⠀⠀⠀⠀⠀⣼⡇⠀⠀⠀⠀⠀⠀⠀⢸⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠘⢻⣿⠀⠀⠀⢀⣴⣿⣿⡟⢿⣄⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⢻⣿⠀⠀⠀⢸⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⢻⡄⠀⠀⠀⠀⠀⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⢻⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⢸⡇⠀⣠⣴⣿⣿⣿⣿⡇⠈⠻⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠻⢿⣿⣿⣿⣿⣿⡿⠋⣰⣿⡟⠀⠀⠀⣸⣿⣿⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⢻⡀⠀⠀⠀⣰⣿⠇⠀⠀⠀⠀⠀⠀⠀⠀⠘⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⢸⣷⣾⣿⣿⣿⣿⣿⣿⣷⠀⠀⠈⠻⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⣦⣌⣉⣁⣀⣀⣤⣴⣿⡿⠁⠀⠀⢠⣿⡟⠀⠻⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠈⣷⠀⠀⠀⠘⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⠆⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣇⠀⠀⠀⠈⠻⣦⡀⠀⠀⠀⠀⠀⠀⠀⠙⠻⠿⠿⠿⠟⠋⠁⠀⠀⠀⠀⣾⣿⠇⠀⠀⠙⢷⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠈⠻⣶⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣿⠂⠀⠀⠀⠀⠈⠻⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠙⢷⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⡾⠛⠀⣾⡁⢀⡀⠀⠀⠀⠀⠹⣿⣦⣤⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⢻⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣄⠀⠀⠀⠀⠀⠀⠈⠛⠷⣤⣄⣀⣠⣤⣤⣤⣶⡾⠛⠉⠀⠀⢰⣿⣷⣾⣿⣷⣤⣀⠀⠀⠹⣿⣿⣿⣿⣶⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠘⢷⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠉⠉⣛⣿⣿⣿⣷⣦⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣦⣀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠙⠷⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡝⢿⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⡿⠛⠉⠉⠛⢿⣿⣿⣿⣿⣿⣿⡇⠈⠻⢿⠇⠈⢻⣿⣿⣿⣿⣿⣿⣿⣿⣷⣦⡀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⢦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠹⣿⣦⡀⠀⠀⠀⠀⠀⠀⠀⣴⣿⣿⣷⣤⣤⣶⠶⠻⠿⠿⣿⣿⣿⣿⣇⠀⠀⠀⠀⠀⠀⢻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠹⣦⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠘⢿⣿⣦⡀⠀⠀⠀⢠⣾⣿⠿⢿⣿⣿⣿⣥⣤⣤⣤⣄⣀⠉⠙⢿⡧⠀⠀⠀⠀⠀⠀⠀⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢷⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣦⠈⢻⣿⣿⣦⣤⣴⣿⠟⠁⠀⠀⠈⠙⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠘⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⠳⣦⣄⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢨⣿⡿⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡀⠙⢿⣿⣿⡿⠋⠀⠀⠀⠀⠀⠀⠀⠉⠻⣷⣄⣈⠉⠉⠛⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⡀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⡟⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⡿⠛⠀⢀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣄⠀⠙⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⣿⣿⣿⣿⣿⣷⡀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿⡄⠀⠀⠀⠀⠀⠀⠀⢀⣠⣴⠾⠛⠁⠀⠀⢀⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⠿⠛⣻⣆⠀⠀⠀⠀⠀⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⣿⡇⠀⠀⢀⣀⣠⣴⠾⠛⠉⠀⠀⠀⠀⢀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣿⡿⠋⢁⣠⣾⣿⣿⣷⡀⠀⠀⠀⠀⠀⠈⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⠛⣽⣿⣿⣿⣿⣿⠛⠋⠉⠀⠀⠀⠀⠀⠀⢠⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡟⠀⣴⣿⣿⣿⣿⡟⠛⣷⠀⠀⠀⠀⠀⠀⢹⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠁
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣸⣿⣾⡿⠿⠛⠋⠉⠀⠀⠀⠀⠀⠀⢀⣠⣴⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣇⣴⣿⣿⣿⠟⠉⠀⣠⣾⣷⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⡿⠛⠉⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⠾⠛⠋⠁⠀⠀⠀⠀⠀⢀⣀⣤⣴⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⡿⠁⠀⢠⣾⣿⣿⣿⣧⡀⠀⠀⠀⠈⣿⣿⣿⠿⠛⠉⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⡇⠀⠀⠀⢀⣀⣤⣤⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣆⠀⣀⣀⣀⣀⣠⣤⣤⣴⣿⣿⣿⣿⡄⢀⣴⣿⣿⣿⣿⣿⣿⣷⡀⠀⢀⣼⡿⠛⠁⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣧⣴⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠛⠛⠛⠉⠉⠁⠀⠀⠀⠀⠀⠀⠉⠙⠻⠿⣿⣿⣿⣿⣿⣿⣿⣿⡷⠞⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠿⠛⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉⠉⠉⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠟⠛⠋⠉⠛⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠋⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠟⠉⠀⠀⠀⠀⠀⠀⠀⠀⠈⠻⢿⣿⣿⣿⣿⣿⣿⡿⠿⠟⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠟⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠙⢿⣿⣿⣿⣿⣿⠿⠟⠛⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-```
-*Dear REHAU: Thanks for trying to lock us out with Cloudflare bot detection. Here's what we think of that.*
-
-Bridge between REHAU NEA SMART 2.0 heating system and Home Assistant via MQTT.
-
-## 🚨 BREAKING CHANGES - Version 4.0.0 (February 2026)
-
-### The REHAU Cloudflare Saga - Final Solution
-
-**TL;DR**: REHAU deployed aggressive Cloudflare bot protection that blocked all legitimate API access. After curl started getting blocked too, we implemented a **real headless browser (Playwright + Chromium)** that perfectly mimics human behavior and bypasses all Cloudflare detection.
-
-**What REHAU Did:**
-1. **Mandatory 2FA** - Introduced email-based 2FA for every login (February 2026)
-2. **Cloudflare Bot Protection** - Deployed aggressive bot detection that blocks Node.js HTTPS requests
-3. **JavaScript Challenges** - Serves "Just a moment..." pages with JavaScript challenges
-4. **TLS Fingerprinting** - Started blocking curl's TLS signature (v3.5.1)
-
-**What We Had To Do:**
-1. Implement automatic POP3 email polling for 2FA codes
-2. Try curl-based implementation (worked initially, then got blocked)
-3. **Implement Playwright with headless Chromium** - Real browser, perfect bypass
-
-**The Technical Evolution:**
-- Node.js native `https` module: ❌ Blocked by Cloudflare (403)
-- Axios library: ❌ Blocked by Cloudflare (403)
-- curl command-line tool: ⚠️ Worked initially, then blocked (403)
-- **Playwright + Chromium**: ✅ **Perfect solution - real browser bypasses everything**
-
-**Version 4.0.0 uses Playwright to run a real headless Chromium browser.** This executes JavaScript challenges, has perfect TLS fingerprints, and is indistinguishable from a real user. Cloudflare can't block it without blocking all Chrome users.
-
-**Docker Image Impact:** Image size increased by ~150MB due to Chromium, but reliability is now 100%.
-
-### What Changed?
-
-REHAU now requires email-based two-factor authentication for every login. The bridge automatically handles this by polling a POP3 email account for verification codes.
-
-#### 1. Create a POP3 Email Account
-
-We recommend **GMX.de** as it:
-- Provides free POP3 access
-- Is a German email provider (REHAU is German, so they might appreciate that 🇩🇪)
-- Has reliable service
-
-**Alternative providers**: Any email service with POP3 support (Gmail, Outlook, etc.)
-
-#### 2. Set Up Email Forwarding
-
-Configure your main email to forward messages from `noreply@accounts.rehau.com` to your POP3 account.
-
-**For GMX.de setup:**
-1. Create account at https://www.gmx.de
-2. Go to settings and enable POP3/IMAP
-3. Optionally, create application passwords
-4. In your original email account, forwand emails from `noreply@accounts.rehau.com` to your new POP3 account
-5. Note your POP3 credentials:
-   - Host: `pop.gmx.net`
-   - Port: `995`
-   - Secure: `true`
-
-#### 3. Update Configuration
-
-Add the following POP3 settings to your configuration:
-
-**For Home Assistant Add-on** (`config.yaml`):
-```yaml
-pop3_email: "your-email@gmx.de"
-pop3_password: "your-password"
-pop3_host: "pop.gmx.net"
-pop3_port: 995
-pop3_secure: true
-pop3_timeout: 300000  # 5 minutes (optional)
-pop3_debug: false     # Enable for troubleshooting (optional)
+┌─────────────────┐      HTTPS/WSS      ┌──────────────┐
+│  REHAU Cloud    │◄────────────────────┤  Playwright  │
+│  (Cloudflare)   │                     │   Browser    │
+└─────────────────┘                     └──────┬───────┘
+                                               │
+                                        ┌──────▼───────┐
+                                        │  MQTT Bridge │
+                                        │  (Node.js)   │
+                                        └──────┬───────┘
+                                               │
+                    ┌──────────────────────────┼──────────────────────────┐
+                    │                          │                          │
+             ┌──────▼───────┐          ┌──────▼───────┐          ┌──────▼───────┐
+             │  MQTT Broker │          │   REST API   │          │   Web UI     │
+             │ (Mosquitto)  │          │  (Express)   │          │   (React)    │
+             └──────┬───────┘          └──────────────┘          └──────────────┘
+                    │
+             ┌──────▼───────┐
+             │Home Assistant│
+             │  (MQTT Auto  │
+             │   Discovery) │
+             └──────────────┘
 ```
 
-**For Docker** (environment variables):
-```bash
-POP3_EMAIL=your-email@gmx.de
-POP3_PASSWORD=your-password
-POP3_HOST=pop.gmx.net
-POP3_PORT=995
-POP3_SECURE=true
-POP3_TIMEOUT=300000
-POP3_DEBUG=false
-```
+---
 
-**For Standalone** (`.env` file):
-```env
-POP3_EMAIL=your-email@gmx.de
-POP3_PASSWORD=your-password
-POP3_HOST=pop.gmx.net
-POP3_PORT=995
-POP3_SECURE=true
-POP3_TIMEOUT=300000
-POP3_DEBUG=false
-```
+## ✨ Features
 
-### How It Works
+### Core Functionality
 
-1. Bridge authenticates with your REHAU credentials
-2. REHAU sends a 2FA code to `noreply@accounts.rehau.com`
-3. Your email forwards it to your POP3 account
-4. The bridge automatically polls for the email
-5. Extracts the 6-digit code
-6. Submits it to REHAU
-7. Authentication completes seamlessly
+#### MQTT Bridge
+- ✅ **Real-time Synchronization** - Instant updates via MQTT protocol
+- ✅ **Bidirectional Communication** - Read and control all zones
+- ✅ **Automatic Reconnection** - Resilient connection management
+- ✅ **QoS Support** - Reliable message delivery
+- ✅ **Retained Messages** - State persistence across restarts
 
-**User experience**: Completely transparent. The 2FA happens automatically in the background.
+#### Authentication & Security
+- ✅ **Automatic 2FA** - POP3-based email verification code extraction
+- ✅ **Token Management** - Automatic refresh every 6 hours
+- ✅ **Cloudflare Bypass** - Playwright browser automation
+- ✅ **OAuth2 Support** - Gmail and Outlook integration (experimental)
+- ✅ **JWT Authentication** - Secure API access
+- ✅ **Password Hashing** - bcrypt-based credential storage
 
-### Troubleshooting
+#### Web Interface
+- 📱 **Progressive Web App** - Install on any device
+- 🎨 **Modern Design** - Material-inspired responsive UI
+- 🌓 **Dark Mode** - Automatic theme switching
+- 📊 **Real-time Dashboard** - Live system monitoring
+- 🔐 **Secure Login** - JWT-based authentication
+- 📱 **Mobile Optimized** - Touch-friendly controls
+- 🔄 **Pull-to-Refresh** - Native mobile gestures
+- 📴 **Offline Support** - Service worker caching
 
-If authentication fails:
+#### REST API
+- 🔌 **OpenAPI 3.0** - Complete Swagger documentation
+- 🔐 **Bearer Authentication** - JWT token-based access
+- 📊 **System Status** - Health checks and diagnostics
+- 🏠 **Installation Management** - Full CRUD operations
+- 🌡️ **Zone Control** - Temperature and mode management
+- 📝 **Log Export** - Obfuscated log downloads
+- 📈 **Statistics** - Usage and performance metrics
 
-1. **Check email forwarding** - Ensure emails from `noreply@accounts.rehau.com` reach your POP3 account
-2. **Verify POP3 credentials** - Test your POP3 login manually
-3. **Enable debug logging** - Set `pop3_debug: true` to see detailed logs
-4. **Check timeout** - Increase `pop3_timeout` if emails arrive slowly
-5. **Review logs** - Look for POP3 connection errors or authentication failures
+#### Monitoring & Diagnostics
+- 🔍 **Staleness Detection** - Automatic data freshness monitoring
+- 📈 **Resource Monitoring** - CPU and memory tracking
+- 📝 **Enhanced Logging** - Structured, obfuscated logs
+- 🏥 **Health Checks** - System diagnostics endpoint
+- 📊 **Performance Metrics** - Response time tracking
+- 🔔 **Alert System** - Configurable notifications
 
-## Original Setup Instructions
+#### Advanced Features
+- 🔄 **Data Validation** - Schema-based input validation
+- 🗄️ **State Management** - Persistent zone states
+- 🔌 **Plugin Architecture** - Extensible design
+- 🌐 **Multi-language** - Internationalization ready
+- 📦 **Docker Support** - Production-ready containers
+- 🚀 **Auto-scaling** - Horizontal scaling support
+
+---
+
+## 📸 Screenshots
+
+### Mobile Web UI (iPhone 14 Pro)
+
+<div align="center">
+
+#### Dashboard
+![Dashboard](./docs/screenshots/02-dashboard.png)
+*Real-time system overview with status indicators and quick stats*
+
+#### Zones List
+![Zones](./docs/screenshots/03-zones.png)
+*All heating zones with current temperature and status*
+
+#### Zone Detail
+![Zone Detail](./docs/screenshots/04-zone-detail.png)
+*Detailed zone control with temperature adjustment and mode selection*
+
+#### System Status
+![System](./docs/screenshots/05-system.png)
+*System diagnostics, resource usage, and configuration*
+
+#### Login
+![Login](./docs/screenshots/01-login.png)
+*Secure authentication with modern design*
+
+</div>
+
+---
+
+## 🚀 Installation
 
 ### Prerequisites
 
-- Home Assistant with MQTT broker configured
-- REHAU NEA SMART 2.0 account credentials
-- POP3 email account (see breaking change above)
+- **Node.js** 20.x or higher
+- **MQTT Broker** (Mosquitto recommended)
+- **REHAU Account** with NEA SMART 2.0 system
+- **POP3 Email** for 2FA automation (GMX.de recommended)
 
-### Installation
+### Option 1: Home Assistant Add-on (Recommended)
 
-#### Home Assistant Add-on (Recommended)
+1. **Add Repository**
+   ```
+   https://github.com/manuxio/rehau-nea-smart-2-home-assistant
+   ```
 
-1. Add this repository to your Home Assistant add-on store
-2. Install the "REHAU NEA SMART 2.0 MQTT Bridge" add-on
-3. Configure with your credentials (including POP3 settings)
-4. Start the add-on
+2. **Install Add-on**
+   - Settings → Add-ons → Add-on Store
+   - Search for "REHAU NEA SMART 2.0"
+   - Click Install
 
-#### Docker
+3. **Configure** (see [Configuration](#-configuration))
+
+4. **Start**
+   - Enable "Start on boot"
+   - Enable "Watchdog"
+   - Click Start
+
+### Option 2: Docker
 
 ```bash
+# Pull image
+docker pull ghcr.io/manuxio/rehau-nea-smart-2-home-assistant:latest
+
+# Run container
 docker run -d \
-  --name rehau-mqtt-bridge \
-  -e REHAU_EMAIL=your-email@example.com \
-  -e REHAU_PASSWORD=your-password \
-  -e POP3_EMAIL=your-email@gmx.de \
-  -e POP3_PASSWORD=your-pop3-password \
+  --name rehau-bridge \
+  --restart unless-stopped \
+  -p 3000:3000 \
+  -e REHAU_EMAIL=your@email.com \
+  -e REHAU_PASSWORD=your_password \
+  -e POP3_EMAIL=your@gmx.de \
+  -e POP3_PASSWORD=pop3_password \
   -e POP3_HOST=pop.gmx.net \
   -e POP3_PORT=995 \
   -e POP3_SECURE=true \
-  -e MQTT_BROKER_URL=mqtt://your-broker:1883 \
-  -e MQTT_USERNAME=your-mqtt-user \
-  -e MQTT_PASSWORD=your-mqtt-password \
-  your-docker-image
+  -e MQTT_HOST=mqtt-broker \
+  -e MQTT_PORT=1883 \
+  -e MQTT_USERNAME=mqtt_user \
+  -e MQTT_PASSWORD=mqtt_pass \
+  -e API_PASSWORD=secure_password \
+  ghcr.io/manuxio/rehau-nea-smart-2-home-assistant:latest
 ```
 
-#### Standalone
+### Option 3: Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  rehau-bridge:
+    image: ghcr.io/manuxio/rehau-nea-smart-2-home-assistant:latest
+    container_name: rehau-bridge
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # REHAU Credentials
+      REHAU_EMAIL: your@email.com
+      REHAU_PASSWORD: your_password
+      
+      # POP3 Configuration (for 2FA)
+      POP3_EMAIL: your@gmx.de
+      POP3_PASSWORD: pop3_password
+      POP3_HOST: pop.gmx.net
+      POP3_PORT: 995
+      POP3_SECURE: true
+      
+      # MQTT Configuration
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      MQTT_USERNAME: mqtt_user
+      MQTT_PASSWORD: mqtt_pass
+      
+      # API Configuration
+      API_ENABLED: true
+      API_PASSWORD: secure_password
+      WEB_UI_ENABLED: true
+      
+      # Logging
+      LOG_LEVEL: info
+    depends_on:
+      - mosquitto
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+```
+
+### Option 4: Standalone
 
 ```bash
+# Clone repository
+git clone https://github.com/manuxio/rehau-nea-smart-2-home-assistant.git
+cd rehau-nea-smart-2-home-assistant/rehau-nea-smart-mqtt-bridge
+
+# Install dependencies
 npm install
+
+# Configure
 cp .env.example .env
-# Edit .env with your credentials (including POP3 settings)
+# Edit .env with your credentials
+
+# Build
+npm run build
+
+# Start
 npm start
 ```
 
-## Features
+---
 
-- ✅ Automatic 2FA handling via POP3
-- ✅ Real-time temperature and status updates
-- ✅ Zone control (heating/cooling modes)
-- ✅ Schedule management
-- ✅ Automatic Home Assistant discovery
-- ✅ Persistent authentication with token refresh
-- ✅ Graceful error handling and reconnection
-
-## Configuration Options
+## ⚙️ Configuration
 
 ### Required Settings
 
-- `rehau_email` - Your REHAU account email
-- `rehau_password` - Your REHAU account password
-- `pop3_email` - POP3 email account for 2FA
-- `pop3_password` - POP3 account password
-- `pop3_host` - POP3 server hostname
-- `mqtt_broker_url` - MQTT broker URL
+#### REHAU Credentials
+```env
+REHAU_EMAIL=your.email@example.com
+REHAU_PASSWORD=your_rehau_password
+```
+
+#### POP3 Email (for 2FA)
+```env
+POP3_EMAIL=your.email@gmx.de
+POP3_PASSWORD=your_pop3_password
+POP3_HOST=pop.gmx.net
+POP3_PORT=995
+POP3_SECURE=true
+```
+
+**Recommended Provider**: [GMX.de](https://www.gmx.de) (free, German, reliable POP3)
+
+**Setup Steps**:
+1. Create GMX account
+2. Enable POP3 in settings
+3. Forward emails from `noreply@accounts.rehau.com` to GMX
+4. Use GMX credentials above
+
+#### MQTT Broker
+```env
+MQTT_HOST=localhost
+MQTT_PORT=1883
+MQTT_USERNAME=mqtt_user        # Optional
+MQTT_PASSWORD=mqtt_password    # Optional
+```
+
+#### API Access
+```env
+API_ENABLED=true
+API_PASSWORD=your_secure_password
+WEB_UI_ENABLED=true
+```
 
 ### Optional Settings
 
-- `pop3_port` - POP3 port (default: 995)
-- `pop3_secure` - Use SSL/TLS (default: true)
-- `pop3_timeout` - Email polling timeout in ms (default: 300000)
-- `pop3_debug` - Enable POP3 debug logging (default: false)
-- `mqtt_username` - MQTT broker username
-- `mqtt_password` - MQTT broker password
-- `log_level` - Logging level (default: info)
+#### Logging
+```env
+LOG_LEVEL=info                 # debug, info, warn, error
+LOG_SHOW_OK_REQUESTS=false     # Show successful HTTP requests
+LOG_OBFUSCATE=true             # Mask sensitive data
+```
 
-## Support
+#### Playwright
+```env
+PLAYWRIGHT_HEADLESS=true       # Run browser in headless mode
+PLAYWRIGHT_IDLE_TIMEOUT=60000  # Browser idle timeout (ms)
+```
 
-For issues related to:
-- **2FA setup**: Check the troubleshooting section above
-- **POP3 configuration**: Verify your email provider's POP3 settings
-- **General issues**: Open an issue on GitHub
+#### Token Management
+```env
+TOKEN_REFRESH_INTERVAL=21600   # Refresh interval (seconds, default 6h)
+FORCE_FRESH_LOGIN=false        # Force new login instead of refresh
+```
 
-## License
+#### Monitoring
+```env
+STALENESS_WARNING_MS=600000    # Warn after 10 minutes
+STALENESS_STALE_MS=1800000     # Stale after 30 minutes
+LIVE_DATA_INTERVAL=300         # Poll installation data every 5 minutes
+```
 
-MIT
+#### Advanced
+```env
+MQTT_TOPIC_PREFIX=rehau        # MQTT topic prefix
+MQTT_CLIENT_ID=rehau-bridge    # MQTT client identifier
+API_PORT=3000                  # API server port
+API_USERNAME=admin             # API username (default: admin)
+```
 
-## Acknowledgments
+### OAuth2 Configuration (Experimental)
 
-Special thanks to REHAU for making authentication so "secure" that we had to implement POP3 polling in 2026. 🎭
+For Gmail or Outlook POP3 access:
 
-*Settings View*
-- Complete configuration display
-- Masked sensitive data
-- System diagnostics
+```env
+POP3_PROVIDER=gmail            # or 'outlook'
+POP3_OAUTH2_CLIENT_ID=your_client_id
+POP3_OAUTH2_CLIENT_SECRET=your_client_secret
+POP3_OAUTH2_REFRESH_TOKEN=your_refresh_token
+POP3_OAUTH2_TENANT_ID=your_tenant_id  # Outlook only
+```
 
-### Installation as PWA
+See [OAuth2 Setup Guides](./docs/oauth2-setup.md) for detailed instructions.
+
+---
+
+## 📡 API Documentation
+
+### Swagger UI
+
+Access interactive API documentation at:
+```
+http://localhost:3000/api-docs
+```
+
+### Authentication
+
+All API endpoints (except `/health`) require JWT authentication:
+
+```bash
+# Login
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"your_password"}'
+
+# Response
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresIn": "24h"
+}
+
+# Use token in subsequent requests
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:3000/api/v1/status/system
+```
+
+### Key Endpoints
+
+#### System Status
+```bash
+GET /api/v1/status/system
+```
+
+#### Installations
+```bash
+GET /api/v1/installations
+GET /api/v1/installations/:id
+```
+
+#### Zones
+```bash
+GET /api/v1/zones
+GET /api/v1/zones/:id
+POST /api/v1/zones/:id/temperature
+POST /api/v1/zones/:id/mode
+```
+
+#### Logs
+```bash
+GET /api/v1/logs
+GET /api/v1/logs/export?mode=shareable
+```
+
+#### Configuration
+```bash
+GET /api/v1/config
+```
+
+---
+
+## 🌐 Web UI
+
+### Access
+
+- **URL**: `http://localhost:3000`
+- **Default Credentials**: `admin` / (your API_PASSWORD)
+
+### Features
+
+- **Dashboard** - System overview and quick stats
+- **Zones** - All heating zones with real-time data
+- **Zone Control** - Temperature adjustment and mode selection
+- **System** - Diagnostics, logs, and configuration
+- **Settings** - User preferences and about information
+
+### Progressive Web App
+
+Install as a native app on any device:
 
 **iOS (Safari)**:
-1. Open web UI in Safari
-2. Tap Share button
-3. Select "Add to Home Screen"
-4. Tap "Add"
+1. Open in Safari
+2. Tap Share → Add to Home Screen
 
 **Android (Chrome)**:
-1. Open web UI in Chrome
-2. Tap menu (⋮)
-3. Select "Install app" or "Add to Home screen"
-4. Tap "Install"
+1. Open in Chrome
+2. Tap Menu → Install app
 
 **Desktop (Chrome/Edge)**:
-1. Open web UI
-2. Click install icon in address bar
-3. Click "Install"
+1. Click install icon in address bar
+2. Click Install
 
 ---
 
@@ -294,136 +486,90 @@ Special thanks to REHAU for making authentication so "secure" that we had to imp
 
 ### Auto-Discovery
 
-The bridge automatically creates Home Assistant entities via MQTT discovery:
+The bridge automatically creates MQTT discovery entities:
 
-**Climate Entities** (one per zone):
+#### Climate Entities
 ```yaml
-climate.rehau_zone_name:
-  temperature: 21.5
-  target_temperature: 22.0
+climate.rehau_living_room:
   current_temperature: 21.5
+  target_temperature: 22.0
   hvac_mode: heat
   preset_mode: comfort
   hvac_modes: [heat, cool, off]
   preset_modes: [comfort, eco, away, home]
 ```
 
-**Sensors**:
-- `sensor.rehau_bridge_status` - Bridge connection status
-- `sensor.rehau_auth_status` - Authentication status
-- `sensor.rehau_mqtt_quality` - MQTT connection quality
-- `sensor.rehau_session_age` - Time since last authentication
-- `sensor.rehau_outside_temperature` - Outside temperature
+#### Sensors
+- `sensor.rehau_bridge_status` - Connection status
+- `sensor.rehau_auth_status` - Authentication state
+- `sensor.rehau_outside_temperature` - Outdoor temperature
+- `sensor.rehau_zone_*_humidity` - Zone humidity
 
-**Binary Sensors**:
-- `binary_sensor.rehau_zone_name_stale` - Data staleness indicator
+#### Binary Sensors
+- `binary_sensor.rehau_zone_*_stale` - Data freshness
 
 ### Example Automations
 
-**Automatic Night Mode**:
+**Night Mode**:
 ```yaml
 automation:
   - alias: "REHAU Night Mode"
     trigger:
-      - platform: time
-        at: "22:00:00"
+      platform: time
+      at: "22:00:00"
     action:
-      - service: climate.set_preset_mode
-        target:
-          entity_id: climate.rehau_living_room
-        data:
-          preset_mode: eco
-```
-
-**Temperature Alert**:
-```yaml
-automation:
-  - alias: "REHAU Temperature Alert"
-    trigger:
-      - platform: numeric_state
+      service: climate.set_preset_mode
+      target:
         entity_id: climate.rehau_bedroom
-        attribute: current_temperature
-        below: 18
-    action:
-      - service: notify.mobile_app
-        data:
-          message: "Bedroom temperature is below 18°C"
-```
-
-**Stale Data Refresh**:
-```yaml
-automation:
-  - alias: "REHAU Refresh Stale Data"
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.rehau_living_room_stale
-        to: "on"
-    action:
-      - service: mqtt.publish
-        data:
-          topic: "rehau/command/refresh"
-          payload: "true"
+      data:
+        preset_mode: eco
 ```
 
 ---
 
 ## 🔧 Troubleshooting
 
-### Common Issues
+### Authentication Issues
 
-#### Authentication Fails
+**Problem**: Authentication fails
 ```
-❌ Problem: "Authentication failed" or "Invalid credentials"
-✅ Solution:
-  1. Verify REHAU credentials are correct
-  2. Check if 2FA is enabled (POP3 required)
-  3. Ensure POP3 credentials are correct
-  4. Check email for 2FA codes
-  5. Review logs for specific error messages
+✓ Verify REHAU credentials
+✓ Check POP3 configuration
+✓ Ensure email forwarding is active
+✓ Enable LOG_LEVEL=debug
+✓ Check for 2FA emails in POP3 account
 ```
 
-#### MQTT Connection Issues
+### MQTT Issues
+
+**Problem**: MQTT connection fails
 ```
-❌ Problem: "MQTT connection failed" or "Connection refused"
-✅ Solution:
-  1. Verify MQTT broker is running
-  2. Check MQTT_HOST and MQTT_PORT settings
-  3. Verify MQTT credentials if authentication enabled
-  4. Check firewall rules
-  5. Test MQTT broker with mosquitto_pub/sub
+✓ Verify broker is running
+✓ Check MQTT_HOST and MQTT_PORT
+✓ Test with mosquitto_pub/sub
+✓ Verify credentials if auth enabled
+✓ Check firewall rules
 ```
 
-#### Browser/Playwright Issues
+### Playwright Issues
+
+**Problem**: Browser launch fails
 ```
-❌ Problem: "Browser launch failed" or high memory usage
-✅ Solution:
-  1. Ensure Chromium dependencies installed
-  2. Increase memory allocation (4GB recommended)
-  3. Set PLAYWRIGHT_HEADLESS=true
-  4. Adjust PLAYWRIGHT_IDLE_TIMEOUT
-  5. Check system resources (RAM, CPU)
+✓ Ensure Chromium dependencies installed
+✓ Increase memory allocation (4GB recommended)
+✓ Set PLAYWRIGHT_HEADLESS=true
+✓ Check system resources
 ```
 
-#### Web UI Not Loading
-```
-❌ Problem: "Cannot access web UI" or blank page
-✅ Solution:
-  1. Verify API_ENABLED=true and WEB_UI_ENABLED=true
-  2. Check port 3000 is not in use
-  3. Review browser console for errors
-  4. Clear browser cache
-  5. Check API logs for errors
-```
+### Data Staleness
 
-#### Zones Not Updating
+**Problem**: Zone data not updating
 ```
-❌ Problem: Zone data is stale or not updating
-✅ Solution:
-  1. Check staleness sensors in Home Assistant
-  2. Verify MQTT connection quality
-  3. Review authentication status
-  4. Check for rate limiting
-  5. Manually trigger refresh via API
+✓ Check staleness sensors
+✓ Verify MQTT connection quality
+✓ Review authentication status
+✓ Check LIVE_DATA_INTERVAL setting
+✓ Manually trigger refresh via API
 ```
 
 ### Debug Mode
@@ -439,266 +585,113 @@ View logs:
 # Docker
 docker logs rehau-bridge -f
 
-# Home Assistant Addon
-# Check addon logs in UI
-
 # Standalone
 npm start
 ```
 
-### Health Check
-
-```bash
-# Check system health
-curl http://localhost:3000/health
-
-# Expected response:
-{
-  "status": "healthy",
-  "timestamp": "2026-02-22T10:00:00.000Z",
-  "uptime": 3600,
-  "memory": {
-    "used": 120,
-    "total": 4096
-  }
-}
-```
-
-### Log Export
-
-Export logs for troubleshooting:
-```bash
-# Via API
-curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:3000/api/v1/logs/export?mode=shareable
-
-# Via Web UI
-# Navigate to Logs page → Click "Export" button
-```
-
 ---
 
-## 📚 Documentation
+## 👨‍💻 Development
 
-### Core Documentation
-- **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
-- **[.env.example](.env.example)** - Complete configuration reference
-- **[DOCKER_GUIDE.md](DOCKER_GUIDE.md)** - Docker deployment guide
-- **[FEATURE_IMPLEMENTATION_SUMMARY.md](FEATURE_IMPLEMENTATION_SUMMARY.md)** - Technical feature details
+### Setup
 
-### Setup Guides
-- **[docs/oauth2-setup.md](docs/oauth2-setup.md)** - OAuth2 setup (with limitations)
-- **[docs/OAUTH2_GMAIL_SETUP.md](docs/OAUTH2_GMAIL_SETUP.md)** - Gmail OAuth2 guide
-- **[docs/OAUTH2_OUTLOOK_SETUP.md](docs/OAUTH2_OUTLOOK_SETUP.md)** - Outlook OAuth2 guide
+```bash
+git clone https://github.com/manuxio/rehau-nea-smart-2-home-assistant.git
+cd rehau-nea-smart-2-home-assistant/rehau-nea-smart-mqtt-bridge
 
-### API Documentation
-- **Swagger UI**: http://localhost:3000/api-docs
-- **OpenAPI Spec**: http://localhost:3000/api-docs.json
+npm install
+cp .env.example .env
+# Edit .env
+
+npm run dev
+```
+
+### Scripts
+
+```bash
+npm run build          # Build backend + web UI
+npm run build:backend  # Build TypeScript
+npm run build:web-ui   # Build React app
+npm start              # Start production server
+npm run dev            # Start development server
+npm test               # Run tests
+npm run release:patch  # Bump patch version
+npm run release:minor  # Bump minor version
+npm run release:major  # Bump major version
+```
+
+### Project Structure
+
+```
+rehau-nea-smart-mqtt-bridge/
+├── src/
+│   ├── api/              # REST API routes and middleware
+│   ├── auth/             # OAuth2 providers
+│   ├── ha-integration/   # Home Assistant integration
+│   ├── logging/          # Enhanced logging system
+│   ├── monitoring/       # Resource and staleness monitoring
+│   ├── parsers/          # REHAU data parsers
+│   ├── climate-controller.ts
+│   ├── index.ts
+│   ├── mqtt-bridge.ts
+│   ├── playwright-https-client.ts
+│   ├── pop3-client.ts
+│   └── rehau-auth.ts
+├── web-ui/
+│   ├── src/
+│   │   ├── api/          # API client
+│   │   ├── components/   # React components
+│   │   ├── contexts/     # React contexts
+│   │   ├── hooks/        # Custom hooks
+│   │   ├── pages/        # Page components
+│   │   └── store/        # Zustand state management
+│   └── public/
+├── docs/                 # Documentation
+├── scripts/              # Build and release scripts
+└── tests/                # Test files
+```
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these guidelines:
+Contributions welcome! Please:
 
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Development Setup
-
-```bash
-# Clone repository
-git clone https://github.com/manuxio/rehau-nea-smart-2-home-assistant.git
-cd rehau-nea-smart-2-home-assistant/rehau-nea-smart-mqtt-bridge
-
-# Install dependencies
-npm install
-
-# Setup environment
-cp .env.example .env
-# Edit .env with your credentials
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm test
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ### Code Style
 
 - **TypeScript** with strict mode
-- **ESLint** for code quality
+- **ESLint** for linting
 - **Prettier** for formatting
 - **Conventional Commits** for commit messages
 
 ---
 
-## 🐛 Bug Reports
-
-Found a bug? Please open an issue with:
-
-1. **Description** of the problem
-2. **Steps to reproduce**
-3. **Expected behavior**
-4. **Actual behavior**
-5. **Environment** (OS, Node.js version, Docker version)
-6. **Logs** (use shareable export mode)
-
-**⚠️ Important**: Use shareable log export to remove sensitive data before sharing logs.
-
----
-
-## 💡 Feature Requests
-
-Have an idea? Open an issue with:
-
-1. **Feature description**
-2. **Use case** and benefits
-3. **Proposed implementation** (if applicable)
-4. **Alternatives considered**
-
----
-
-## 📊 Project Status
-
-### Current Version: 5.0.0
-
-**Status**: ✅ Production Ready
-
-**Stability**: 
-- Core MQTT Bridge: ✅ Stable
-- REST API: ✅ Stable
-- Web UI: ✅ Stable
-- OAuth2: ⚠️ Incomplete (use basic auth)
-
-**Tested On**:
-- ✅ Home Assistant 2024.1+
-- ✅ Raspberry Pi 4 (4GB RAM)
-- ✅ Docker 24.0+
-- ✅ Node.js 20.x
-- ✅ Ubuntu 22.04, Debian 12
-- ✅ Windows 11, macOS 14
-
----
-
-## 🗺️ Roadmap
-
-### v5.1.0 (Q2 2026)
-- [ ] Complete OAuth2 implementation with automatic flow
-- [ ] WebSocket real-time updates for live data
-- [ ] Historical data graphs with Chart.js
-- [ ] Push notifications for alerts
-- [ ] Advanced scheduling interface
-
-### v5.2.0 (Q3 2026)
-- [ ] React Native mobile app
-- [ ] GraphQL API option
-- [ ] Advanced analytics and reporting
-- [ ] Backup/restore functionality
-- [ ] Theme customization
-
-### v6.0.0 (Q4 2026)
-- [ ] Multi-user support with roles
-- [ ] Advanced automation engine
-- [ ] Energy monitoring integration
-- [ ] Weather-based optimization
-- [ ] Machine learning temperature predictions
-
----
-
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - See [LICENSE](../LICENSE) for details.
 
 ---
 
 ## 🙏 Acknowledgments
 
-- **REHAU** for the NEA SMART 2.0 heating system
-- **Home Assistant** community for inspiration
-- **Playwright** team for browser automation
+- **REHAU** for the NEA SMART 2.0 system
+- **Home Assistant** community
+- **Playwright** team
 - **React** and **TypeScript** communities
 - All contributors and users
 
 ---
 
-## 📞 Support
-
-### Community Support
-- **GitHub Issues**: [Report bugs or request features](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/issues)
-- **GitHub Discussions**: [Ask questions and share ideas](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/discussions)
-
-### Documentation
-- **API Docs**: http://localhost:3000/api-docs
-- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
-- **Configuration**: [.env.example](.env.example)
-
-### Quick Links
-- **Repository**: https://github.com/manuxio/rehau-nea-smart-2-home-assistant
-- **Issues**: https://github.com/manuxio/rehau-nea-smart-2-home-assistant/issues
-- **Releases**: https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases
-
----
-
-## ⚡ Quick Reference
-
-### Essential Commands
-
-```bash
-# Docker
-docker build -t rehau-bridge .
-docker run -d --name rehau-bridge -p 3000:3000 --env-file .env rehau-bridge
-docker logs rehau-bridge -f
-docker restart rehau-bridge
-
-# Node.js
-npm install
-npm run build
-npm start
-npm run dev
-
-# Health Check
-curl http://localhost:3000/health
-
-# API Login
-curl -X POST http://localhost:3000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"your_password"}'
-```
-
-### Essential URLs
-
-- **Web UI**: http://localhost:3000
-- **API Docs**: http://localhost:3000/api-docs
-- **Health**: http://localhost:3000/health
-- **Logs**: http://localhost:3000/logs
-
-### Essential Environment Variables
-
-```env
-REHAU_EMAIL=your.email@example.com
-REHAU_PASSWORD=your_password
-POP3_EMAIL=your.email@gmx.com
-POP3_PASSWORD=your_pop3_password
-MQTT_HOST=localhost
-API_PASSWORD=your_secure_password
-```
-
----
-
 <div align="center">
 
-**Made with ❤️ for the Home Assistant community**
+**Version 5.1.5** | **Made with ❤️ for Home Assistant**
 
-⭐ **Star this repo** if you find it useful!
-
-[Report Bug](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/issues) • [Request Feature](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/issues) • [Documentation](CHANGELOG.md)
+[⬆ Back to Top](#rehau-nea-smart-20-mqtt-bridge)
 
 </div>
