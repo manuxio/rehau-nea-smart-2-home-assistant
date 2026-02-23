@@ -1,5 +1,102 @@
 # Changelog
 
+All notable changes to the REHAU NEA SMART 2.0 MQTT Bridge project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [5.1.5] - 2026-02-24
+
+### 🎨 Documentation
+- **Professional README files** - Complete rewrite with modern formatting
+  - Root README with quick start and overview
+  - Detailed project README with comprehensive documentation
+  - Mobile screenshots from iPhone 14 Pro
+  - Architecture diagrams and feature highlights
+  - Professional badges and formatting
+- **Enhanced CHANGELOG** - Improved structure and formatting
+
+### 🧹 Maintenance
+- **Dependency cleanup** - Removed unused packages
+  - Removed `axios-cookiejar-support` (unused)
+  - Removed `node-pop3` (never used, project uses `poplib`)
+  - Removed `nodemon` (not in npm scripts)
+  - Deleted obsolete HTTP client implementations (`curl-https-client.ts`, `native-https-client.ts`)
+  - Reduced package count by 21 packages (3.5% reduction)
+- **Security updates** - Fixed Dependabot alerts
+  - Updated `minimatch` to v10.2.1+ via package overrides
+  - Fixed 31 high-severity vulnerabilities
+  - Updated safe dependencies: `mqtt`, `@types/node`, `react-router-dom`, `typescript-eslint`
+- **Version synchronization** - Web UI now reads version from parent package.json
+  - Vite build-time injection via `define`
+  - Backend API reads version directly from package.json
+  - Single source of truth for version management
+
+### 🔧 Technical Improvements
+- **Build optimization** - Cleaner dependency tree
+- **Type safety** - Improved TypeScript declarations
+- **Code quality** - Removed dead code and unused imports
+
+---
+
+## [5.1.4] - 2026-02-24
+
+### 🔒 Security
+- **Dependabot fixes** - Addressed security vulnerabilities
+  - Fixed `minimatch` ReDoS vulnerability (GHSA-3ppc-4f35-3m26)
+  - Applied package overrides for secure versions
+
+### 📦 Dependencies
+- **Safe updates** - Updated non-breaking dependencies
+  - `mqtt`: 5.14.1 → 5.15.0
+  - `axios-cookiejar-support`: 5.0.2 → 5.0.5
+  - `@types/node`: 20.19.25 → 20.19.33
+  - `react-router-dom`: 7.13.0 → 7.13.1
+  - `typescript-eslint`: 8.56.0 → 8.56.1
+
+---
+
+## [5.1.3] - 2026-02-23
+
+### 🐛 Bug Fixes
+- **Staleness detection** - Fixed false "stale data" warnings
+  - Reset staleness timer when `getInstallationData()` is called
+  - Reset staleness timer on MQTT realtime updates
+  - Integrated `StalenessDetector` with `ClimateController`
+- **Branch merge** - Merged `feature/v5.0.0-release` into `main`
+  - Preserved version 5.1.3
+  - Resolved merge conflicts in `config.yaml`, `package.json`, `run.sh`
+
+### 🔧 Technical Improvements
+- **Data freshness** - Multiple sources of truth now properly tracked
+  - API polling updates reset staleness
+  - MQTT messages reset staleness
+  - Eliminated false positive stale warnings
+
+---
+
+## [5.1.2] - 2026-02-23
+
+### 🔒 Security & Reliability
+- **Token refresh** - Switched to Playwright for token refresh
+  - Replaced Axios with `PlaywrightHttpsClient` in `refresh()` method
+  - Consistent browser-based approach for all authentication
+  - Improved reliability and Cloudflare bypass
+- **Authentication improvements** - Reduced excessive full logins
+  - Fixed token refresh failures that triggered full re-authentication
+  - Proper error handling for 401 responses
+  - Fallback to full login only when necessary
+
+### 🐛 Bug Fixes
+- **MQTT reconnection** - Improved reconnection logic
+  - Better handling of MQTT disconnections
+  - Proper subscription restoration
+  - Cooldown period to prevent tight loops
+
+---
+
 ## [5.1.0-beta] - 2026-02-22
 
 ### 🎉 Major Release - Complete Platform Revamp

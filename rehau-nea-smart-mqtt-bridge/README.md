@@ -680,6 +680,12 @@ MIT License - See [LICENSE](../LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
+### Sponsors
+
+This project is proudly sponsored by **[DomoDreams.it](https://domodreams.it)** - Your trusted partner for smart home solutions.
+
+### Contributors
+
 - **REHAU** for the NEA SMART 2.0 system
 - **Home Assistant** community
 - **Playwright** team

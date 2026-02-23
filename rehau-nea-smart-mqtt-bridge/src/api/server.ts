@@ -82,9 +82,9 @@ export class APIServer {
         definition: {
           openapi: '3.0.0',
           info: {
-            title: 'REHAU NEA SMART 2.0 API',
+            title: 'REHAU NEA SMART 2.0 MQTT Bridge API',
             version: '5.0.0',
-            description: 'REST API for REHAU NEA SMART 2.0 heating system control',
+            description: 'REST API for controlling REHAU NEA SMART 2.0 heating systems',
             contact: {
               name: 'API Support',
               url: 'https://github.com/manuxio/rehau-nea-smart-2-home-assistant'
@@ -92,8 +92,8 @@ export class APIServer {
           },
           servers: [
             {
-              url: `http://localhost:${this.port}`,
-              description: 'Development server'
+              url: '/api/v1',
+              description: 'API v1'
             }
           ],
           components: {
