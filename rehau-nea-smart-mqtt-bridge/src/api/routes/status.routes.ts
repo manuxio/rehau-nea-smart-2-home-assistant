@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getInstallations } from '../services/data-service';
+import packageJson from '../../../package.json';
 
 const router = Router();
 
@@ -24,7 +25,7 @@ router.get('/system', (_req: Request, res: Response) => {
       status: 'running',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      version: '5.0.0',
+      version: packageJson.version,
       outdoorTemperature: (firstInstall as any)?.outsideTemperature || undefined
     });
   } catch (error) {
@@ -32,7 +33,7 @@ router.get('/system', (_req: Request, res: Response) => {
       status: 'running',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      version: '5.0.0'
+      version: packageJson.version
     });
   }
 });

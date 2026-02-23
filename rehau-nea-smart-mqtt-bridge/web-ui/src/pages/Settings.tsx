@@ -341,7 +341,7 @@ export function Settings() {
           <div className="setting-item">
             <div className="setting-info">
               <span className="setting-label">Version</span>
-              <span className="setting-value">5.0.0</span>
+              <span className="setting-value">{__APP_VERSION__}</span>
             </div>
           </div>
           <div className="setting-item">
