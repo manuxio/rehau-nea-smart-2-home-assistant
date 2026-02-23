@@ -70,6 +70,30 @@ function updateVersionInFiles(newVersion) {
     fs.writeFileSync(configPath, configContent);
     log(`✓ Updated ${configPath}`, 'green');
   }
+  
+  // Update version badge in README.md
+  const readmePath = 'README.md';
+  if (fs.existsSync(readmePath)) {
+    let readmeContent = fs.readFileSync(readmePath, 'utf8');
+    readmeContent = readmeContent.replace(
+      /!\[Version\]\(https:\/\/img\.shields\.io\/badge\/Version-[\d.]+(-[a-z]+)?-blue\.svg\)/g,
+      `![Version](https://img.shields.io/badge/Version-${newVersion}-blue.svg)`
+    );
+    fs.writeFileSync(readmePath, readmeContent);
+    log(`✓ Updated ${readmePath}`, 'green');
+  }
+  
+  // Update version badge in parent README.md
+  const parentReadmePath = '../README.md';
+  if (fs.existsSync(parentReadmePath)) {
+    let readmeContent = fs.readFileSync(parentReadmePath, 'utf8');
+    readmeContent = readmeContent.replace(
+      /!\[Version\]\(https:\/\/img\.shields\.io\/badge\/Version-[\d.]+(-[a-z]+)?-blue\.svg\)/g,
+      `![Version](https://img.shields.io/badge/Version-${newVersion}-blue.svg)`
+    );
+    fs.writeFileSync(parentReadmePath, readmeContent);
+    log(`✓ Updated ${parentReadmePath}`, 'green');
+  }
 }
 
 function getCommitsSinceLastTag() {
@@ -166,7 +190,7 @@ function main() {
   
   // Stage version files
   log('\nStaging changes...', 'cyan');
-  exec('git add package.json config.yaml');
+  exec('git add package.json config.yaml README.md ../README.md');
   
   // Generate and display commit message
   const commitMessage = generateCommitMessage(newVersion, commits);
