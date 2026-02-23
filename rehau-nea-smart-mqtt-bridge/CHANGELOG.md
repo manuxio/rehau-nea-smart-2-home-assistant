@@ -1,5 +1,121 @@
 # Changelog
 
+## [5.1.0-beta] - 2026-02-22
+
+### 🎉 Major Release - Complete Platform Revamp
+
+This release represents a **complete transformation** of the REHAU NEA SMART 2.0 MQTT Bridge from a simple MQTT bridge into a **full-featured control platform** with REST API, modern web interface, and enhanced functionality.
+
+### ✨ New Features
+
+#### REST API & Web UI
+- **Complete REST API** with JWT authentication
+  - Full CRUD operations for zones, installations, and system details
+  - Swagger/OpenAPI documentation at `/api-docs`
+  - WebSocket support for real-time updates
+  - Health monitoring endpoint
+  - Log export with automatic obfuscation
+
+- **Modern React Web Interface**
+  - Mobile-first responsive design
+  - PWA support with offline capabilities
+  - Dark/light mode toggle
+  - Touch-friendly controls
+  - Pull-to-refresh gesture
+  - Real-time zone monitoring
+  - Temperature and preset controls
+  - **Ring light control** with visual feedback
+  - System status dashboard
+  - Log viewer with filtering
+
+#### Ring Light Control
+- API endpoint `PUT /api/v1/zones/:id/ring-light` for controlling zone ring lights
+- Web UI toggle button with golden gradient when active
+- Ring light state included in all zone API responses
+- Emoji icons (💡 ON / 🔦 OFF) for visual clarity
+
+#### Enhanced Logging
+- Colorful terminal output with emoji categorization
+- Command tracking and confirmation logging
+- Structured logging with context
+- Log obfuscation for safe sharing
+- Export functionality via API and Web UI
+
+#### Home Assistant Integration
+- Auto-discovery status sensors (bridge, auth, MQTT)
+- Staleness detection for data freshness
+- Resource monitoring (CPU, memory)
+- Outside temperature sensor
+- Enhanced entity naming options
+
+#### Performance & Reliability
+- Lazy browser initialization (Playwright)
+- Idle timeout with automatic cleanup
+- Optimized resource usage
+- Smart token caching
+- Multi-platform Docker support
+- Redundant command filtering
+
+### 🐛 Bug Fixes
+- **Ring Light API**: Fixed case sensitivity issue - API now correctly converts lowercase 'on'/'off' to uppercase 'ON'/'OFF' for climate controller
+- **Retained MQTT Commands**: Added utility script to clear retained command messages that were causing zones to receive old commands on bridge restart
+- **Memory Threshold**: Adjusted warning threshold from 150MB to 250MB for realistic application usage
+
+### 🔧 Improvements
+- Enhanced command logging with detailed MQTT message tracking
+- Better error messages and debugging information
+- Improved documentation structure
+- Comprehensive testing utilities
+
+### 📚 Documentation
+- Complete README overhaul
+- New CHANGELOG with detailed version history
+- QUICK_START guide for fast setup
+- DOCKER_GUIDE for deployment
+- OAuth2 setup guides with clear warnings
+- BUILD_AND_TEST guide
+- API documentation via Swagger
+- Ring light feature documentation
+
+### ⚙️ Configuration
+- New environment variables for API/Web UI
+- JWT authentication configuration
+- WebSocket configuration
+- Enhanced monitoring options
+- Playwright optimization settings
+
+### 🚨 Breaking Changes
+- **Node.js 20+** now required (was 18+)
+- **Port 3000** now required for API/Web UI
+- New environment variables must be configured
+- Larger Docker image due to web UI bundle
+
+### 📦 Dependencies
+- Added Express.js for REST API
+- Added React for web interface
+- Added Socket.IO for real-time updates
+- Added Swagger for API documentation
+- Updated TypeScript to 5.3+
+
+### 🎯 Migration Notes
+- Existing MQTT functionality remains unchanged
+- API and Web UI are optional (can be disabled)
+- All previous configuration options still supported
+- No changes required for basic MQTT bridge usage
+
+---
+
+## [Unreleased]
+
+### ✨ New Features
+- **Ring Light Control**
+  - Added API endpoint `PUT /api/v1/zones/:id/ring-light` for controlling zone ring lights
+  - Added ring light toggle button in web UI zone detail page
+  - Ring light state now included in zone API responses
+  - Visual feedback with golden gradient when ring light is active
+
+---
+
 ## [4.0.21] - 2026-02-20
 
 ### 🔧 Refactoring

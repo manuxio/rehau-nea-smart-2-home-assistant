@@ -17,6 +17,7 @@ import {
 } from './types';
 import type { IInstall, IChannel, IZone, IGroup } from './parsers';
 import packageJson from '../package.json';
+import type { StalenessDetector } from './monitoring/staleness-detector';
 
 interface ExtendedZoneInfo {
   zoneId: string;
@@ -47,6 +48,11 @@ class ClimateController {
   private installationData: Map<string, IInstall>; // Map installId -> IInstall data
   private channelToZoneKey: Map<string, string>; // Map channelId -> zoneKey for fast lookup
   private channelZoneToChannelId: Map<number, string>; // Cache channelZone -> channel ID mapping
+  private stalenessDetector: StalenessDetector | null = null; // Optional staleness detector
+  
+  // LIVE data storage
+  private liveEMUData: Map<string, any> = new Map(); // Map installId -> LIVE_EMU data
+  private liveDIDOData: Map<string, any> = new Map(); // Map installId -> LIVE_DIDO data
   
   // Command queue and retry mechanism
   private commandQueue: QueuedCommand[] = [];
@@ -93,6 +99,13 @@ class ClimateController {
         }
       }
     });
+  }
+
+  /**
+   * Set the staleness detector instance for updating zone freshness
+   */
+  setStalenessDetector(detector: StalenessDetector): void {
+    this.stalenessDetector = detector;
   }
 
   initializeInstallation(install: IInstall): void {
@@ -209,7 +222,10 @@ class ClimateController {
         }
         
         // Get target temperature (already converted to Celsius)
-        if (channel.setpointTemperature.celsius !== null) {
+        // Validate temperature is in reasonable range (5-35°C)
+        if (channel.setpointTemperature.celsius !== null && 
+            channel.setpointTemperature.celsius >= 5 && 
+            channel.setpointTemperature.celsius <= 35) {
           targetTemp = channel.setpointTemperature.celsius;
         }
       }
@@ -1007,6 +1023,11 @@ class ClimateController {
               
               // Update all values
               this.updateZoneFromChannel(zoneKey, state, channel, installationMode);
+              
+              // Reset staleness timer for this zone (data from getInstallationData is fresh)
+              if (this.stalenessDetector) {
+                this.stalenessDetector.updateZone(zone.id);
+              }
             }
           });
         }
@@ -1257,7 +1278,9 @@ class ClimateController {
     // Target temperature (process AFTER mode to know if zone is off)
     // Only publish if zone is not off
     if (state.mode !== 'off') {
-      if (channel.setpointTemperature.celsius !== null) {
+      if (channel.setpointTemperature.celsius !== null &&
+          channel.setpointTemperature.celsius >= 5 &&
+          channel.setpointTemperature.celsius <= 35) {
         const targetTemp = channel.setpointTemperature.celsius;
         // if (targetTemp !== state.targetTemperature) {
           state.targetTemperature = targetTemp;
@@ -1345,6 +1368,12 @@ class ClimateController {
 
   private updateZoneFromRawChannel(zoneKey: string, state: ClimateState, rawChannel: RawChannelData, installationMode: 'heat' | 'cool'): void {
     // Handle raw MQTT channel data (not typed IChannel)
+    
+    // Reset staleness timer for this zone (MQTT realtime data is fresh)
+    if (this.stalenessDetector) {
+      this.stalenessDetector.updateZone(state.zoneId);
+    }
+    
     // Current temperature
     if (rawChannel.temp_zone !== undefined) {
       const temp = this.convertTemp(rawChannel.temp_zone);
@@ -2356,6 +2385,9 @@ class ClimateController {
     const installName = this.installationNames.get(installId) || installId;
     const circuits = data.data.data;
     
+    // Store the LIVE_EMU data for API access
+    this.liveEMUData.set(installId, circuits);
+    
     logger.debug(`🔌 LIVE_EMU Data Received:`);
     logger.debug(`   Installation: ${installName}`);
     logger.debug(`   Circuits: ${Object.keys(circuits).length}`);
@@ -2540,6 +2572,9 @@ class ClimateController {
     const installName = this.installationNames.get(installId) || installId;
     const controllers = data.data.data;
     
+    // Store the LIVE_DIDO data for API access
+    this.liveDIDOData.set(installId, controllers);
+    
     logger.debug(`🔌 LIVE_DIDO Data Received:`);
     logger.debug(`   Installation: ${installName}`);
     logger.debug(`   Controllers: ${Object.keys(controllers).length}`);
@@ -2660,10 +2695,17 @@ class ClimateController {
     let commandDesc = '';
     switch (command.commandType) {
       case 'mode':
-        const mode = command.data.mode_permanent !== undefined 
-          ? (command.data.mode_permanent === 1 ? 'HEAT' : command.data.mode_permanent === 0 ? 'AUTO' : `UNKNOWN (${command.data.mode_permanent})`)
-          : 'UNKNOWN (undefined)';
-        commandDesc = `Set mode to ${mode}`;
+        // Check if this is actually a preset command (uses key 15 = mode_used)
+        if (command.data['15'] !== undefined) {
+          const presetValue = command.data['15'];
+          const presetName = presetValue === 0 ? 'comfort' : presetValue === 1 ? 'away' : presetValue === 2 ? 'standby/none' : `unknown (${presetValue})`;
+          commandDesc = `Set preset to ${presetName}`;
+        } else {
+          const mode = command.data.mode_permanent !== undefined 
+            ? (command.data.mode_permanent === 1 ? 'HEAT' : command.data.mode_permanent === 0 ? 'AUTO' : `UNKNOWN (${command.data.mode_permanent})`)
+            : 'UNKNOWN (undefined)';
+          commandDesc = `Set mode to ${mode}`;
+        }
         break;
       case 'preset':
         const preset = command.data.preset_mode !== undefined
@@ -2808,6 +2850,20 @@ class ClimateController {
     if (data.lock !== undefined) return 'lock';
     
     return 'mode'; // Default fallback
+  }
+
+  /**
+   * Get LIVE_EMU data for an installation
+   */
+  public getLiveEMUData(installId: string): any {
+    return this.liveEMUData.get(installId);
+  }
+
+  /**
+   * Get LIVE_DIDO data for an installation
+   */
+  public getLiveDIDOData(installId: string): any {
+    return this.liveDIDOData.get(installId);
   }
 
   /**
