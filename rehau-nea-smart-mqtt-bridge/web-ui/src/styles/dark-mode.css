@@ -61,7 +61,7 @@ body.dark-mode .temperature-display,
 body.dark-mode .humidity-display,
 body.dark-mode .circuit-data,
 body.dark-mode .zone-demand-item {
-  background: var(--bg-tertiary) !important;
+  /* background: var(--bg-tertiary) !important; */
 }
 
 body.dark-mode .current-temp,
