@@ -1,4 +1,4 @@
-import axios, { AxiosResponse, AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import * as crypto from 'crypto';
 import logger, { registerObfuscation, debugDump } from './logger';
 import { RehauTokenResponse } from './types';
@@ -904,50 +904,96 @@ class RehauAuthPersistent {
   }
 
   /**
-   * Refresh access token
+   * Refresh access token using PlaywrightHttpsClient
    */
   async refresh(): Promise<boolean> {
     if (!this.refreshToken) {
       throw new Error('No refresh token available. Please login first.');
     }
 
+    const client = new PlaywrightHttpsClient();
+    let browserCleaned = false;
+
     try {
-      logger.debug('Refreshing access token...');
+      logger.debug('Refreshing access token with Playwright...');
       
-      const response: AxiosResponse<RehauTokenResponse> = await axios.post(
+      const tokenPayload = {
+        grant_type: 'refresh_token',
+        client_id: '3f5d915d-a06f-42b9-89cc-2e5d63aa96f1',
+        refresh_token: this.refreshToken
+      };
+
+      logger.debug('Token refresh payload:', { 
+        grant_type: tokenPayload.grant_type, 
+        client_id: tokenPayload.client_id,
+        refresh_token: this.refreshToken.substring(0, 20) + '...'
+      });
+
+      const tokenResponse = await client.post(
         'https://accounts.rehau.com/token-srv/token',
-        {
-          grant_type: 'refresh_token',
-          client_id: '3f5d915d-a06f-42b9-89cc-2e5d63aa96f1',
-          refresh_token: this.refreshToken
-        },
+        JSON.stringify(tokenPayload),
         {
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
           }
         }
       );
 
-      this.accessToken = response.data.access_token;
-      this.refreshToken = response.data.refresh_token;
-      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+      logger.debug('Token refresh response received');
+
+      // Parse token response
+      let parsedTokenResponse: RehauTokenResponse;
+      try {
+        parsedTokenResponse = typeof tokenResponse.body === 'string' 
+          ? JSON.parse(tokenResponse.body) 
+          : tokenResponse.body;
+      } catch (parseError) {
+        logger.error('Failed to parse token refresh response:', tokenResponse.body);
+        throw new Error(`Failed to parse token refresh response: ${parseError}`);
+      }
+
+      if (!parsedTokenResponse.access_token || !parsedTokenResponse.refresh_token) {
+        logger.error('Invalid token refresh response - missing tokens:', JSON.stringify(parsedTokenResponse, null, 2));
+        throw new Error('Token refresh succeeded but response is missing access_token or refresh_token');
+      }
+
+      this.accessToken = parsedTokenResponse.access_token;
+      this.refreshToken = parsedTokenResponse.refresh_token;
+      this.tokenExpiry = Date.now() + (parsedTokenResponse.expires_in * 1000);
       
       // Increment token refresh counter
       this.tokenRefreshCount++;
 
-      logger.debug('Tokens obtained');
+      logger.debug('Tokens obtained via refresh');
+      logger.debug(`Token expiry: ${new Date(this.tokenExpiry).toISOString()}`);
 
-      logger.info('Token refreshed');
+      // Cleanup browser
+      await client.cleanup();
+      browserCleaned = true;
+
+      logger.info('Token refreshed successfully');
       return true;
     } catch (error) {
-      const axiosError = error as { response?: { data?: unknown; status?: number }; message: string };
-      logger.error('Token refresh failed:', axiosError.response?.data || axiosError.message);
+      logger.error('Token refresh failed:', (error as Error).message);
       
-      if (axiosError.response?.status === 401) {
-        logger.info('Refresh token expired, logging in again...');
+      // Check if it's a 401 error (invalid/expired refresh token)
+      if (error instanceof Error && error.message.includes('401')) {
+        logger.info('Refresh token expired (401), logging in again...');
         return await this.login();
       }
+      
       throw error;
+    } finally {
+      // Cleanup browser if not already done
+      if (!browserCleaned) {
+        try {
+          await client.cleanup();
+          logger.debug('Browser cleanup completed (error path)');
+        } catch (cleanupError) {
+          logger.warn('Browser cleanup failed (non-critical):', cleanupError);
+        }
+      }
     }
   }
 
