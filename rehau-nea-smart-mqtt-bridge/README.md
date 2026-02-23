@@ -140,22 +140,27 @@ The REHAU NEA SMART 2.0 MQTT Bridge is a professional-grade integration solution
 
 #### Dashboard
 ![Dashboard](./docs/screenshots/02-dashboard.png)
+
 *Real-time system overview with status indicators and quick stats*
 
 #### Zones List
 ![Zones](./docs/screenshots/03-zones.png)
+
 *All heating zones with current temperature and status*
 
 #### Zone Detail
 ![Zone Detail](./docs/screenshots/04-zone-detail.png)
+
 *Detailed zone control with temperature adjustment and mode selection*
 
 #### System Status
 ![System](./docs/screenshots/05-system.png)
+
 *System diagnostics, resource usage, and configuration*
 
 #### Login
 ![Login](./docs/screenshots/01-login.png)
+
 *Secure authentication with modern design*
 
 </div>
