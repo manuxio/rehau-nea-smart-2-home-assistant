@@ -1,10 +1,28 @@
 import axios from 'axios';
 
-// Use empty string for dev (proxied by Vite) or full URL for production
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// Determine base URL for API calls
+// In HA ingress, we need to use relative paths from the current location
+// In standalone, we can use absolute paths
+const getApiBaseUrl = () => {
+  // If VITE_API_URL is set, use it (for custom deployments)
+  if (import.meta.env.VITE_API_URL) {
+    return `${import.meta.env.VITE_API_URL}/api/v1`;
+  }
+  
+  // For production builds, use relative path from current location
+  // This works for both standalone and HA ingress
+  if (import.meta.env.PROD) {
+    // Get the base path from the current location
+    const base = window.location.pathname.replace(/\/$/, '');
+    return `${base}/api/v1`;
+  }
+  
+  // For dev, use absolute path (proxied by Vite)
+  return '/api/v1';
+};
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL ? `${API_BASE_URL}/api/v1` : '/api/v1',
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -25,7 +43,9 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
-      window.location.href = '/login';
+      // Use relative path for HA ingress compatibility
+      const base = import.meta.env.BASE_URL || '/';
+      window.location.href = `${base}login`.replace(/\/\//g, '/');
     }
     return Promise.reject(error);
   }

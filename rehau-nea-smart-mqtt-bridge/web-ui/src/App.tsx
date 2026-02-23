@@ -20,8 +20,9 @@ function App() {
   // Register service worker
   useEffect(() => {
     if ('serviceWorker' in navigator) {
+      const swPath = `${import.meta.env.BASE_URL}sw.js`.replace(/\/\//g, '/');
       navigator.serviceWorker
-        .register('/sw.js')
+        .register(swPath)
         .then((registration) => {
           console.log('Service Worker registered:', registration);
         })
@@ -33,7 +34,7 @@ function App() {
 
   return (
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <OfflineIndicator />
         <InstallPrompt />
         <Routes>
