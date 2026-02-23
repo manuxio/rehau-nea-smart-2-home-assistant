@@ -17,10 +17,26 @@ import './styles/dark-mode.css';
 function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
+  // Detect basename for HA ingress support
+  // In HA ingress, the path is like /api/hassio_ingress/TOKEN/
+  // In standalone, it's just /
+  const getBasename = () => {
+    const path = window.location.pathname;
+    // Check if we're in HA ingress
+    if (path.includes('/api/hassio_ingress/')) {
+      // Extract the ingress path including the token
+      const match = path.match(/^(\/api\/hassio_ingress\/[^/]+)/);
+      return match ? match[1] : '/';
+    }
+    return '/';
+  };
+
+  const basename = getBasename();
+
   // Register service worker
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      const swPath = `${import.meta.env.BASE_URL}sw.js`.replace(/\/\//g, '/');
+      const swPath = `${basename}/sw.js`.replace(/\/\//g, '/');
       navigator.serviceWorker
         .register(swPath)
         .then((registration) => {
@@ -30,11 +46,11 @@ function App() {
           console.error('Service Worker registration failed:', error);
         });
     }
-  }, []);
+  }, [basename]);
 
   return (
     <ThemeProvider>
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <BrowserRouter basename={basename}>
         <OfflineIndicator />
         <InstallPrompt />
         <Routes>

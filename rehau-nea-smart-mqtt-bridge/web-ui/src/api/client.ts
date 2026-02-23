@@ -1,20 +1,26 @@
 import axios from 'axios';
 
 // Determine base URL for API calls
-// In HA ingress, we need to use relative paths from the current location
-// In standalone, we can use absolute paths
+// In HA ingress, we need to use the ingress path prefix
+// In standalone, we use absolute paths
 const getApiBaseUrl = () => {
   // If VITE_API_URL is set, use it (for custom deployments)
   if (import.meta.env.VITE_API_URL) {
     return `${import.meta.env.VITE_API_URL}/api/v1`;
   }
   
-  // For production builds, use relative path from current location
-  // This works for both standalone and HA ingress
+  // For production builds, detect HA ingress or standalone
   if (import.meta.env.PROD) {
-    // Get the base path from the current location
-    const base = window.location.pathname.replace(/\/$/, '');
-    return `${base}/api/v1`;
+    const path = window.location.pathname;
+    // Check if we're in HA ingress
+    if (path.includes('/api/hassio_ingress/')) {
+      // Extract the ingress path including the token
+      const match = path.match(/^(\/api\/hassio_ingress\/[^/]+)/);
+      const ingressBase = match ? match[1] : '';
+      return `${ingressBase}/api/v1`;
+    }
+    // Standalone mode
+    return '/api/v1';
   }
   
   // For dev, use absolute path (proxied by Vite)
@@ -43,9 +49,14 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token');
-      // Use relative path for HA ingress compatibility
-      const base = import.meta.env.BASE_URL || '/';
-      window.location.href = `${base}login`.replace(/\/\//g, '/');
+      // Detect HA ingress path for redirect
+      const path = window.location.pathname;
+      let base = '/';
+      if (path.includes('/api/hassio_ingress/')) {
+        const match = path.match(/^(\/api\/hassio_ingress\/[^/]+)/);
+        base = match ? match[1] : '/';
+      }
+      window.location.href = `${base}/login`.replace(/\/\//g, '/');
     }
     return Promise.reject(error);
   }
