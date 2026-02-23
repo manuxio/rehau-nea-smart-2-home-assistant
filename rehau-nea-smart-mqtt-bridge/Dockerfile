@@ -4,6 +4,9 @@ FROM node:20-alpine AS web-builder
 
 WORKDIR /web-ui
 
+# Copy parent package.json (needed by vite.config.ts to read version)
+COPY package.json /package.json
+
 # Copy web UI package files
 COPY web-ui/package*.json ./
 
