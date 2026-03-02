@@ -54,7 +54,7 @@
     "socket.io": "^4.6.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
-    "tough-cookie": "^5.0.0",
+    "tough-cookie": "^6.0.0",
     "winston": "^3.11.0"
   },
   "devDependencies": {
