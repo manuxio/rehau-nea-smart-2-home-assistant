@@ -1,6 +1,6 @@
 # Multi-stage build for REHAU NEA SMART 2.0 MQTT Bridge
 # Stage 1: Build web UI
-FROM node:20-alpine AS web-builder
+FROM node:25-alpine AS web-builder
 
 WORKDIR /web-ui
 
@@ -20,7 +20,7 @@ COPY web-ui/ ./
 RUN npm run build
 
 # Stage 2: Build backend
-FROM node:20-alpine AS backend-builder
+FROM node:25-alpine AS backend-builder
 
 WORKDIR /app
 
@@ -39,7 +39,7 @@ RUN npm run build:docker
 
 # Stage 3: Final runtime image
 # Use node:20-alpine as base (can be overridden for HA addon)
-FROM node:20-alpine
+FROM node:25-alpine
 
 # Install runtime dependencies
 RUN apk add --no-cache \
