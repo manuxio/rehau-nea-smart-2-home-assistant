@@ -1,5 +1,12 @@
 # REHAU NEA SMART 2.0 - Home Assistant Integration
 
+READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! 
+
+[PROJECT STALLED](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/issues/61#issuecomment-4464673551)
+
+READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! 
+
+
 <div align="center">
 
 ![Version](https://img.shields.io/badge/Version-5.1.9-blue.svg)
