@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/.vite
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+Betterehau-handoff
+tests/fixtures/scratch
+*.log
+.DS_Store
+Thumbs.db

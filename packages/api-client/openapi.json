@@ -1,0 +1,2884 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "REHAU Nea Smart 2 — Bridge API",
+    "description": "REST + SSE access to a REHAU Nea Smart 2.0 base station.",
+    "version": "0.1.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {}
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "installer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "token",
+                    "expiresAt",
+                    "role"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "username": {
+                      "type": "string"
+                    },
+                    "role": {
+                      "type": "string",
+                      "enum": [
+                        "user",
+                        "installer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "username",
+                    "role"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rooms": {
+      "get": {
+        "tags": [
+          "rooms"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "zone": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "temperature": {
+                        "type": "number"
+                      },
+                      "humidity": {
+                        "type": "number"
+                      },
+                      "setpointHeating": {
+                        "type": "number"
+                      },
+                      "setpointCooling": {
+                        "type": "number"
+                      },
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "standby",
+                          "normal",
+                          "reduced",
+                          "program",
+                          "program_override"
+                        ]
+                      },
+                      "programOverride": {
+                        "type": "boolean"
+                      },
+                      "hasFan": {
+                        "type": "boolean"
+                      },
+                      "hasFlap": {
+                        "type": "boolean"
+                      },
+                      "hasLight": {
+                        "type": "boolean"
+                      },
+                      "fan": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4
+                      },
+                      "flap": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "light": {
+                        "type": "boolean"
+                      },
+                      "calibrationTemp": {
+                        "type": "number"
+                      },
+                      "calibrationHumidity": {
+                        "type": "number"
+                      },
+                      "programDailyId": {
+                        "type": "integer"
+                      },
+                      "programWeeklyId": {
+                        "type": "integer"
+                      },
+                      "floor": {
+                        "type": "string"
+                      },
+                      "meta": {
+                        "type": "object",
+                        "properties": {
+                          "lastUpdatedAt": {
+                            "type": "string",
+                            "description": "ISO timestamp"
+                          }
+                        },
+                        "required": [
+                          "lastUpdatedAt"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "zone",
+                      "name",
+                      "temperature",
+                      "humidity",
+                      "setpointHeating",
+                      "setpointCooling",
+                      "mode",
+                      "programOverride",
+                      "hasFan",
+                      "hasFlap",
+                      "hasLight",
+                      "fan",
+                      "flap",
+                      "light",
+                      "calibrationTemp",
+                      "calibrationHumidity",
+                      "programDailyId",
+                      "programWeeklyId",
+                      "floor",
+                      "meta"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rooms/{id}": {
+      "get": {
+        "tags": [
+          "rooms"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "zone": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "humidity": {
+                      "type": "number"
+                    },
+                    "setpointHeating": {
+                      "type": "number"
+                    },
+                    "setpointCooling": {
+                      "type": "number"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "standby",
+                        "normal",
+                        "reduced",
+                        "program",
+                        "program_override"
+                      ]
+                    },
+                    "programOverride": {
+                      "type": "boolean"
+                    },
+                    "hasFan": {
+                      "type": "boolean"
+                    },
+                    "hasFlap": {
+                      "type": "boolean"
+                    },
+                    "hasLight": {
+                      "type": "boolean"
+                    },
+                    "fan": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4
+                    },
+                    "flap": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "light": {
+                      "type": "boolean"
+                    },
+                    "calibrationTemp": {
+                      "type": "number"
+                    },
+                    "calibrationHumidity": {
+                      "type": "number"
+                    },
+                    "programDailyId": {
+                      "type": "integer"
+                    },
+                    "programWeeklyId": {
+                      "type": "integer"
+                    },
+                    "floor": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "zone",
+                    "name",
+                    "temperature",
+                    "humidity",
+                    "setpointHeating",
+                    "setpointCooling",
+                    "mode",
+                    "programOverride",
+                    "hasFan",
+                    "hasFlap",
+                    "hasLight",
+                    "fan",
+                    "flap",
+                    "light",
+                    "calibrationTemp",
+                    "calibrationHumidity",
+                    "programDailyId",
+                    "programWeeklyId",
+                    "floor",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "rooms"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "setpoint": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 31
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "standby",
+                      "normal",
+                      "reduced",
+                      "program",
+                      "program_override"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "zone": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "humidity": {
+                      "type": "number"
+                    },
+                    "setpointHeating": {
+                      "type": "number"
+                    },
+                    "setpointCooling": {
+                      "type": "number"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "standby",
+                        "normal",
+                        "reduced",
+                        "program",
+                        "program_override"
+                      ]
+                    },
+                    "programOverride": {
+                      "type": "boolean"
+                    },
+                    "hasFan": {
+                      "type": "boolean"
+                    },
+                    "hasFlap": {
+                      "type": "boolean"
+                    },
+                    "hasLight": {
+                      "type": "boolean"
+                    },
+                    "fan": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4
+                    },
+                    "flap": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "light": {
+                      "type": "boolean"
+                    },
+                    "calibrationTemp": {
+                      "type": "number"
+                    },
+                    "calibrationHumidity": {
+                      "type": "number"
+                    },
+                    "programDailyId": {
+                      "type": "integer"
+                    },
+                    "programWeeklyId": {
+                      "type": "integer"
+                    },
+                    "floor": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "zone",
+                    "name",
+                    "temperature",
+                    "humidity",
+                    "setpointHeating",
+                    "setpointCooling",
+                    "mode",
+                    "programOverride",
+                    "hasFan",
+                    "hasFlap",
+                    "hasLight",
+                    "fan",
+                    "flap",
+                    "light",
+                    "calibrationTemp",
+                    "calibrationHumidity",
+                    "programDailyId",
+                    "programWeeklyId",
+                    "floor",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rooms/{id}/setpoint": {
+      "put": {
+        "tags": [
+          "rooms"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 31,
+                    "multipleOf": 0.5
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "zone": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "humidity": {
+                      "type": "number"
+                    },
+                    "setpointHeating": {
+                      "type": "number"
+                    },
+                    "setpointCooling": {
+                      "type": "number"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "standby",
+                        "normal",
+                        "reduced",
+                        "program",
+                        "program_override"
+                      ]
+                    },
+                    "programOverride": {
+                      "type": "boolean"
+                    },
+                    "hasFan": {
+                      "type": "boolean"
+                    },
+                    "hasFlap": {
+                      "type": "boolean"
+                    },
+                    "hasLight": {
+                      "type": "boolean"
+                    },
+                    "fan": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4
+                    },
+                    "flap": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "light": {
+                      "type": "boolean"
+                    },
+                    "calibrationTemp": {
+                      "type": "number"
+                    },
+                    "calibrationHumidity": {
+                      "type": "number"
+                    },
+                    "programDailyId": {
+                      "type": "integer"
+                    },
+                    "programWeeklyId": {
+                      "type": "integer"
+                    },
+                    "floor": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "zone",
+                    "name",
+                    "temperature",
+                    "humidity",
+                    "setpointHeating",
+                    "setpointCooling",
+                    "mode",
+                    "programOverride",
+                    "hasFan",
+                    "hasFlap",
+                    "hasLight",
+                    "fan",
+                    "flap",
+                    "light",
+                    "calibrationTemp",
+                    "calibrationHumidity",
+                    "programDailyId",
+                    "programWeeklyId",
+                    "floor",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rooms/{id}/mode": {
+      "put": {
+        "tags": [
+          "rooms"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "standby",
+                      "normal",
+                      "reduced",
+                      "program",
+                      "program_override"
+                    ]
+                  },
+                  "setpoint": {
+                    "type": "number",
+                    "minimum": 5,
+                    "maximum": 31
+                  }
+                },
+                "required": [
+                  "mode"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "zone": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "humidity": {
+                      "type": "number"
+                    },
+                    "setpointHeating": {
+                      "type": "number"
+                    },
+                    "setpointCooling": {
+                      "type": "number"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "standby",
+                        "normal",
+                        "reduced",
+                        "program",
+                        "program_override"
+                      ]
+                    },
+                    "programOverride": {
+                      "type": "boolean"
+                    },
+                    "hasFan": {
+                      "type": "boolean"
+                    },
+                    "hasFlap": {
+                      "type": "boolean"
+                    },
+                    "hasLight": {
+                      "type": "boolean"
+                    },
+                    "fan": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4
+                    },
+                    "flap": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "light": {
+                      "type": "boolean"
+                    },
+                    "calibrationTemp": {
+                      "type": "number"
+                    },
+                    "calibrationHumidity": {
+                      "type": "number"
+                    },
+                    "programDailyId": {
+                      "type": "integer"
+                    },
+                    "programWeeklyId": {
+                      "type": "integer"
+                    },
+                    "floor": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "zone",
+                    "name",
+                    "temperature",
+                    "humidity",
+                    "setpointHeating",
+                    "setpointCooling",
+                    "mode",
+                    "programOverride",
+                    "hasFan",
+                    "hasFlap",
+                    "hasLight",
+                    "fan",
+                    "flap",
+                    "light",
+                    "calibrationTemp",
+                    "calibrationHumidity",
+                    "programDailyId",
+                    "programWeeklyId",
+                    "floor",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operatingMode": {
+                      "type": "string",
+                      "enum": [
+                        "heating_only",
+                        "cooling_only",
+                        "manual_heating",
+                        "manual_cooling"
+                      ]
+                    },
+                    "energyLevel": {
+                      "type": "string",
+                      "enum": [
+                        "normal",
+                        "reduced",
+                        "standby",
+                        "auto",
+                        "vacation"
+                      ]
+                    },
+                    "outdoorTemp": {
+                      "type": "number"
+                    },
+                    "outdoorOffset": {
+                      "type": "number"
+                    },
+                    "seasonStart": {
+                      "type": "string"
+                    },
+                    "seasonEnd": {
+                      "type": "string"
+                    },
+                    "reachable": {
+                      "type": "boolean"
+                    },
+                    "fw": {
+                      "type": "object",
+                      "properties": {
+                        "master": {
+                          "type": "string"
+                        },
+                        "web": {
+                          "type": "string"
+                        },
+                        "umodules": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "master",
+                        "web",
+                        "umodules"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "uniqueCode": {
+                      "type": "string"
+                    },
+                    "ssid": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "operatingMode",
+                    "energyLevel",
+                    "outdoorTemp",
+                    "outdoorOffset",
+                    "seasonStart",
+                    "seasonEnd",
+                    "reachable",
+                    "fw",
+                    "uniqueCode",
+                    "ssid",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/operating_mode": {
+      "put": {
+        "tags": [
+          "system"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "heating_only",
+                      "cooling_only",
+                      "manual_heating",
+                      "manual_cooling"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operatingMode": {
+                      "type": "string",
+                      "enum": [
+                        "heating_only",
+                        "cooling_only",
+                        "manual_heating",
+                        "manual_cooling"
+                      ]
+                    },
+                    "energyLevel": {
+                      "type": "string",
+                      "enum": [
+                        "normal",
+                        "reduced",
+                        "standby",
+                        "auto",
+                        "vacation"
+                      ]
+                    },
+                    "outdoorTemp": {
+                      "type": "number"
+                    },
+                    "outdoorOffset": {
+                      "type": "number"
+                    },
+                    "seasonStart": {
+                      "type": "string"
+                    },
+                    "seasonEnd": {
+                      "type": "string"
+                    },
+                    "reachable": {
+                      "type": "boolean"
+                    },
+                    "fw": {
+                      "type": "object",
+                      "properties": {
+                        "master": {
+                          "type": "string"
+                        },
+                        "web": {
+                          "type": "string"
+                        },
+                        "umodules": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "master",
+                        "web",
+                        "umodules"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "uniqueCode": {
+                      "type": "string"
+                    },
+                    "ssid": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "operatingMode",
+                    "energyLevel",
+                    "outdoorTemp",
+                    "outdoorOffset",
+                    "seasonStart",
+                    "seasonEnd",
+                    "reachable",
+                    "fw",
+                    "uniqueCode",
+                    "ssid",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/energy_level": {
+      "put": {
+        "tags": [
+          "system"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "reduced",
+                      "standby",
+                      "auto",
+                      "vacation"
+                    ]
+                  }
+                },
+                "required": [
+                  "level"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "operatingMode": {
+                      "type": "string",
+                      "enum": [
+                        "heating_only",
+                        "cooling_only",
+                        "manual_heating",
+                        "manual_cooling"
+                      ]
+                    },
+                    "energyLevel": {
+                      "type": "string",
+                      "enum": [
+                        "normal",
+                        "reduced",
+                        "standby",
+                        "auto",
+                        "vacation"
+                      ]
+                    },
+                    "outdoorTemp": {
+                      "type": "number"
+                    },
+                    "outdoorOffset": {
+                      "type": "number"
+                    },
+                    "seasonStart": {
+                      "type": "string"
+                    },
+                    "seasonEnd": {
+                      "type": "string"
+                    },
+                    "reachable": {
+                      "type": "boolean"
+                    },
+                    "fw": {
+                      "type": "object",
+                      "properties": {
+                        "master": {
+                          "type": "string"
+                        },
+                        "web": {
+                          "type": "string"
+                        },
+                        "umodules": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "master",
+                        "web",
+                        "umodules"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "uniqueCode": {
+                      "type": "string"
+                    },
+                    "ssid": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "operatingMode",
+                    "energyLevel",
+                    "outdoorTemp",
+                    "outdoorOffset",
+                    "seasonStart",
+                    "seasonEnd",
+                    "reachable",
+                    "fw",
+                    "uniqueCode",
+                    "ssid",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages": {
+      "get": {
+        "tags": [
+          "messages"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "activeOnly",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": [
+                          "info",
+                          "warning",
+                          "error",
+                          "critical"
+                        ]
+                      },
+                      "source": {
+                        "type": "string"
+                      },
+                      "code": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "detail": {
+                        "type": "string"
+                      },
+                      "startedAt": {
+                        "type": "string"
+                      },
+                      "resolvedAt": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "severity",
+                      "source",
+                      "code",
+                      "title",
+                      "detail",
+                      "startedAt",
+                      "resolvedAt"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programs/daily": {
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 10
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "bits": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "minItems": 96,
+                        "maxItems": 96
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "bits"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programs/daily/{n}": {
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "fresh",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "in": "path",
+            "name": "n",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "bits": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "minItems": 96,
+                      "maxItems": 96
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "bits"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "programs"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "bits": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "minItems": 96,
+                        "maxItems": 96
+                      }
+                    },
+                    "required": [
+                      "bits"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "intervals": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "string",
+                              "pattern": "^([01]?\\d|2[0-4]):[0-5]\\d$"
+                            },
+                            "end": {
+                              "type": "string",
+                              "pattern": "^([01]?\\d|2[0-4]):[0-5]\\d$"
+                            }
+                          },
+                          "required": [
+                            "start",
+                            "end"
+                          ],
+                          "additionalProperties": false
+                        }
+                      }
+                    },
+                    "required": [
+                      "intervals"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "in": "path",
+            "name": "n",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "bits": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "minItems": 96,
+                      "maxItems": 96
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "bits"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programs/weekly": {
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "days": {
+                        "type": "array",
+                        "minItems": 7,
+                        "maxItems": 7,
+                        "items": [
+                          {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
+                          },
+                          {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "days"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programs/weekly/{n}": {
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "in": "query",
+            "name": "fresh",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "in": "path",
+            "name": "n",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "days": {
+                      "type": "array",
+                      "minItems": 7,
+                      "maxItems": 7,
+                      "items": [
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "days"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "programs"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "monday": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "tuesday": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "wednesday": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "thursday": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "friday": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "saturday": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "sunday": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  }
+                },
+                "required": [
+                  "monday",
+                  "tuesday",
+                  "wednesday",
+                  "thursday",
+                  "friday",
+                  "saturday",
+                  "sunday"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "in": "path",
+            "name": "n",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 5
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "days": {
+                      "type": "array",
+                      "minItems": 7,
+                      "maxItems": 7,
+                      "items": [
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        },
+                        {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 10
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "days"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/programs/daily/{n}/intervals": {
+      "get": {
+        "tags": [
+          "programs"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "in": "path",
+            "name": "n",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "intervals": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "start": {
+                            "type": "string"
+                          },
+                          "end": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "start",
+                          "end"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "intervals"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/installer/calibration": {
+      "get": {
+        "tags": [
+          "installer"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "outdoor": {
+                      "type": "number"
+                    },
+                    "rooms": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "zone": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 63
+                          },
+                          "tempOffset": {
+                            "type": "number",
+                            "minimum": -5,
+                            "maximum": 5
+                          },
+                          "humidityOffset": {
+                            "type": "integer",
+                            "minimum": -25,
+                            "maximum": 25
+                          }
+                        },
+                        "required": [
+                          "zone",
+                          "tempOffset",
+                          "humidityOffset"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "outdoor",
+                    "rooms",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "installer"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outdoor": {
+                    "type": "number",
+                    "minimum": -10,
+                    "maximum": 10
+                  },
+                  "rooms": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "zone": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 63
+                        },
+                        "tempOffset": {
+                          "type": "number",
+                          "minimum": -5,
+                          "maximum": 5
+                        },
+                        "humidityOffset": {
+                          "type": "integer",
+                          "minimum": -25,
+                          "maximum": 25
+                        }
+                      },
+                      "required": [
+                        "zone",
+                        "tempOffset",
+                        "humidityOffset"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "outdoor": {
+                      "type": "number"
+                    },
+                    "rooms": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "zone": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 63
+                          },
+                          "tempOffset": {
+                            "type": "number",
+                            "minimum": -5,
+                            "maximum": 5
+                          },
+                          "humidityOffset": {
+                            "type": "integer",
+                            "minimum": -25,
+                            "maximum": 25
+                          }
+                        },
+                        "required": [
+                          "zone",
+                          "tempOffset",
+                          "humidityOffset"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "outdoor",
+                    "rooms",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/installer/io": {
+      "get": {
+        "tags": [
+          "installer"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "master": {
+                      "type": "object",
+                      "properties": {
+                        "rz": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "relay": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "di": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        }
+                      },
+                      "required": [
+                        "rz",
+                        "relay",
+                        "di"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "umodules": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "relay": {
+                            "type": "array",
+                            "items": {
+                              "type": "number"
+                            }
+                          },
+                          "di": {
+                            "type": "array",
+                            "items": {
+                              "type": "number"
+                            }
+                          },
+                          "aiC": {
+                            "type": "array",
+                            "items": {
+                              "type": "number",
+                              "nullable": true
+                            }
+                          },
+                          "aoPct": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "relay",
+                          "di",
+                          "aiC",
+                          "aoPct"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "master",
+                    "umodules"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/installer/diagnostics/uptime": {
+      "get": {
+        "tags": [
+          "installer"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "years": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "days": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "hours": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "years",
+                    "days",
+                    "hours"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/installer/diagnostics/topology": {
+      "get": {
+        "tags": [
+          "installer"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "baseModules": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "rModules": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "uModules": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "rooms": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "mixedCircuits": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "dehumidifiers": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  },
+                  "required": [
+                    "baseModules",
+                    "rModules",
+                    "uModules",
+                    "rooms",
+                    "mixedCircuits",
+                    "dehumidifiers"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/installer/curve": {
+      "get": {
+        "tags": [
+          "installer"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slopeNormal": {
+                      "type": "number"
+                    },
+                    "slopeAbsent": {
+                      "type": "number"
+                    },
+                    "startNormal": {
+                      "type": "number"
+                    },
+                    "startAbsent": {
+                      "type": "number"
+                    },
+                    "reductionK": {
+                      "type": "number"
+                    },
+                    "minFlowNormalC": {
+                      "type": "number"
+                    },
+                    "minFlowAbsentC": {
+                      "type": "number"
+                    },
+                    "maxFlowNormalC": {
+                      "type": "number"
+                    },
+                    "maxFlowAbsentC": {
+                      "type": "number"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "lastUpdatedAt": {
+                          "type": "string",
+                          "description": "ISO timestamp"
+                        }
+                      },
+                      "required": [
+                        "lastUpdatedAt"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "slopeNormal",
+                    "slopeAbsent",
+                    "startNormal",
+                    "startAbsent",
+                    "reductionK",
+                    "minFlowNormalC",
+                    "minFlowAbsentC",
+                    "maxFlowNormalC",
+                    "maxFlowAbsentC",
+                    "meta"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

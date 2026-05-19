@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>REHAU Nea Smart Installation</title></head><body onload="onLoadPage()">
+<header><label class="header">Stanze</label></header>
+<form action="room-page.html" method="post" id="form">
+<button type="submit" class="divRooms buttonRooms" disabled="True">
+<input name="zone" type="hidden" value="0" id="hidden">
+<input placeholder="Cambio nome zona" type="text" id="RoomName" name="RoomName" maxlength="19" class="labelLeft pinkR roomName inputName" value="Arianna">
+<label class="labelRight greyR roomName">22.5</label>
+</button>
+<span class="spanHum"><label class="labelLeft">Umidità</label><label class="labelRight greyR">47 %</label></span>
+<table class="temperature"><tr>
+<td><input class="buttonPlusMinus" type="button" value="-" id="moins" onClick="minus()"></td>
+<td><input type="number" class="inputWPlHolder pinkR" id="RSH" name="RSH" value="20.0" min="5.0" max="31.0" step="0.5"></td>
+<td><input class="buttonPlusMinus" type="button" value="+" id="plus" onClick="add()"></td>
+</tr></table>
+<input name="temp" id="temp" type="hidden">
+<input name="mode" id="mode" type="hidden">
+</form>
+<script>var normalSetPoint=20.0;var reducedSetPoint=18.5;var standbySetPoint=23.0;var programActual=1;var initialState=2;var initialFan=1;var initialFla=0;</script>
+</body></html>

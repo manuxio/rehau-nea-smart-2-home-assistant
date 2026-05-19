@@ -160,6 +160,31 @@ only run one at a time.
 
 ---
 
+## Prerequisite — REHAU base station in AP mode
+
+Before the add-on can talk to the device you need the REHAU Nea Smart 2.0
+base station to be reachable over your LAN with its **local web
+interface enabled** (the "AP / Access Point" setup mode in REHAU's
+manual). The cloud-bound mode (linked to a REHAU account, accessed
+only through the REHAU app) is **not** what we want.
+
+If your installation is currently cloud-only, you'll need to:
+
+1. Reset / re-pair the base station and choose the local / AP setup
+   flow during commissioning (see the REHAU quick-start in the box).
+2. Note the LAN IP the base station picks up via DHCP — that's the
+   `device_url` you'll paste into the add-on.
+3. Find the 8-character installer code on the device's *Unique Code*
+   page (or the sticker / commissioning sheet). That's the
+   `device_installer_code`.
+
+> 📘 **A full step-by-step installation guide — including pictures of
+> the REHAU base-station screens, AP-mode setup, and the first-time
+> bridge configuration — is being written and will be linked here as
+> soon as it's ready.** In the meantime, the *Quick start* below
+> assumes the base station is already on your LAN with the local
+> interface up.
+
 ## Quick start
 
 1. **Add this repository** to your Home Assistant Supervisor:

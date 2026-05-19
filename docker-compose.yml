@@ -1,0 +1,34 @@
+# The MQTT broker is external — not part of this compose file.
+# Set MQTT_URL to point at your existing broker.
+
+services:
+  rehau-bridge:
+    build: .
+    image: rehau-bridge:0.1.0
+    container_name: rehau-bridge
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DEVICE_URL: ${DEVICE_URL:-http://10.160.18.139}
+      DEVICE_INSTALLER_CODE: ${DEVICE_INSTALLER_CODE:-}
+      DEVICE_ID: ${DEVICE_ID:-}
+      MQTT_URL: ${MQTT_URL:-}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_BASE_TOPIC: ${MQTT_BASE_TOPIC:-rehau}
+      MQTT_HA_DISCOVERY: ${MQTT_HA_DISCOVERY:-true}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (32+ random bytes)}
+      API_USER: ${API_USER:-admin}
+      API_PASSWORD_HASH: ${API_PASSWORD_HASH:?run `npm run hashpw -- <pw>` to generate}
+      ADMIN_ROLE: ${ADMIN_ROLE:-installer}
+      EXPOSE_IO: ${EXPOSE_IO:-true}
+      EXPOSE_CALIBRATION: ${EXPOSE_CALIBRATION:-false}
+      ROOM_FLOORS: ${ROOM_FLOORS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3

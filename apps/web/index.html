@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover so safe-area-insets honour notch/home bars -->
+    <!-- maximum-scale=1 + user-scalable=no block pinch zoom on iOS/Android so
+         the app feels native. The OS font size still propagates because we
+         size everything in rem (see index.css :root font-size). The a11y
+         linter flags this; accepted intentionally per product brief. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <!-- Theme colour drives the Android status-bar/PWA chrome tint.
+         Matches --bg from index.css (dark theme). -->
+    <meta name="theme-color" content="#16101C" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#FAF6F2" media="(prefers-color-scheme: light)" />
+    <title>Betterehau · Nea Smart 2</title>
+
+    <!-- PWA manifest: drives the "Add to Home Screen" identity and icons.
+         Relative href so the same bundle works behind HA ingress (which
+         prefixes URLs with /api/hassio_ingress/<token>/). -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+
+    <!-- iOS PWA: make the home-screen launch behave like a native app
+         (no Safari chrome, status bar overlaid). On iOS 16+ this also
+         needs `display: "standalone"` in the manifest, which we set. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- "default" keeps the iOS status bar visible WITH its own background
+         (no overlay onto our content). "black-translucent" looked nicer but
+         the clock overlapped the sticky AppHeader as you scrolled. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Betterehau" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

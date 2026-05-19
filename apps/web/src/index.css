@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens — TOKENS.dark from the Claude Design hand-off. */
+:root,
+:root[data-theme="dark"] {
+  --bg: #16101C;
+  --surface: #1E1628;
+  --surface2: #2A1F36;
+  --border: #3A2D4D;
+  --text: #F4EDFB;
+  --muted: #A89BB8;
+  --dim: #6F6080;
+  --heat: #FF8447;
+  --cool: #5DD3D3;
+  --on: #8CE598;
+  --alert: #FF6B7A;
+  --accent: #C8A8FF;
+
+  --display: "Bricolage Grotesque", "Bricolage", ui-serif, Georgia, serif;
+  --body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+
+:root[data-theme="light"] {
+  --bg: #FAF6F2;
+  --surface: #FFFFFF;
+  --surface2: #F1ECE5;
+  --border: #E2DAD0;
+  --text: #1F1828;
+  --muted: #776A82;
+  --dim: #A89BB8;
+  --heat: #E0631F;
+  --cool: #0AA1A1;
+  --on: #3B9C5E;
+  --alert: #D63B4D;
+  --accent: #7A4DD9;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* iOS Safari shows its own touch scroll indicator on the document body and
+   CSS can't suppress it. Trick: pin the body so it doesn't scroll, and let
+   #root own the scrolling. The internal scroller's webkit scrollbar is
+   hidden by the rule further down. */
+html,
+body {
+  overflow: hidden;
+}
+#root {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Use the browser/OS default text size as the rem unit. Every fontSize in
+   the app is expressed in rem, so when the user bumps the OS font size
+   (iOS: Accessibility → Display → Text Size; Android: Display → Font size)
+   the whole app rescales proportionally. */
+html {
+  font-size: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
+  /* No iOS rubber-band scroll; pull-to-refresh is handled inside the SPA. */
+  overscroll-behavior-y: contain;
+  /* Disable iOS double-tap zoom on the whole app — we never want it.
+     Use `pan-x pan-y` to allow scroll/pan but block the pinch gesture too. */
+  touch-action: pan-x pan-y;
+  /* Respect the device safe areas when launched as a standalone PWA so
+     content doesn't hide under notches / home indicators. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  box-sizing: border-box;
+}
+
+/* Hide the scrollbar everywhere. Content still scrolls — only the gutter is
+   invisible. Mirrors the chrome of native iOS/Android apps. */
+html {
+  scrollbar-width: none; /* Firefox */
+}
+html::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none; /* Safari / Chrome / Edge */
+}
+
+input,
+button,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Spinning fancoil icon — used in the home dashboard to make "running" obvious
+   at a glance. 2 s is slow enough not to be visually noisy from across the
+   room but fast enough that a glance confirms motion. */
+@keyframes rehau-fan-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.rehau-fan-spin {
+  animation: rehau-fan-spin 2s linear infinite;
+  transform-origin: 50% 50%;
+}
+

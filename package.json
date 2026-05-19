@@ -1,0 +1,29 @@
+{
+  "name": "rehau-nea-smart-2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "REHAU Nea Smart 2 ↔ MQTT + REST API bridge with React control app",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:bridge": "npm run dev -w @rehau/bridge",
+    "dev:web": "npm run dev -w @rehau/web",
+    "build": "npm run build -w @rehau/types && npm run build -w @rehau/bridge && npm run build -w @rehau/web",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "snapshot": "tsx scripts/snapshot.ts",
+    "hashpw": "tsx scripts/hashpw.ts"
+  },
+  "devDependencies": {
+    "bcrypt": "^5.1.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "undici": "^7.1.0"
+  }
+}
