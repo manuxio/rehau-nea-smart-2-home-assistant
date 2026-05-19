@@ -18,7 +18,7 @@ describe("loadConfig", () => {
   });
 
   it("enables installer access when DEVICE_INSTALLER_CODE is set", () => {
-    const cfg = loadConfig({ ...baseEnv, DEVICE_INSTALLER_CODE: "78602d11" } as NodeJS.ProcessEnv);
+    const cfg = loadConfig({ ...baseEnv, DEVICE_INSTALLER_CODE: "aabbccdd" } as NodeJS.ProcessEnv);
     expect(hasInstallerAccess(cfg)).toBe(true);
   });
 

@@ -114,7 +114,7 @@ describe("parseWeeklyProgram", () => {
 describe("parseSystemInfo", () => {
   it("extracts unique code + firmware versions + season window", () => {
     const out = parseSystemInfo(read("user-config-installer.html"));
-    expect(out.uniqueCode).toBe("78602d11303856504e3225ee27165454");
+    expect(out.uniqueCode).toBe("aabbccdd00112233445566778899aabbccddeeff00112233");
     expect(out.fw.master).toBe("6.15");
     expect(out.fw.web).toBe("0.25");
     expect(out.fw.umodules).toEqual({ umodule0: "1.2" });

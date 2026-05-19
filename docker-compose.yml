@@ -10,7 +10,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DEVICE_URL: ${DEVICE_URL:-http://10.160.18.139}
+      DEVICE_URL: ${DEVICE_URL:-http://10.0.0.1}
       DEVICE_INSTALLER_CODE: ${DEVICE_INSTALLER_CODE:-}
       DEVICE_ID: ${DEVICE_ID:-}
       MQTT_URL: ${MQTT_URL:-}

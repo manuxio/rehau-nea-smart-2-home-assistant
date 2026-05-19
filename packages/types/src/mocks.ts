@@ -152,7 +152,7 @@ export const seedSystem: SystemState = {
     web: "0.25",
     umodules: { umodule0: "1.2" },
   },
-  uniqueCode: "78602d11303856504e3225ee27165454",
+  uniqueCode: "aabbccdd00112233445566778899aabbccddeeff00112233",
   ssid: "manu-iot",
   meta: { lastUpdatedAt: ago(3) },
 };

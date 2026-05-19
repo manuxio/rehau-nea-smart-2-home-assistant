@@ -33,7 +33,7 @@ Current published version: see `rehau-bridge/config.yaml` → `version:`.
 
 ```
 REHAU base station (LAN, HTTP only, no auth on most pages, installer
-code 78602d11 unlocks "installer" pages)
+code <installer-code> unlocks "installer" pages)
        │
        │  GET / POST plain HTML forms (cheerio scrape)
        ▼
@@ -198,11 +198,11 @@ the addon card based on that version differing from what's installed.
 
 ### Test locally without HA
 During development I've been deploying via Samba to a live HA instance:
-`\\automation.local\addons\local-disabled\rehau-bridge\`. After each
+`\\<ha-host>\addons\local-disabled\rehau-bridge\`. After each
 edit: build → copy to that folder → bump version in BOTH the samba
 copy AND the repo copy → in HA: Reload store → Update → restart addon.
 (Alternative: `node --watch` on local apps/bridge with `.env` pointing
-to `http://10.160.18.139` — same REHAU device.)
+to `http://<rehau-base-ip>` — same REHAU device.)
 
 ### Publish to GitHub
 The repo's `main` branch is protected but the maintainer's push bypasses
@@ -390,10 +390,9 @@ Things that have come back to bite us. Don't re-discover them:
 
 - `.env` (gitignored) at repo root for local dev. See `.env.example`
   for the full schema. Notable:
-  - `DEVICE_URL=http://10.160.18.139` (the dev REHAU device)
-  - `DEVICE_INSTALLER_CODE=78602d11`
-  - `MQTT_URL=mqtt://automation.local:1883`, MQTT_USERNAME=`rehau`,
-    MQTT_PASSWORD=`rehau`
+  - `DEVICE_URL=http://<rehau-base-ip>` (the dev REHAU device)
+  - `DEVICE_INSTALLER_CODE=<installer-code>`
+  - `MQTT_URL=mqtt://<ha-host>:1883`, MQTT_USERNAME, MQTT_PASSWORD (set by your Mosquitto add-on)
   - `INSTALLATION_NAME=Casa` (or whatever; slugified for the topic)
 - In the HA add-on, these come from `/data/options.json` via
   `run.sh`. The defaults in `rehau-bridge/config.yaml` `options:` are
@@ -429,8 +428,8 @@ Things that have come back to bite us. Don't re-discover them:
   these sessions; English is the user-facing language of the project.
 - The user is hands-on technical — assume they can run shell commands,
   bump versions, restart addons, etc.
-- The user's HA host is `automation.local` (Mosquitto + this addon).
-- The user's REHAU base is `http://10.160.18.139` on the LAN.
+- The user's HA host is `<ha-host>` (Mosquitto + this addon).
+- The user's REHAU base is `http://<rehau-base-ip>` on the LAN.
 - Past confirmed feedback (do NOT undo these without explicit ask):
   - inline styles + CSS vars are intentional (NOT a tech debt)
   - default language = EN

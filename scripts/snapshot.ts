@@ -3,15 +3,15 @@
 // offline against these fixtures and we re-snapshot on FW bumps.
 //
 // Usage:
-//   DEVICE_URL=http://10.160.18.139 \
-//   DEVICE_INSTALLER_CODE=78602d11 \
+//   DEVICE_URL=http://10.0.0.1 \
+//   DEVICE_INSTALLER_CODE=aabbccdd \
 //   npm run snapshot
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { request } from "undici";
 
-const DEVICE_URL = process.env.DEVICE_URL ?? "http://10.160.18.139";
+const DEVICE_URL = process.env.DEVICE_URL ?? "http://10.0.0.1";
 const INSTALLER_CODE = process.env.DEVICE_INSTALLER_CODE;
 const FW_TAG = process.env.FW_TAG ?? "fw-6.15";
 const OUT_DIR = resolve(import.meta.dirname, "..", "tests", "fixtures", FW_TAG);
