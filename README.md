@@ -16,6 +16,19 @@ clean web UI served via HA ingress.
 
 ## Screenshots
 
+### In Home Assistant
+
+Once the add-on is installed and started, HA discovers a single
+MQTT device with all the entities — climate per room, system selects,
+sensors, switches, diagnostics — populated from the live state of the
+REHAU base station.
+
+<p align="center">
+  <img src="docs/screenshots/00-ha-device.png" alt="Home Assistant device page for REHAU Nea Smart 2" width="720"/>
+</p>
+
+### In the bundled Web UI (mobile)
+
 The bundled web UI is mobile-first — installable as a PWA from any
 browser, themed for dark and light, EN + IT. Below is the resident
 side (top row) and the installer side (bottom row), captured on

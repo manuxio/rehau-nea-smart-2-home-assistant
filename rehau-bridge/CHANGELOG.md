@@ -1,5 +1,14 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.2
+
+- **TabBar bottom gap on iOS PWA.** The fixed bottom bar had a hard
+  14 px bottom padding that compounded with the iPhone's home-indicator
+  safe area, leaving a noticeable empty band below the icons. The
+  TabBar now sets `padding-bottom: calc(env(safe-area-inset-bottom) + 4 px)`
+  so the icons sit just above the home indicator on every device, and
+  the bar's tinted background extends edge-to-edge.
+
 ## 6.0.1
 
 - **Language-agnostic parsing.** The bridge previously assumed the REHAU
