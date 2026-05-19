@@ -14,6 +14,52 @@ clean web UI served via HA ingress.
 
 ---
 
+## Screenshots
+
+The bundled web UI is mobile-first — installable as a PWA from any
+browser, themed for dark and light, EN + IT. Below is the resident
+side (top row) and the installer side (bottom row), captured on
+iPhone in standalone PWA mode.
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/01-home.png" alt="Home dashboard" width="240"/><br/>
+      <sub><b>Home</b> — installation name, scenes, room cards with live temperature, setpoint and a fancoil-running / light-on indicator.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/02-room-dial.png" alt="Room detail" width="240"/><br/>
+      <sub><b>Room detail</b> — radial setpoint dial, current temperature, humidity, and a mode segmented control (standby / normal / reduced / program).</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/03-room-prefs.png" alt="Room preferences" width="240"/><br/>
+      <sub><b>Preferences & accessories</b> — display lock, auto-start, open-window detection toggles, plus fan / flap / light status and calibration read-out.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/04-system.png" alt="System view" width="240"/><br/>
+      <sub><b>System</b> — operating mode tiles (heating / cooling, with manual variants), energy level pills, outdoor temperature and active offset.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/05-programs-daily.png" alt="Programs editor" width="240"/><br/>
+      <sub><b>Programs</b> — drag-to-paint 24×4 grid editor for the 10 daily programs (15-minute resolution). Weekly programs map a daily id to each weekday.</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="docs/screenshots/06-installer-calibration.png" alt="Installer calibration" width="240"/><br/>
+      <sub><b>Installer · Calibration</b> — outdoor probe offset and per-room temperature / humidity offsets, with debounced commits to the device.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%" colspan="3">
+      <img src="docs/screenshots/07-installer-curve.png" alt="Installer heat curve" width="240"/><br/>
+      <sub><b>Installer · Curve</b> — live heat-curve preview with slope, reduction and max-flow, plus direct edit of every installer parameter exposed by the REHAU page.</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Contents
 
 | Add-on | Slug | What it does |
