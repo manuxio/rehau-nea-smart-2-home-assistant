@@ -1,5 +1,16 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.1
+
+- **Language-agnostic parsing.** The bridge previously assumed the REHAU
+  device's web UI was in Italian — it matched the words "esterna" (for
+  outdoor temp), "Modulo-U" (for U-module sections in I/O) and
+  "Versione" (for firmware versions). Now we extract these values by
+  DOM structure / trailing-number regex, so the addon works for any of
+  REHAU's UI languages (Deutsch, English, Français, Türk, Italiano,
+  русский, românesc, polski, Nederlands, español, český, magyar,
+  српски, български, svenska).
+
 ## 6.0.0
 
 Complete rewrite. See the [repository CHANGELOG](../CHANGELOG.md) for

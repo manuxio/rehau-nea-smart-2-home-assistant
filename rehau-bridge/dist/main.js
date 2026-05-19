@@ -1121,7 +1121,9 @@ var parseDashboard = (html) => {
   const $ = cheerio.load(html);
   const opSelected = $("#opMode option[selected]").attr("value") ?? $("#opMode option").first().attr("value") ?? "5";
   const elSelected = $("#energyL option[selected]").attr("value") ?? $("#energyL option").first().attr("value") ?? "2";
-  const outdoor = num($('h3:contains("esterna")').text()) ?? 0;
+  const outdoorText = $("h3.textCenter").first().text();
+  const outdoorMatch = /(-?\d+(?:\.\d+)?)/.exec(outdoorText);
+  const outdoor = outdoorMatch ? Number(outdoorMatch[1]) : 0;
   const clock = $("h2.textCenter").first().text().trim();
   return {
     outdoorTemp: outdoor,
@@ -1329,7 +1331,7 @@ var parseIO = (html) => {
         target = "master";
         umoduleData = null;
       } else {
-        const m = /Modulo-U\s*(\d+)/i.exec(t2);
+        const m = /(\d+)\s*$/.exec(t2);
         if (m) {
           const key = `umodule${m[1]}`;
           umoduleData = { relay: [], di: [], aiC: [], aoPct: 0 };
@@ -1364,15 +1366,21 @@ var parseSystemInfo = (html) => {
   const text = $("body").text();
   const uniqueCode = (/Unique code\s*:\s*([0-9a-f]+)/i.exec(text)?.[1] ?? "").trim();
   const master = (/Master:\s*([\d.]+)/.exec(text)?.[1] ?? "").trim();
-  const web = (/Versione pagina Web\s*([\d.]+)/.exec(text)?.[1] ?? "").trim();
   const umodules = {};
-  const umodRe = /Versione Modulo-U\s+(\d+):\s*([\d.\s]+)/g;
-  let m;
-  while ((m = umodRe.exec(text)) !== null) {
-    const n = m[1];
-    const v = (m[2] ?? "").replace(/\s+/g, "");
-    umodules[`umodule${n}`] = v;
-  }
+  let web = "";
+  $("label").each((_, el) => {
+    const t = $(el).text().trim();
+    if (!t || /master/i.test(t)) return;
+    const um = /\b(\d+)\s*:\s*([\d.\s]+?)\s*$/.exec(t);
+    if (um) {
+      umodules[`umodule${um[1]}`] = (um[2] ?? "").replace(/\s+/g, "");
+      return;
+    }
+    if (!web) {
+      const v = /(\d+\.\d+(?:\.\d+)?)\s*$/.exec(t);
+      if (v) web = v[1] ?? "";
+    }
+  });
   return {
     uniqueCode,
     fw: { master, web, umodules },
