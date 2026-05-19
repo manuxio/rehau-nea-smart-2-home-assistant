@@ -1,0 +1,120 @@
+---
+name: REHAU Nea Smart 2 Bridge (local)
+version: "6.0.0"
+slug: rehau_bridge_local
+description: >-
+  Local HTTP/MQTT bridge for the REHAU Nea Smart 2.0 base station.
+  Talks directly to the device on the LAN — no cloud, no e-mail, no 2FA.
+  Publishes climate, sensors and per-room switches via MQTT discovery
+  and exposes a web UI via HA ingress.
+url: https://github.com/manuxio/rehau-nea-smart-2-home-assistant
+arch:
+  - aarch64
+  - amd64
+  - armv7
+
+# We're a long-running TCP+MQTT server, not a one-shot.
+init: false
+startup: services
+boot: auto
+
+# Ingress exposes the bundled SPA at the HA sidebar entry; the same Fastify
+# instance also serves /api/v1/* under the same port.
+ingress: true
+ingress_port: 8080
+ingress_stream: false
+panel_icon: mdi:radiator
+panel_title: REHAU
+
+# We also expose the port directly so power users and the MQTT discovery
+# /openapi.json clients can reach it without going through ingress.
+ports:
+  8080/tcp: 8080
+ports_description:
+  8080/tcp: REST API + Web UI
+
+# "OPEN WEB UI" button → opens the direct LAN URL in a clean tab (no HA
+# sidebar/iframe wrapper). The sidebar entry above still uses ingress for
+# inside-HA access. [HOST] and [PORT:8080] are placeholders HA expands at
+# runtime to the actual host IP / mapped port.
+webui: "http://[HOST]:[PORT:8080]/"
+
+# HA injects MQTT credentials from the configured broker when present.
+services:
+  - mqtt:need
+
+options:
+  # ── device ───────────────────────────────────────────────
+  device_url: "http://10.0.0.1"
+  device_installer_code: ""
+  installation_name: "Casa"
+  device_request_timeout_ms: 22000
+  device_min_gap_ms: 150
+
+  # ── api ──────────────────────────────────────────────────
+  api_user: "admin"
+  # bcrypt hash of the password the user wants. The default below is "admin123"
+  # — change it before exposing the addon outside HA ingress.
+  api_password_hash: "$2a$12$6TYJt5u.0SRyx9yuqwcF.OP4TQcyma1cHwrVgNc/bEpp2o6C1MdH."
+  jwt_secret: ""
+  jwt_ttl: "30d"
+  admin_role: "installer"
+
+  # ── mqtt overrides (optional — leave empty to use HA-provided service) ─
+  mqtt_url: ""
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_base_topic: "rehau"
+  mqtt_ha_discovery: true
+  mqtt_ha_discovery_prefix: "homeassistant"
+
+  # ── polling (seconds) ───────────────────────────────────
+  poll_dashboard_s: 30
+  poll_rooms_s: 15
+  poll_room_detail_s: 60
+  poll_messages_s: 300
+  poll_io_s: 10
+
+  # ── expose ──────────────────────────────────────────────
+  expose_io: true
+  expose_calibration: true
+  room_floors: ""
+
+  # ── logging ─────────────────────────────────────────────
+  log_level: "info"
+  log_format: "json"
+
+schema:
+  device_url: url
+  device_installer_code: password?
+  installation_name: str
+  device_request_timeout_ms: "int(1000,120000)"
+  device_min_gap_ms: "int(0,5000)"
+
+  api_user: str
+  api_password_hash: str
+  jwt_secret: password?
+  jwt_ttl: str
+  admin_role: list(user|installer)
+
+  mqtt_url: str?
+  mqtt_username: str?
+  mqtt_password: password?
+  mqtt_base_topic: str
+  mqtt_ha_discovery: bool
+  mqtt_ha_discovery_prefix: str
+
+  poll_dashboard_s: "int(5,3600)"
+  poll_rooms_s: "int(5,3600)"
+  poll_room_detail_s: "int(5,3600)"
+  poll_messages_s: "int(30,3600)"
+  poll_io_s: "int(5,600)"
+
+  expose_io: bool
+  expose_calibration: bool
+  room_floors: str?
+
+  log_level: list(fatal|error|warn|info|debug|trace)
+  log_format: list(json|pretty)
+
+documentation: https://github.com/manuxio/rehau-nea-smart-2-home-assistant/blob/main/rehau-bridge/README.md

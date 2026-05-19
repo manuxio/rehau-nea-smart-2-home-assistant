@@ -1,295 +1,286 @@
-# REHAU NEA SMART 2.0 - Home Assistant Integration
+# REHAU Nea Smart 2 — Home Assistant add-ons
 
-READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! 
+Local, cloud-free Home Assistant integration for the **REHAU Nea Smart 2.0**
+heating / cooling base station. Talks straight to the device on the LAN
+(HTTP scrape) and re-publishes everything as MQTT discovery entities plus a
+clean web UI served via HA ingress.
 
-[PROJECT STALLED](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/issues/61#issuecomment-4464673551)
+> **v6.0.0 is a complete rewrite.** The previous releases used the REHAU
+> cloud (Playwright login, e-mail 2FA, OAuth2). This version drops all of
+> that — it speaks HTTP directly to the base station. No e-mail, no 2FA,
+> no third-party servers, no rate limits, no privacy surface.
 
-READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! READ THIS! 
-
-
-<div align="center">
-
-![Version](https://img.shields.io/badge/Version-5.1.9-blue.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg?logo=typescript)
-![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg?logo=node.js)
-![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg?logo=docker)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Add--on-orange.svg?logo=home-assistant)
-![MQTT](https://img.shields.io/badge/MQTT-Bridge-brightgreen.svg)
-
-**Professional MQTT bridge and web interface for REHAU NEA SMART 2.0 heating systems**
-
-[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Screenshots](#-screenshots) • [Support](#-support)
-
-</div>
+[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A//github.com/manuxio/rehau-nea-smart-2-home-assistant)
 
 ---
 
-## 📋 Overview
+## Contents
 
-This project provides a complete integration solution for REHAU NEA SMART 2.0 heating systems with Home Assistant. It features:
+| Add-on | Slug | What it does |
+|---|---|---|
+| [REHAU Nea Smart 2 Bridge (local)](./rehau-bridge) | `rehau_bridge_local` | Polls the base station, publishes HA MQTT discovery, serves a Web UI under ingress, exposes a REST API + Swagger. |
 
-- **MQTT Bridge** - Real-time bidirectional communication with REHAU cloud
-- **Modern Web UI** - Progressive Web App with mobile-first design
-- **REST API** - Complete programmatic access with Swagger documentation
-- **Automatic 2FA** - Seamless email-based two-factor authentication
-- **Home Assistant Discovery** - Zero-configuration entity creation
-
-> **⚠️ DISCLAIMER:** This is an unofficial, community-developed integration. It is **NOT affiliated with, endorsed by, or supported by REHAU AG or REHAU Industries SE & Co. KG**. REHAU® and NEA SMART® are registered trademarks of REHAU. Use this software at your own risk.
+The add-on supports `amd64`, `aarch64` and `armv7` — i.e. every host HA
+Supervisor runs on (Intel NUC, Raspberry Pi 4/5, ODROID, generic ARM SBC).
 
 ---
 
-## ✨ Features
+## What this does for you
 
-### Core Functionality
-- ✅ **Full Climate Control** - Temperature, modes, presets for all zones
-- ✅ **Real-time Updates** - Instant synchronization via MQTT
-- ✅ **Automatic Discovery** - Home Assistant entities created automatically
-- ✅ **2FA Automation** - POP3-based automatic verification code handling
-- ✅ **Cloudflare Bypass** - Playwright-based browser automation
-- ✅ **Token Management** - Automatic refresh with 6-hour validity
+- **One HA device per REHAU installation** — climate, sensor, switch and
+  binary_sensor entities are auto-discovered. No YAML, no templates.
+- **Per-room climate** with the right mode mapping (`standby`→`off`,
+  `normal`/`reduced`→`heat`, `program`→`auto`) and preset support for
+  REHAU's native modes.
+- **Fancoil awareness** — speed and flap state are surfaced as diagnostic
+  sensors, plus a `binary_sensor` that mirrors the pink "fan running"
+  badge on the REHAU console.
+- **Lock / Auto-start / Open-window detection** per room exposed as
+  HA switches (config entity category) — wires straight to the
+  `room-set-up.html` form on the device.
+- **Calibration offsets** (outdoor probe + per-room temperature/humidity)
+  visible as diagnostic sensors when `expose_calibration: true`.
+- **Raw I/O** of master + every U-module (RZ, RELAY, DI, AI, AO) when
+  `expose_io: true`, useful for power-user automations.
+- **Web UI** (React SPA, dark/light theme, EN/IT) under HA ingress, also
+  exposed directly on `http://<ha-host>:8080/` for fullscreen / PWA use.
+- **Auto-login through HA ingress** — clicking the sidebar entry drops
+  you straight into the dashboard, no password prompt.
+- **Mobile-first**: PWA manifest, status-bar safe areas, scrollbars
+  hidden, pinch zoom disabled, font scales with the OS text-size
+  preference. Add to home screen → fullscreen app.
 
-### Web Interface
-- 📱 **Progressive Web App** - Install on mobile/desktop
-- 🎨 **Modern UI** - React + TypeScript with responsive design
-- 🌓 **Dark Mode** - Eye-friendly interface
-- 📊 **Real-time Dashboard** - System status and monitoring
-- 🔐 **Secure Authentication** - JWT-based access control
+## How it works
 
-### Advanced Features
-- 🔄 **Staleness Detection** - Automatic data freshness monitoring
-- 📈 **Resource Monitoring** - Memory and CPU usage tracking
-- 📝 **Enhanced Logging** - Obfuscated, exportable logs
-- 🔌 **OAuth2 Support** - Gmail and Outlook POP3 integration
-- 🏥 **Health Checks** - System diagnostics and monitoring
-
----
-
-## 🚀 Quick Start
-
-### Home Assistant OS (Recommended)
-
-1. **Add Repository**
-   ```
-   https://github.com/manuxio/rehau-nea-smart-2-home-assistant
-   ```
-
-2. **Install Add-on**
-   - Navigate to Settings → Add-ons → Add-on Store
-   - Find "REHAU NEA SMART 2.0 MQTT Bridge"
-   - Click Install
-
-3. **Configure**
-   - Set REHAU credentials
-   - Configure POP3 email for 2FA (see [2FA Setup](#2fa-setup))
-   - Set MQTT broker details
-
-4. **Start**
-   - Enable "Start on boot" and "Watchdog"
-   - Click Start
-
-### Docker
-
-> **Note**: Docker images are automatically published to GitHub Container Registry on every release. After pushing this workflow, images will be available at `ghcr.io/manuxio/rehau-nea-smart-2-home-assistant:latest`
-
-```bash
-# Build locally (until first GHCR image is published)
-cd rehau-nea-smart-mqtt-bridge
-docker build -t rehau-bridge .
-
-# Or pull from GHCR (after first publish)
-docker pull ghcr.io/manuxio/rehau-nea-smart-2-home-assistant:latest
-
-# Run
-docker run -d \
-  --name rehau-bridge \
-  -p 3000:3000 \
-  -e REHAU_EMAIL=your@email.com \
-  -e REHAU_PASSWORD=your_password \
-  -e POP3_EMAIL=your@gmx.de \
-  -e POP3_PASSWORD=pop3_password \
-  -e POP3_HOST=pop.gmx.net \
-  -e MQTT_HOST=your-mqtt-broker \
-  -e API_PASSWORD=secure_password \
-  rehau-bridge
-  # Or: ghcr.io/manuxio/rehau-nea-smart-2-home-assistant:latest
+```
+                                           ┌────────────────────────────┐
+                                           │  Home Assistant (Supervisor)│
+                          HA add-on        │                            │
+                       ┌──────────────────┐│   Mosquitto add-on (mqtt)  │
+                       │                  ││             ▲              │
+   LAN HTTP            │    Node.js       ││             │              │
+   ┌───────────┐       │    Fastify       ││             │              │
+   │           │ ◄───► │    + cheerio     ├┴─MQTT─►──────┘              │
+   │ REHAU base│       │    + mqtt.js     │                             │
+   │ station   │       │    + React SPA   ├──── HA Ingress ─► sidebar  │
+   │           │       │                  │                             │
+   └───────────┘       └──────┬───────────┘                             │
+                              │                                         │
+                              └────── REST + Swagger ─► port 8080 ──────┤
+                                                                        │
+                                                              Browser / │
+                                                              PWA       │
+                                                                        │
+                                                          └─────────────┘
 ```
 
-### Standalone
+1. A poller scrapes the REHAU device's installer web UI on a tight
+   schedule (rooms every 15 s, room details round-robin every 60 s, I/O
+   every 10 s, messages every 5 min — all tunable).
+2. State is normalised into a typed store; every change emits an event.
+3. The MQTT bridge publishes retained state JSON per topic, plus HA
+   discovery payloads (climate, sensor, switch, binary_sensor) so HA
+   builds the device card automatically.
+4. The Fastify server exposes a JSON REST API (`/api/v1/*`), a Swagger
+   UI (`/docs`), and the bundled React SPA at `/`.
 
-```bash
-git clone https://github.com/manuxio/rehau-nea-smart-2-home-assistant.git
-cd rehau-nea-smart-2-home-assistant/rehau-nea-smart-mqtt-bridge
-npm install
-cp .env.example .env
-# Edit .env with your credentials
-npm run build
-npm start
+### Why local, not cloud
+
+| | Local (this add-on) | Cloud-based (previous v5 line) |
+|---|---|---|
+| Latency | ~150 ms LAN round-trip | seconds — and a Playwright session has to be running |
+| Auth | One installer code | E-mail account + password + 2FA via POP3 / OAuth2 |
+| Rate limit | None (your device) | REHAU may throttle |
+| Privacy | Nothing leaves the LAN | Your control state goes through REHAU's servers |
+| Outage tolerance | Works if HA + REHAU on LAN | Breaks the moment REHAU has an outage |
+
+The trade-off: local needs the **installer code** for the device (printed
+on the box, sticker, or the unique code page on the device itself). Cloud
+needed your REHAU MyHome account. Pick whichever fits your setup; you can
+only run one at a time.
+
+---
+
+## Quick start
+
+1. **Add this repository** to your Home Assistant Supervisor:
+   - Settings → Add-ons → Add-on Store → **⋮** (top right) → **Repositories**
+   - Paste:
+     `https://github.com/manuxio/rehau-nea-smart-2-home-assistant`
+   - **Add** and close.
+
+   *(Or click the **Add to Home Assistant** badge at the top of this README.)*
+
+2. **Install** the *REHAU Nea Smart 2 Bridge (local)* add-on from the
+   Add-on Store (you'll find it under the new repository, near the
+   bottom of the page).
+
+3. **Configure** — open the add-on, *Configuration* tab, and set at
+   minimum:
+   - `device_url` — e.g. `http://10.0.0.50` (the REHAU base station IP)
+   - `device_installer_code` — the 8-character installer code from the
+     REHAU device's *Unique Code* page
+   - `installation_name` — a short label shown in HA and used to slug
+     the MQTT topic path (e.g. `Casa`, `Office`, `Apartment-3F`)
+
+   Leave the MQTT fields blank: if you have the **Mosquitto broker**
+   add-on installed and active, the bridge auto-discovers it. Override
+   only if you use an external broker.
+
+4. **Start** the add-on. Within ~30 s you'll see:
+   - one `climate.<installation>_<room>` entity per zone
+   - `sensor.<installation>_<room>_humidity` per zone
+   - `select.<installation>_operating_mode`, `_energy_level`
+   - `binary_sensor.<installation>_alarms_active`
+   - switches for room lock / auto-start / window detection, plus the
+     room light when applicable
+   - diagnostic sensors for fancoil running / fan speed / flap (rooms
+     that have a fancoil assigned and active in the current system mode)
+   - diagnostic binary_sensors / sensors for I/O channels (if
+     `expose_io: true`)
+   - diagnostic sensors for calibration offsets (if
+     `expose_calibration: true`)
+
+5. **Open the Web UI**:
+   - Sidebar icon **REHAU** → opens inside HA via ingress (auto-login).
+   - Or `http://<ha-host>:8080/` → fullscreen, PWA-installable.
+
+---
+
+## Configuration reference
+
+All options live in the add-on's *Configuration* tab. Defaults shown.
+
+| Key | Default | What |
+|---|---|---|
+| `device_url` | `http://10.0.0.1` | LAN URL of the REHAU base station |
+| `device_installer_code` | *(empty)* | 8-char installer password, required |
+| `installation_name` | `Casa` | Human-readable label, HA device name, MQTT topic slug |
+| `device_request_timeout_ms` | `22000` | Per-request timeout against REHAU |
+| `device_min_gap_ms` | `150` | Cool-down between consecutive REHAU calls — raise to 250-400 ms if you see ConnectTimeout |
+| `api_user` / `api_password_hash` | `admin` / bcrypt of `admin123` | Web UI auth credentials |
+| `jwt_secret` / `jwt_ttl` | auto / `30d` | Token signing secret and lifetime. Leave secret blank to auto-generate (persisted) |
+| `admin_role` | `installer` | `user` or `installer` (gates the installer tabs in the UI) |
+| `mqtt_url` / `mqtt_username` / `mqtt_password` | *(empty)* | Override MQTT broker; leave blank to use HA Mosquitto |
+| `mqtt_base_topic` | `rehau` | Root MQTT topic — installation slug is appended (e.g. `rehau/casa/...`) |
+| `mqtt_ha_discovery` | `true` | Publish HA MQTT discovery payloads |
+| `mqtt_ha_discovery_prefix` | `homeassistant` | HA's discovery prefix; only change if your HA does |
+| `poll_dashboard_s` / `poll_rooms_s` / `poll_room_detail_s` / `poll_messages_s` / `poll_io_s` | 30 / 15 / 60 / 300 / 10 | Polling intervals — lower = more responsive, more LAN traffic to REHAU |
+| `expose_io` | `true` | Publish raw I/O diagnostics (keeps installer session open) |
+| `expose_calibration` | `true` | Publish calibration offsets as diagnostic sensors |
+| `room_floors` | *(empty)* | UI-only floor mapping, format `0:Floor 1,1:Floor 1,2:Ground floor` |
+| `log_level` / `log_format` | `info` / `json` | `fatal/error/warn/info/debug/trace`, `json` or `pretty` |
+
+---
+
+## MQTT topic structure
+
+```
+<base>/<installation-slug>/<device-id>/
+├── system/state                                # JSON
+├── system/operating_mode/set                   # command topic
+├── system/energy_level/set                     # command topic
+├── messages                                    # JSON array
+├── alarms/active                               # "true" | "false"
+├── alarms/count                                # integer
+├── io                                          # JSON snapshot
+├── availability                                # "online" | "offline" (LWT)
+└── rooms/<room-id>/
+    ├── state                                   # full Room JSON
+    ├── setpoint/set                            # float °C
+    ├── mode/set                                # standby|normal|reduced|program
+    ├── light/set                               # "true" | "false"
+    ├── lock/set                                # "true" | "false"
+    ├── auto_start/set                          # "true" | "false"
+    └── window_detection/set                    # "true" | "false"
 ```
 
----
+Example with `installation_name=Casa` and `device_id=27165454`:
+`rehau/casa/27165454/rooms/r-arianna/state`
 
-## 🔐 2FA Setup
-
-REHAU requires email-based two-factor authentication. The bridge handles this automatically via POP3.
-
-### Recommended: GMX.de
-
-1. **Create Account** at [gmx.de](https://www.gmx.de) (free, German provider)
-2. **Enable POP3** in settings
-3. **Setup Forwarding** from `noreply@accounts.rehau.com` to your GMX account
-4. **Configure Bridge**:
-   ```env
-   POP3_EMAIL=your@gmx.de
-   POP3_PASSWORD=your_password
-   POP3_HOST=pop.gmx.net
-   POP3_PORT=995
-   POP3_SECURE=true
-   ```
-
-### Alternative Providers
-
-- **Gmail** - Requires OAuth2 (see [OAuth2 Setup](./rehau-nea-smart-mqtt-bridge/docs/OAUTH2_GMAIL_SETUP.md))
-- **Outlook** - Requires OAuth2 (see [OAuth2 Setup](./rehau-nea-smart-mqtt-bridge/docs/OAUTH2_OUTLOOK_SETUP.md))
-- **Any POP3 Provider** - Configure host/port accordingly
+The slug-in-the-path lets multiple installations coexist on the same
+broker without collisions.
 
 ---
 
-## 📸 Screenshots
+## Web UI
 
-### Mobile Web UI (iPhone 14)
+The bundled React SPA lives at `/` and is also reachable behind HA
+ingress (sidebar icon "REHAU"). Features:
 
-<div align="center">
+- **Dashboard** — room cards with current temperature, setpoint, mode
+  pill, program strip, fancoil status (icon spins when running), light
+  state (icon glows when on).
+- **System** — operating mode, energy level, outdoor temperature,
+  seasonal window, device info, link to Swagger docs.
+- **Messages** — REHAU alarms / events with active filter.
+- **Programs** — visual editor for the 10 daily programs (15-min
+  resolution, drag-to-paint) and the 5 weekly programs (per-day
+  stepper).
+- **Installer** (installer role only) — heat curve, calibration,
+  bus topology, live I/O, diagnostics, and direct edit of every
+  installer-page setting (curve / heat-cool / devices / functions /
+  PID / fancoil).
+- **Room detail** — radial setpoint dial, mode segmented control,
+  per-room preferences (lock / auto-start / window detection),
+  accessories (light, fancoil status, flap).
+- Dark + light theme, EN + IT, OS-text-size aware, mobile/PWA optimised.
 
-| Dashboard | Zones | Zone Detail |
-|-----------|-------|-------------|
-| ![Dashboard](./rehau-nea-smart-mqtt-bridge/docs/screenshots/02-dashboard.png) | ![Zones](./rehau-nea-smart-mqtt-bridge/docs/screenshots/03-zones.png) | ![Zone Detail](./rehau-nea-smart-mqtt-bridge/docs/screenshots/04-zone-detail.png) |
-
-| System Status | Login |
-|---------------|-------|
-| ![System](./rehau-nea-smart-mqtt-bridge/docs/screenshots/05-system.png) | ![Login](./rehau-nea-smart-mqtt-bridge/docs/screenshots/01-login.png) |
-
-</div>
-
----
-
-## 📚 Documentation
-
-### Getting Started
-- **[Installation Guide](./rehau-nea-smart-mqtt-bridge/README.md#installation)** - Detailed setup instructions
-- **[Configuration](./rehau-nea-smart-mqtt-bridge/README.md#configuration-options)** - All available options
-- **[2FA Setup](./rehau-nea-smart-mqtt-bridge/README.md#-breaking-changes---version-400-february-2026)** - Email configuration
-
-### Advanced
-- **[REST API](http://localhost:3000/api-docs)** - Swagger documentation (when running)
-- **[OAuth2 Setup](./rehau-nea-smart-mqtt-bridge/docs/oauth2-setup.md)** - Gmail/Outlook integration
-- **[Docker Guide](./rehau-nea-smart-mqtt-bridge/docs/DOCKER_GUIDE.md)** - Container deployment
-- **[Changelog](./rehau-nea-smart-mqtt-bridge/docs/CHANGELOG.md)** - Version history
+REST + SSE are mounted under `/api/v1/`; OpenAPI 3 spec at
+`/openapi.json`, Swagger UI at `/docs`.
 
 ---
 
-## 🏠 Home Assistant Integration
+## Common issues
 
-### Auto-Discovered Entities
+**The bridge starts but I see no rooms.**
+The base station is unreachable. Check `device_url`, ping it from the
+HA host, verify the LAN. The bridge logs the first failure with the
+exact URL it tried.
 
-**Climate Controls** (per zone):
-```yaml
-climate.rehau_living_room:
-  current_temperature: 21.5
-  target_temperature: 22.0
-  hvac_mode: heat
-  preset_mode: comfort
-```
+**`ConnectTimeout` errors in the log.**
+REHAU's TCP socket table is small; back-to-back requests can exhaust
+TIME_WAIT. Raise `device_min_gap_ms` to `250` or `400`. The bridge
+already enforces a cool-down + retry.
 
-**Sensors**:
-- `sensor.rehau_bridge_status` - Connection status
-- `sensor.rehau_auth_status` - Authentication state
-- `sensor.rehau_outside_temperature` - Outdoor temperature
-- `sensor.rehau_zone_*_humidity` - Zone humidity levels
+**MQTT entities not appearing in HA.**
+Make sure the **Mosquitto** add-on is installed and started; the bridge
+auto-discovers it. If you use an external broker, set `mqtt_url`
+explicitly. Check the addon log for `mqtt connecting` and
+`ha discovery published`.
 
-**Binary Sensors**:
-- `binary_sensor.rehau_zone_*_stale` - Data freshness indicators
+**Web UI loads but every action fails with 401.**
+Your JWT expired. Default TTL is 30 days — long enough for mobile PWA
+use. Lower it via `jwt_ttl` if you want stricter sessions, or higher
+(`365d`, `100y`) if you really never want re-login.
 
----
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-**Authentication Fails**
-```
-✓ Verify REHAU credentials
-✓ Check POP3 configuration
-✓ Ensure email forwarding is active
-✓ Review logs with LOG_LEVEL=debug
-```
-
-**MQTT Connection Issues**
-```
-✓ Verify broker is running
-✓ Check MQTT_HOST and MQTT_PORT
-✓ Test with mosquitto_pub/sub
-✓ Verify credentials if auth enabled
-```
-
-**Web UI Not Loading**
-```
-✓ Ensure API_ENABLED=true
-✓ Check port 3000 is available
-✓ Clear browser cache
-✓ Review browser console errors
-```
-
-For detailed troubleshooting, see the [full documentation](./rehau-nea-smart-mqtt-bridge/README.md#-troubleshooting).
+**Fancoil button doesn't appear for a room that has a fancoil.**
+REHAU's installer page (`installer-room-set-up.html`) field `FanH`
+must be `HC` or `Heating` for heating-only systems. The bridge only
+shows what REHAU's UI shows; if you don't see the fancoil button on
+the REHAU display either, fix `FanH` there first.
 
 ---
 
-## 🤝 Contributing
+## Development
 
-Contributions are welcome! Please:
+Source for the bridge + web UI is in a separate monorepo:
+https://github.com/manuxio/rehau-nea-smart-2-api (private during dev,
+public soon). This repo only ships the **packaged add-on**: pre-built
+`dist/main.js` (tsup bundle) + pre-built React SPA, plus the HA
+manifest, Dockerfile, and run script.
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
----
-
-## 📄 License
-
-MIT License - See [LICENSE](./LICENSE) for details.
+Releases bump `version` in `rehau-bridge/config.yaml`; HA's Add-on
+Store shows an *Update* button when it differs from what's installed.
 
 ---
 
-## 🙏 Acknowledgments
+## License
 
-### Sponsors
+MIT. See the linked source repo for full text. The bundled fonts
+(IBM Plex Sans/Mono, Bricolage Grotesque) and the REHAU trademark
+remain property of their owners.
 
-This project is proudly sponsored by **[DomoDreams.it](https://domodreams.it)** - Your trusted partner for smart home solutions.
-
-### Contributors
-
-- **REHAU** for the NEA SMART 2.0 system
-- **Home Assistant** community
-- **Playwright** team for browser automation
-- All contributors and users
-
----
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/discussions)
-- **Documentation**: [Full README](./rehau-nea-smart-mqtt-bridge/README.md)
-
----
-
-<div align="center">
-
-**Made with ❤️ for the Home Assistant community**
-
-[⬆ Back to Top](#rehau-nea-smart-20---home-assistant-integration)
-
-</div>
+REHAU® and Nea Smart® are trademarks of REHAU AG. This project is an
+independent third-party integration, not affiliated with or endorsed
+by REHAU.

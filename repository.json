@@ -1,6 +1,5 @@
 {
-  "name": "REHAU NEA SMART 2.0 Add-ons",
+  "name": "REHAU Nea Smart 2 — Home Assistant add-ons",
   "url": "https://github.com/manuxio/rehau-nea-smart-2-home-assistant",
-  "maintainer": "DomoDreams",
-  "logo": "home-assistant-rehau-logo.png"
+  "maintainer": "Manu <manuxio@github>"
 }
