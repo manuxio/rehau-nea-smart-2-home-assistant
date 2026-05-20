@@ -37,7 +37,13 @@ export default function App() {
   // Scroll back to the top whenever the user moves between tabs or in/out of
   // a room detail screen. Without this, a long Dashboard scroll position
   // leaks into the next tab, which feels disorienting on mobile.
+  //
+  // Body has `overflow: hidden` and #root is the real scroll container
+  // (see index.css and CLAUDE.md §6), so `window.scrollTo` is a no-op —
+  // we have to scroll #root itself. The window call stays as a fallback
+  // for any non-PWA host that ever changes that assumption.
   useEffect(() => {
+    document.getElementById("root")?.scrollTo({ top: 0, behavior: "auto" });
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [route.tab, route.roomId]);
 

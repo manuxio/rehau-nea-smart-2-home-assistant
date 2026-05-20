@@ -1,5 +1,14 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.7
+
+- **Scroll position resets on tab change.** Switching between tabs
+  (and entering / leaving a room detail) now reliably scrolls back
+  to the top of the new view, so a long Dashboard scroll position
+  no longer leaks into System or Messages. The previous attempt
+  called `window.scrollTo`, but the SPA scrolls `#root` (body is
+  locked with `overflow: hidden`) — the call was a no-op.
+
 ## 6.0.6
 
 - **Login session now actually lasts 30 days.** The SPA stored the
@@ -47,6 +56,7 @@ Complete rewrite. See the [repository CHANGELOG](../CHANGELOG.md) for
 the full story.
 
 Headline features:
+
 - Local HTTP scraping of the REHAU base station — no cloud, no 2FA.
 - Per-room climate + fancoil + light + room-flags via MQTT discovery.
 - React Web UI with auto-login under HA ingress, mobile/PWA optimised.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.0.7 — 2026-05-20
+
+### Fixed
+
+- **Tab change now scrolls the SPA back to the top.** The existing
+  `useEffect` called `window.scrollTo`, but body has `overflow: hidden`
+  and `#root` is the real scroller — the call was a no-op. Switched to
+  scroll the `#root` element directly. Affects both tab changes in the
+  TabBar and entering / leaving a room detail.
+
 ## 6.0.6 — 2026-05-20
 
 ### Added
