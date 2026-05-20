@@ -527,35 +527,35 @@ export const TabBar = ({
         <button
           key={i.value}
           onClick={() => onChange(i.value)}
+          // Label text was removed; expose it to assistive tech and as a
+          // desktop hover tooltip so the icon-only bar stays discoverable.
+          aria-label={i.label}
+          title={i.label}
           style={{
             flex: 1,
             border: "none",
             background: "transparent",
             cursor: "pointer",
-            padding: "8px 4px",
+            padding: "6px 4px",
             borderRadius: 10,
-            color: isActive ? "var(--text)" : "var(--dim)",
             display: "flex",
-            flexDirection: "column",
             alignItems: "center",
-            gap: 3,
-            fontFamily: "var(--body)",
-            fontSize: "0.625rem",
-            fontWeight: 600,
-            letterSpacing: 0.3,
+            justifyContent: "center",
           }}
         >
           <div
             style={{
-              padding: "4px 14px",
+              padding: "10px 22px",
               borderRadius: 999,
               background: isActive ? "color-mix(in oklab, var(--accent) 18%, transparent)" : "transparent",
               color: isActive ? "var(--accent)" : "var(--dim)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <Glyph name={i.icon} size={20} />
+            <Glyph name={i.icon} size={28} />
           </div>
-          {i.label}
         </button>
       );
     })}

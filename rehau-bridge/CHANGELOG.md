@@ -1,5 +1,13 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.8
+
+- **Icon-only TabBar.** Removed the text labels under each tab and
+  enlarged the icons (20 → 28 px) plus the active pill. Frees a row of
+  vertical space at the bottom of the screen. The full label is still
+  exposed via `aria-label` and `title` for assistive tech and desktop
+  tooltips.
+
 ## 6.0.7
 
 - **Scroll position resets on tab change.** Switching between tabs

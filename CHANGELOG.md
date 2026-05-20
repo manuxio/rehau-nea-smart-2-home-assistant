@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.0.8 — 2026-05-20
+
+### Changed
+
+- **TabBar is icon-only.** Removed the text labels under each tab and
+  bumped the icon size from 20 → 28 px (plus a roomier active pill).
+  Frees the vertical space the labels were occupying. `aria-label` and
+  `title` keep the names available to screen readers and as desktop
+  hover tooltips.
+
 ## 6.0.7 — 2026-05-20
 
 ### Fixed
