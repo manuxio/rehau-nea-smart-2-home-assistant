@@ -507,12 +507,10 @@ export const TabBar = ({
       right: 0,
       bottom: 0,
       display: "flex",
-      // Top: small breathing above the icons.
-      // Bottom: just enough to clear the iOS home indicator (safe-area) plus
-      // a few px so the icons aren't kissing it. On devices without a home
-      // indicator env(...) is 0 and we land at 4px — visually flush with
-      // the screen edge.
-      padding: "6px 6px calc(env(safe-area-inset-bottom, 0px) + 4px)",
+      // Without viewport-fit=cover, the layout viewport already ends ABOVE
+      // the home indicator on iOS PWA, so bottom: 0 sits at the right
+      // place and no env() math is needed.
+      padding: "6px 6px 6px",
       background: "color-mix(in oklab, var(--bg) 80%, transparent)",
       backdropFilter: "blur(20px)",
       WebkitBackdropFilter: "blur(20px)",
@@ -684,12 +682,11 @@ export const AppHeader = ({
   <div
     style={{
       position: "sticky",
-      // Pin BELOW the iOS status bar / Android notch when running as a PWA
-      // (env(safe-area-inset-top) is the size of that area, 0 in browsers
-      // without a status bar overlay). Body no longer applies safe-area
-      // padding (see index.css comment) so each fixed/sticky chrome
-      // element owns its safe-area offset.
-      top: "env(safe-area-inset-top, 0px)",
+      // No viewport-fit=cover on the page → the layout viewport already
+      // starts BELOW the status bar / notch on iOS PWA, so sticking at
+      // top: 0 lands the header right under the system chrome with no
+      // extra padding math. See index.html for the viewport rationale.
+      top: 0,
       zIndex: 30,
       background: "var(--bg)",
       // A 1-px border + a soft shadow gives the sticky region a clear edge

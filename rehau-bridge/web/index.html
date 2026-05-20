@@ -2,12 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- viewport-fit=cover so safe-area-insets honour notch/home bars -->
     <!-- maximum-scale=1 + user-scalable=no block pinch zoom on iOS/Android so
          the app feels native. The OS font size still propagates because we
          size everything in rem (see index.css :root font-size). The a11y
-         linter flags this; accepted intentionally per product brief. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+         linter flags this; accepted intentionally per product brief.
+
+         No viewport-fit=cover on purpose: with `cover` iOS extends the page
+         BEHIND the status bar / home indicator, and env(safe-area-inset-*)
+         has to be sprinkled across every fixed/sticky element to keep
+         content visible — fragile in practice (sticky pinning vs natural
+         flow, doubled paddings, headers riding too low). Without `cover`,
+         the layout viewport is already confined to the safe area, AppHeader
+         top: 0 sits just below the status bar, TabBar bottom: 0 sits just
+         above the home indicator, and no per-element env() math is needed. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <!-- Theme colour drives the Android status-bar/PWA chrome tint.
          Matches --bg from index.css (dark theme). -->
     <meta name="theme-color" content="#16101C" media="(prefers-color-scheme: dark)" />
@@ -39,8 +47,8 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
     />
-    <script type="module" crossorigin src="./assets/index-B00Tuuvb.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BkfytcKC.css">
+    <script type="module" crossorigin src="./assets/index-Dy1K7Dbr.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CeOeASsi.css">
   </head>
   <body>
     <div id="root"></div>

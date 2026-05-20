@@ -29,11 +29,11 @@ export function SettingsMenu() {
       ref={ref}
       style={{
         position: "fixed",
-        // Push down by the safe area so the button sits BELOW the iOS status
-        // bar / Android notch. Without this it overlaps the OS clock on a
-        // standalone PWA install and is unclickable.
-        top: "calc(env(safe-area-inset-top, 0px) + 16px)",
-        right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+        // Without viewport-fit=cover the layout viewport doesn't extend
+        // under the status bar; a plain 16 px offset puts the button
+        // 16 px below / right of the visible top-right corner everywhere.
+        top: 16,
+        right: 16,
         zIndex: 40,
       }}
     >
