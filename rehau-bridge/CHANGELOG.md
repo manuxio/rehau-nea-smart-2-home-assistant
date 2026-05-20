@@ -1,5 +1,26 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.6
+
+- **Login session now actually lasts 30 days.** The SPA stored the
+  JWT in `sessionStorage`, which dies when the browser tab / WebView
+  is killed — silently capping every session at one browser session
+  regardless of the configured JWT TTL. Moved to `localStorage`. On
+  PWA installs and the new mobile app this means you really stay
+  signed in across cold starts.
+- **Login form keyboard handling on iOS.** The form was locked at
+  `100vh` so the soft keyboard covered the password field and you
+  could only type blind. Switched to `100dvh` (dynamic viewport
+  height) plus a `scrollIntoView` on input focus, so the focused
+  input always sits above the keyboard.
+- **Native-mobile shell integration.** When the SPA detects it's
+  running inside the new `@rehau/mobile` React Native shell (via
+  `window.ReactNativeWebView`), it now surfaces two entry points
+  back to the native installation manager: a "Switch installation"
+  link on the login screen and a new "Installation" row at the top
+  of the System tab. In any other context (browser PWA, HA ingress)
+  these are invisible — no behaviour change for existing users.
+
 ## 6.0.2
 
 - **TabBar bottom gap on iOS PWA.** The fixed bottom bar had a hard

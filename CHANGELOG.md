@@ -1,28 +1,32 @@
 # Changelog
 
-## Unreleased
+## 6.0.6 — 2026-05-20
 
 ### Added
 
 - **`@rehau/mobile`** — Expo (React Native) shell that wraps the existing
   React SPA in a WebView, with a native bootstrap UI for selecting which
   bridge to talk to. Supports **multiple installations** (add / edit /
-  delete / switch) managed entirely by the native shell, outside the
-  WebView. See `apps/mobile/README.md`.
+  delete / switch / scan QR code) managed entirely by the native shell,
+  outside the WebView. See `apps/mobile/README.md`.
+- The SPA now detects when it's running inside the mobile shell
+  (`window.ReactNativeWebView`) and surfaces two entry points back to the
+  native installation manager: a "Switch installation" link on the login
+  screen and an "Installation" row at the top of the System tab. Hidden
+  in browser / HA-ingress contexts — no change for existing users.
 
 ### Fixed
 
-- `apps/web` auth now persists the JWT in `localStorage` instead of
-  `sessionStorage`. The previous behaviour silently capped session
-  duration at one browser session, defeating the 30-day JWT TTL. The
-  mobile WebView relied on this fix to keep users logged in across cold
-  starts and per-installation switches (localStorage is per-origin and
-  persisted by WKWebView / Android WebView).
-
-  *No bridge bump in this commit — rebuild `apps/web` and copy into
-  `rehau-bridge/web/` then bump `rehau-bridge/config.yaml` `version:` to
-  ship the auth fix to the add-on. The mobile app inherits the fix
-  automatically once it loads the rebuilt SPA.*
+- **JWT lifetime.** `apps/web/src/lib/auth.tsx` now persists the session
+  in `localStorage` instead of `sessionStorage`. The previous behaviour
+  silently capped sessions at one browser session, defeating the
+  configured 30-day JWT TTL — most visibly on PWA installs and the new
+  mobile app, where the user had to re-login on every cold start.
+- **iOS login keyboard.** `Login.tsx` was locked to `100vh` so the iOS
+  soft keyboard covered the focused input and the user could only type
+  blind. Switched to `100dvh` (dynamic viewport height) and added
+  `scrollIntoView` on every `Field` focus so the input always sits above
+  the keyboard.
 
 ## 6.0.0 — 2026-05-20
 
