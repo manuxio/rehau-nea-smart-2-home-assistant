@@ -22,7 +22,7 @@ const STORAGE_KEY = "rehau.session";
 
 const readSession = (): Session | null => {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as Session;
     if (!s.token || new Date(s.expiresAt).getTime() < Date.now()) return null;
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const baseUrl = useMemo(() => "" /* same-origin via Vite proxy in dev, Fastify in prod */, []);
 
   const logout = useCallback(() => {
-    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
     setSession(null);
   }, []);
 
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       username,
       expiresAt: r.expiresAt,
     };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     setSession(s);
   }, [api]);
 
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           username: "ingress",
           expiresAt: r.expiresAt,
         };
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
         setSession(s);
       })
       .catch(() => {

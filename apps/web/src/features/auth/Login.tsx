@@ -2,6 +2,11 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { btnStyle, Field } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
+import {
+  currentNativeInstallation,
+  isInNativeShell,
+  requestSwitchInstallation,
+} from "../../lib/runtime";
 
 export function Login() {
   const { login } = useAuth();
@@ -28,7 +33,11 @@ export function Login() {
     <form
       onSubmit={submit}
       style={{
-        height: "100vh",
+        // 100dvh shrinks when the on-screen keyboard appears (unlike 100vh, which
+        // is locked to the layout viewport and leaves the focused input under the
+        // keyboard with no scroll headroom). On older browsers without dvh
+        // support the layout falls back to natural height — still readable.
+        minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",
         padding: "80px 24px 40px",
@@ -112,6 +121,28 @@ export function Login() {
       <button type="submit" disabled={busy} style={btnStyle("primary", "lg")}>
         {busy ? t("auth.submitBusy") : t("auth.submit")}
       </button>
+
+      {isInNativeShell() && (
+        <button
+          type="button"
+          onClick={requestSwitchInstallation}
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: "10px 0 0",
+            cursor: "pointer",
+            color: "var(--accent)",
+            fontFamily: "var(--body)",
+            fontSize: "0.8125rem",
+            fontWeight: 500,
+            textAlign: "center",
+          }}
+        >
+          {t("system.installationSwitch")}
+          {currentNativeInstallation()?.name ? ` — ${currentNativeInstallation()?.name}` : ""}
+        </button>
+      )}
+
       <div
         style={{
           fontFamily: "var(--mono)",

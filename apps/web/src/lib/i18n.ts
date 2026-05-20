@@ -95,6 +95,9 @@ const it = {
     manual: "Manuale",
     docs: "Documentazione API",
     docsDesc: "Apri Swagger UI in una nuova scheda",
+    installation: "Installazione",
+    installationOnLabel: "Connesso a",
+    installationSwitch: "Cambia installazione",
   },
   modes: {
     heating_only: "Solo riscaldamento",
@@ -406,6 +409,9 @@ const en: typeof it = {
     manual: "Manual",
     docs: "API documentation",
     docsDesc: "Open Swagger UI in a new tab",
+    installation: "Installation",
+    installationOnLabel: "Connected to",
+    installationSwitch: "Switch installation",
   },
   modes: {
     heating_only: "Heating only",

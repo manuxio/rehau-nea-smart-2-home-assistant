@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`@rehau/mobile`** — Expo (React Native) shell that wraps the existing
+  React SPA in a WebView, with a native bootstrap UI for selecting which
+  bridge to talk to. Supports **multiple installations** (add / edit /
+  delete / switch) managed entirely by the native shell, outside the
+  WebView. See `apps/mobile/README.md`.
+
+### Fixed
+
+- `apps/web` auth now persists the JWT in `localStorage` instead of
+  `sessionStorage`. The previous behaviour silently capped session
+  duration at one browser session, defeating the 30-day JWT TTL. The
+  mobile WebView relied on this fix to keep users logged in across cold
+  starts and per-installation switches (localStorage is per-origin and
+  persisted by WKWebView / Android WebView).
+
+  *No bridge bump in this commit — rebuild `apps/web` and copy into
+  `rehau-bridge/web/` then bump `rehau-bridge/config.yaml` `version:` to
+  ship the auth fix to the add-on. The mobile app inherits the fix
+  automatically once it loads the rebuilt SPA.*
+
 ## 6.0.0 — 2026-05-20
 
 **Complete rewrite.** The whole add-on has been replaced.

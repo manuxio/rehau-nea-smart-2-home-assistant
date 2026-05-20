@@ -13,6 +13,11 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { labelEnergyLevel, labelSystemMode, staleSec } from "../../lib/labels";
+import {
+  currentNativeInstallation,
+  isInNativeShell,
+  requestSwitchInstallation,
+} from "../../lib/runtime";
 
 const OP_MODES: SystemMode[] = ["heating_only", "cooling_only", "manual_heating", "manual_cooling"];
 const ENERGY: EnergyLevel[] = ["normal", "reduced", "standby", "auto", "vacation"];
@@ -49,9 +54,81 @@ export function System() {
     );
   }
 
+  const nativeInstallation = currentNativeInstallation();
+  const showNativeInstallationRow = isInNativeShell();
+
   return (
     <div style={{ paddingBottom: 110, maxWidth: 420, margin: "0 auto" }}>
       <AppHeader title={t("system.title")} subtitle={t("system.updatedSeconds", { n: staleSec(sys.meta.lastUpdatedAt) })} />
+
+      {showNativeInstallationRow && (
+        <>
+          <SectionHead title={t("system.installation")} />
+          <Card style={{ margin: "0 16px" }}>
+            <button
+              type="button"
+              onClick={requestSwitchInstallation}
+              style={{
+                width: "100%",
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                textAlign: "left",
+                font: "inherit",
+                color: "inherit",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 4px",
+                }}
+              >
+                <Glyph name="wrench" size={16} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontFamily: "var(--mono)",
+                      fontSize: "0.625rem",
+                      color: "var(--muted)",
+                      letterSpacing: 0.6,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {t("system.installationOnLabel")}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--body)",
+                      fontSize: "0.9375rem",
+                      color: "var(--text)",
+                      fontWeight: 500,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {nativeInstallation?.name ?? "—"}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontFamily: "var(--body)",
+                    fontSize: "0.8125rem",
+                    color: "var(--accent)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {t("system.installationSwitch")}
+                </div>
+              </div>
+            </button>
+          </Card>
+        </>
+      )}
 
       <SectionHead title={t("system.operatingMode")} />
       <div style={{ padding: "0 16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>

@@ -812,6 +812,20 @@ export const Field = ({
           spellCheck={false}
           data-1p-ignore={isPasswordy ? undefined : "true"}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={(e) => {
+            // iOS WKWebView and Android WebView don't always scroll the focused
+            // input above the soft keyboard. Forcing it on focus closes that
+            // gap. The delay lets the keyboard finish animating in before we
+            // measure the resulting visual viewport.
+            const el = e.currentTarget;
+            window.setTimeout(() => {
+              try {
+                el.scrollIntoView({ block: "center", behavior: "smooth" });
+              } catch {
+                /* ignore */
+              }
+            }, 300);
+          }}
           style={{
             flex: 1,
             background: "var(--surface)",
