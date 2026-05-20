@@ -1,5 +1,26 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.10
+
+- **Dashboard scroll position survives a room visit.** Going Home →
+  Room → Home (via the back button) now lands you exactly where you
+  left off in the room list, instead of yanking you back to the top.
+  Switching tabs and entering a fresh room still scroll to the top, as
+  before.
+- **TabBar last icon no longer clips off-screen on narrow phones.**
+  Shrunk the active pill's horizontal padding from 22 px to 12 px so
+  all five icons (including the installer tab) fit comfortably on a
+  360 px viewport.
+- **Theme, language, text-size, and logout moved into the System
+  page.** The floating gear button is gone. All of these now live in
+  the new "Preferences" and "Account" sections at the top of the
+  System tab. The login screen still inherits whatever theme/lang you
+  last set (it's persisted), there's just no in-place toggle there
+  anymore.
+- **Room preset chooser now sits above the setpoint dial.** Standby /
+  Normal / Reduced / Program is the first decision you make in a
+  room; the temperature dial follows. Reorder only — same controls.
+
 ## 6.0.9
 
 - **Temporary text-size slider in Settings.** While we tune the right

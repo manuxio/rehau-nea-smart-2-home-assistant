@@ -13,6 +13,7 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { labelEnergyLevel, labelSystemMode, staleSec } from "../../lib/labels";
+import { usePrefs } from "../../lib/prefs";
 import {
   currentNativeInstallation,
   isInNativeShell,
@@ -23,9 +24,11 @@ const OP_MODES: SystemMode[] = ["heating_only", "cooling_only", "manual_heating"
 const ENERGY: EnergyLevel[] = ["normal", "reduced", "standby", "auto", "vacation"];
 
 export function System() {
-  const { api } = useAuth();
+  const { api, logout } = useAuth();
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const { theme, lang, uiScale, setTheme, setLang, setUiScale } = usePrefs();
+  const scalePercent = Math.round((uiScale - 1) * 100);
   const sysQ = useQuery({ queryKey: ["system"], queryFn: () => api.system.get(), refetchInterval: 5000 });
 
   const setOp = useMutation({
@@ -281,6 +284,93 @@ export function System() {
         <KV label={t("system.ssid")} value={sys.ssid} />
       </Card>
 
+      <SectionHead title={t("system.preferences")} />
+      <Card style={{ margin: "0 16px" }}>
+        <PrefRow label={t("common.theme")}>
+          <Seg>
+            <SegBtn active={theme === "dark"} onClick={() => setTheme("dark")}>
+              {t("common.dark")}
+            </SegBtn>
+            <SegBtn active={theme === "light"} onClick={() => setTheme("light")}>
+              {t("common.light")}
+            </SegBtn>
+          </Seg>
+        </PrefRow>
+        <Sep />
+        <PrefRow label={t("common.language")}>
+          <Seg>
+            <SegBtn active={lang === "it"} onClick={() => setLang("it")}>
+              IT
+            </SegBtn>
+            <SegBtn active={lang === "en"} onClick={() => setLang("en")}>
+              EN
+            </SegBtn>
+          </Seg>
+        </PrefRow>
+        <Sep />
+        <div style={{ padding: "10px 4px", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div
+            style={{
+              fontFamily: "var(--mono)",
+              fontSize: "0.625rem",
+              color: "var(--muted)",
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+            }}
+          >
+            {t("common.uiScale")}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <input
+              type="range"
+              min={0}
+              max={40}
+              step={5}
+              value={scalePercent}
+              onChange={(e) => setUiScale(1 + Number(e.target.value) / 100)}
+              aria-label={t("common.uiScale")}
+              style={{ flex: 1, accentColor: "var(--accent)" }}
+            />
+            <span
+              style={{
+                fontFamily: "var(--mono)",
+                fontSize: "0.6875rem",
+                color: "var(--muted)",
+                minWidth: 36,
+                textAlign: "right",
+              }}
+            >
+              +{scalePercent}%
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      <SectionHead title={t("system.account")} />
+      <Card style={{ margin: "0 16px" }}>
+        <button
+          type="button"
+          onClick={logout}
+          style={{
+            width: "100%",
+            padding: "12px 4px",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--alert)",
+            fontFamily: "var(--body)",
+            fontSize: "0.9375rem",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <Glyph name="logout" size={16} color="var(--alert)" />
+          <span>{t("common.logout")}</span>
+        </button>
+      </Card>
+
       <SectionHead title={t("system.docs")} />
       <Card style={{ margin: "0 16px" }}>
         <a
@@ -305,5 +395,83 @@ export function System() {
         </a>
       </Card>
     </div>
+  );
+}
+
+// ─── Settings primitives (mirror the ones that used to live in
+//     SettingsMenu — small enough that duplicating beats wiring an import) ──
+
+function PrefRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "10px 4px",
+        gap: 12,
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--mono)",
+          fontSize: "0.625rem",
+          color: "var(--muted)",
+          letterSpacing: 0.6,
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function Seg({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 2,
+        padding: 2,
+        background: "var(--surface2)",
+        borderRadius: 8,
+        border: "1px solid var(--border)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SegBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "4px 10px",
+        borderRadius: 6,
+        border: "none",
+        background: active ? "var(--accent)" : "transparent",
+        color: active ? "#1a1024" : "var(--muted)",
+        fontFamily: "var(--body)",
+        fontSize: "0.6875rem",
+        fontWeight: 600,
+        letterSpacing: 0.2,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
   );
 }

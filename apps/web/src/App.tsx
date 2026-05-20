@@ -1,8 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { TabBar } from "./components/ui";
-import { SettingsMenu } from "./components/SettingsMenu";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { Installer } from "./features/installer/Installer";
 import { Login } from "./features/auth/Login";
@@ -34,18 +33,44 @@ export default function App() {
       : `Betterehau · ${t(`tabs.${route.tab}` as never, { defaultValue: route.tab })}`;
   }, [route, t]);
 
-  // Scroll back to the top whenever the user moves between tabs or in/out of
-  // a room detail screen. Without this, a long Dashboard scroll position
-  // leaks into the next tab, which feels disorienting on mobile.
+  // Tab change → scroll the new view to the top.
+  // Entering a room (tab → room) → save the tab's scroll position, scroll
+  //   the room view to the top.
+  // Leaving a room back to its parent tab (room → tab) → restore the saved
+  //   scroll so the user lands exactly where they left off in e.g. a long
+  //   Dashboard. Room → different room → top of the new room.
   //
   // Body has `overflow: hidden` and #root is the real scroll container
-  // (see index.css and CLAUDE.md §6), so `window.scrollTo` is a no-op —
-  // we have to scroll #root itself. The window call stays as a fallback
-  // for any non-PWA host that ever changes that assumption.
-  useEffect(() => {
-    document.getElementById("root")?.scrollTo({ top: 0, behavior: "auto" });
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, [route.tab, route.roomId]);
+  // (see index.css and CLAUDE.md §6), so we scroll #root itself.
+  // useLayoutEffect runs before paint so the user never sees the wrong
+  // offset flash. TanStack Query renders cached data synchronously when
+  // re-mounting the Dashboard so the page height is already correct by
+  // the time we set scrollTop.
+  const prevRouteRef = useRef(route);
+  const savedScrollByTab = useRef<Partial<Record<Tab, number>>>({});
+  useLayoutEffect(() => {
+    const prev = prevRouteRef.current;
+    prevRouteRef.current = route;
+    const root = document.getElementById("root");
+    if (!root) return;
+    if (prev.tab !== route.tab) {
+      root.scrollTop = 0;
+      window.scrollTo(0, 0); // PWA / non-#root host fallback
+      return;
+    }
+    if (prev.roomId !== route.roomId) {
+      if (route.roomId) {
+        // Entering a room (from tab or a different room) — preserve the tab's
+        // scroll only if we came from the tab, not from another room.
+        if (!prev.roomId) savedScrollByTab.current[prev.tab] = root.scrollTop;
+        root.scrollTop = 0;
+        window.scrollTo(0, 0);
+      } else {
+        // Leaving a room back to the parent tab — restore.
+        root.scrollTop = savedScrollByTab.current[route.tab] ?? 0;
+      }
+    }
+  }, [route]);
 
   const { offset, refreshing } = usePullToRefresh(async () => {
     await Promise.all([
@@ -68,8 +93,6 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", position: "relative" }}>
-      <SettingsMenu />
-
       {/* Pull-to-refresh indicator */}
       {(offset > 0 || refreshing) && (
         <div

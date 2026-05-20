@@ -87,8 +87,8 @@ body {
      Use `pan-x pan-y` to allow scroll/pan but block the pinch gesture too. */
   touch-action: pan-x pan-y;
   /* Safe-area handling is OWNED by the fixed/sticky chrome (AppHeader top,
-     TabBar bottom, SettingsMenu top-right) — each one adds env(safe-area-
-     inset-*) to its own padding so its background extends edge-to-edge
+     TabBar bottom) — each one adds env(safe-area-inset-*) to its own
+     padding so its background extends edge-to-edge
      while its content stays above the notch / home indicator. Putting
      safe-area padding on body too would push the body content (and the
      #root scroll viewport) down, leaving a large empty band ABOVE the

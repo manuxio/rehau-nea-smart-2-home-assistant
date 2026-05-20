@@ -99,6 +99,8 @@ const it = {
     installation: "Installazione",
     installationOnLabel: "Connesso a",
     installationSwitch: "Cambia installazione",
+    preferences: "Preferenze",
+    account: "Account",
   },
   modes: {
     heating_only: "Solo riscaldamento",
@@ -414,6 +416,8 @@ const en: typeof it = {
     installation: "Installation",
     installationOnLabel: "Connected to",
     installationSwitch: "Switch installation",
+    preferences: "Preferences",
+    account: "Account",
   },
   modes: {
     heating_only: "Heating only",

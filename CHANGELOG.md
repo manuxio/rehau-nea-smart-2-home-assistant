@@ -1,5 +1,28 @@
 # Changelog
 
+## 6.0.10 — 2026-05-20
+
+### Changed
+
+- **Dashboard scroll position survives a room visit.** Going Home →
+  Room → Home (back) now restores the previous Home scroll instead of
+  scrolling to the top. Tab changes and entering a fresh room still
+  scroll to the top.
+- **Preferences moved into the System tab.** Theme, language,
+  text-size slider, and logout now live in two new sections at the
+  top of the System tab ("Preferences" and "Account"). The floating
+  gear icon (`SettingsMenu`) is gone. Login screen inherits the
+  persisted prefs but no longer offers an in-place toggle.
+- **Room: Mode chooser now precedes the setpoint dial.** Standby /
+  Normal / Reduced / Program is the first decision; the temperature
+  dial follows.
+
+### Fixed
+
+- **TabBar last icon clipped on narrow viewports.** Shrunk the active
+  pill's horizontal padding from 22 px to 12 px so all five icons
+  fit on a 360 px screen.
+
 ## 6.0.9 — 2026-05-20
 
 ### Added

@@ -270,11 +270,24 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
         <Banner tone="info">{t("room.standbyNotice")}</Banner>
       )}
 
+      <SectionHead title={t("room.sectionMode")} />
+      <div style={{ padding: "0 16px", opacity: setMode.isPending ? 0.6 : 1 }}>
+        <Segmented<RoomMode>
+          value={room.mode === "program_override" ? "program" : room.mode}
+          onChange={(m) => {
+            if (commitTimer.current) clearTimeout(commitTimer.current);
+            setEdit(null);
+            setMode.mutate(m);
+          }}
+          options={ROOM_MODE_VALUES.map((v) => ({ value: v, label: t(`roomMode.${v}`) }))}
+        />
+      </div>
+
       <div
         style={{
           display: "flex",
           justifyContent: "center",
-          padding: "24px 0 8px",
+          padding: "16px 0 8px",
           opacity: dialDisabled ? 0.4 : 1,
           transition: "opacity .2s",
           pointerEvents: dialDisabled ? "none" : "auto",
@@ -332,19 +345,6 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
         >
           <Glyph name="plus" size={18} />
         </button>
-      </div>
-
-      <SectionHead title={t("room.sectionMode")} />
-      <div style={{ padding: "0 16px", opacity: setMode.isPending ? 0.6 : 1 }}>
-        <Segmented<RoomMode>
-          value={room.mode === "program_override" ? "program" : room.mode}
-          onChange={(m) => {
-            if (commitTimer.current) clearTimeout(commitTimer.current);
-            setEdit(null);
-            setMode.mutate(m);
-          }}
-          options={ROOM_MODE_VALUES.map((v) => ({ value: v, label: t(`roomMode.${v}`) }))}
-        />
       </div>
 
       <SectionHead title={t("room.sectionPreferences")} />

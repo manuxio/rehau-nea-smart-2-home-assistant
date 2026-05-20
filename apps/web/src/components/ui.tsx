@@ -545,7 +545,10 @@ export const TabBar = ({
         >
           <div
             style={{
-              padding: "10px 22px",
+              // Compact horizontal padding so 5 icons + the installer tab
+              // still fit comfortably on a 360 px Android viewport — at
+              // 22 px the rightmost icon was clipping off-screen.
+              padding: "8px 12px",
               borderRadius: 999,
               background: isActive ? "color-mix(in oklab, var(--accent) 18%, transparent)" : "transparent",
               color: isActive ? "var(--accent)" : "var(--dim)",
