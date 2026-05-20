@@ -576,7 +576,10 @@ export const SectionHead = ({ title, action }: { title: string; action?: ReactNo
       style={{
         margin: 0,
         fontFamily: "var(--display)",
-        fontSize: "0.8125rem",
+        // Compensate for the global --ui-scale on <html> so section titles
+        // (these little uppercase labels: "Installation", "Device", …)
+        // stay visually constant while body text scales up. See index.css.
+        fontSize: "calc(0.8125rem / var(--ui-scale, 1))",
         fontWeight: 600,
         color: "var(--muted)",
         textTransform: "uppercase",
@@ -709,7 +712,11 @@ export const AppHeader = ({
             margin: 0,
             fontFamily: "var(--display)",
             fontWeight: 600,
-            fontSize: "1.875rem",
+            // The big page title ("System", "Messages", "Programs", …) is
+            // already comfortable; the --ui-scale slider in SettingsMenu
+            // lets us bump body text without dragging this along — divide
+            // the rem by --ui-scale to keep this size constant.
+            fontSize: "calc(1.875rem / var(--ui-scale, 1))",
             letterSpacing: -0.6,
             lineHeight: 1.05,
             color: "var(--text)",

@@ -1,5 +1,16 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.9
+
+- **Temporary text-size slider in Settings.** While we tune the right
+  body-text baseline, the settings menu now exposes a 0..+40 % slider
+  (steps of 5 %) that scales the rem baseline of the whole SPA. The
+  big page title (AppHeader h1) and the small uppercase section
+  labels (SectionHead) compensate so they stay visually constant —
+  only body text, KV rows, captions etc. grow. The choice persists in
+  localStorage (`rehau.uiScale`). Will be removed once the right
+  baseline is picked and baked into `index.css`.
+
 ## 6.0.8
 
 - **Icon-only TabBar.** Removed the text labels under each tab and

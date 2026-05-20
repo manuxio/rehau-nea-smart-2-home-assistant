@@ -1,5 +1,18 @@
 # Changelog
 
+## 6.0.9 — 2026-05-20
+
+### Added
+
+- **Temporary text-size slider in Settings.** While we tune the right
+  body-text baseline, the SettingsMenu now exposes a 0..+40 % range
+  slider (5 % steps) that scales the global rem baseline via a new
+  `--ui-scale` CSS variable on `<html>`. The AppHeader page title and
+  SectionHead labels compensate so they stay visually constant — only
+  body text, KV rows, captions etc. grow. Persists per-user in
+  `localStorage("rehau.uiScale")`. To be removed once a final value
+  is baked into `index.css`.
+
 ## 6.0.8 — 2026-05-20
 
 ### Changed

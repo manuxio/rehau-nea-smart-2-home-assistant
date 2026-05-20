@@ -62,9 +62,17 @@ body {
 /* Use the browser/OS default text size as the rem unit. Every fontSize in
    the app is expressed in rem, so when the user bumps the OS font size
    (iOS: Accessibility → Display → Text Size; Android: Display → Font size)
-   the whole app rescales proportionally. */
+   the whole app rescales proportionally.
+
+   --ui-scale is a per-user baseline multiplier (1.0 by default) set in
+   apps/web/src/lib/prefs.tsx and surfaced via the SettingsMenu slider
+   while we tune the right default. Title styles (AppHeader h1 +
+   SectionHead) divide their own fontSize by --ui-scale so they stay
+   visually constant — everything else (body text, captions, KV rows)
+   scales up. Once a final value is chosen we bake it into the base
+   rems and remove the CSS variable. */
 html {
-  font-size: 100%;
+  font-size: calc(100% * var(--ui-scale, 1));
 }
 
 body {

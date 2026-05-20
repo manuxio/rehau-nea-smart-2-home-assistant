@@ -49,6 +49,7 @@ const it = {
     seconds: "{{n}} s",
     yes: "Sì",
     no: "No",
+    uiScale: "Dim. testo (prova)",
   },
   home: {
     house: "Casa",
@@ -363,6 +364,7 @@ const en: typeof it = {
     seconds: "{{n}} s",
     yes: "Yes",
     no: "No",
+    uiScale: "Text size (testing)",
   },
   home: {
     house: "Home",

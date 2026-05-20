@@ -10,8 +10,13 @@ import { Glyph } from "./ui";
  */
 export function SettingsMenu() {
   const { t } = useTranslation();
-  const { theme, lang, setTheme, setLang } = usePrefs();
+  const { theme, lang, uiScale, setTheme, setLang, setUiScale } = usePrefs();
   const { logout } = useAuth();
+  // TEMPORARY: while we choose the right body-text baseline. The slider
+  // value is a percent (0..40); state lives in usePrefs and is mirrored
+  // to the --ui-scale CSS variable on <html>. Once a value is picked it
+  // gets baked into index.css and this row is removed.
+  const scalePercent = Math.round((uiScale - 1) * 100);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -91,6 +96,34 @@ export function SettingsMenu() {
               <SegBtn active={lang === "en"} onClick={() => setLang("en")}>EN</SegBtn>
             </Seg>
           </Row>
+          <Sep />
+          {/* TEMPORARY ui-scale slider — drop together with the slider */}
+          <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+            <Label>{t("common.uiScale")}</Label>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="range"
+                min={0}
+                max={40}
+                step={5}
+                value={scalePercent}
+                onChange={(e) => setUiScale(1 + Number(e.target.value) / 100)}
+                aria-label={t("common.uiScale")}
+                style={{ flex: 1, accentColor: "var(--accent)" }}
+              />
+              <span
+                style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: "0.6875rem",
+                  color: "var(--muted)",
+                  minWidth: 36,
+                  textAlign: "right",
+                }}
+              >
+                +{scalePercent}%
+              </span>
+            </div>
+          </div>
           <Sep />
           <button
             type="button"
