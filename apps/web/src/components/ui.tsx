@@ -684,10 +684,12 @@ export const AppHeader = ({
   <div
     style={{
       position: "sticky",
-      // #root is the scrolling container (see index.css). Its viewport
-      // already sits below the OS safe area thanks to body's padding-top,
-      // so the sticky element only needs to pin at the top of #root.
-      top: 0,
+      // Pin BELOW the iOS status bar / Android notch when running as a PWA
+      // (env(safe-area-inset-top) is the size of that area, 0 in browsers
+      // without a status bar overlay). Body no longer applies safe-area
+      // padding (see index.css comment) so each fixed/sticky chrome
+      // element owns its safe-area offset.
+      top: "env(safe-area-inset-top, 0px)",
       zIndex: 30,
       background: "var(--bg)",
       // A 1-px border + a soft shadow gives the sticky region a clear edge
