@@ -57,6 +57,15 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  /* Push the scroll content down by the OS top safe area. The sticky
+     AppHeader inside this scroller pins at top: env(safe-area-inset-top)
+     — without this padding its natural flow position would be 0, and
+     sticky pinning would slide it DOWN by the safe-area amount,
+     overlapping the first content section (SCENES, OPERATING MODE…).
+     With the padding, the AppHeader's natural top matches its sticky
+     pin top, so the next content sits cleanly below it. */
+  padding-top: env(safe-area-inset-top, 0px);
+  box-sizing: border-box;
 }
 
 /* Use the browser/OS default text size as the rem unit. Every fontSize in
