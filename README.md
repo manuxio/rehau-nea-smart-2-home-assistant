@@ -12,6 +12,12 @@ clean web UI served via HA ingress.
 
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A//github.com/manuxio/rehau-nea-smart-2-home-assistant)
 
+> 📘 **First time here?** Read [`INSTALL.md`](INSTALL.md) — a step-by-step,
+> beginner-friendly walkthrough that covers switching the REHAU base
+> station into Access Point (Wi-Fi) mode, joining your Home Assistant host
+> to it, and installing the add-on. Every networking detail is explained
+> from scratch.
+
 ---
 
 ## Screenshots
@@ -178,12 +184,12 @@ If your installation is currently cloud-only, you'll need to:
    page (or the sticker / commissioning sheet). That's the
    `device_installer_code`.
 
-> 📘 **A full step-by-step installation guide — including pictures of
-> the REHAU base-station screens, AP-mode setup, and the first-time
-> bridge configuration — is being written and will be linked here as
-> soon as it's ready.** In the meantime, the *Quick start* below
-> assumes the base station is already on your LAN with the local
-> interface up.
+> 📘 **A full step-by-step installation guide — including AP-mode
+> setup, joining the HA host to the base station's Wi-Fi, and the
+> first-time bridge configuration — lives in
+> [`INSTALL.md`](INSTALL.md).** Start there if any of the above is
+> unfamiliar; the *Quick start* below assumes the base station is
+> already on your LAN with the local interface up.
 
 ## Quick start
 
