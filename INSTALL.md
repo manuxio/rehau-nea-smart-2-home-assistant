@@ -54,11 +54,24 @@ Getting this right is the only really tricky part of the whole setup. Step 4 cov
 
 This step happens on the device, not in Home Assistant.
 
+The button sequence from the official REHAU manual:
+
+<p align="center">
+  <img src="docs/screenshots/rehau-ap-mode-manual.png" alt="REHAU NEA SMART 2 Access Point mode activation sequence — hold OK + AP for 3 s until both WiFi/WLAN and AP LEDs blink, confirm with OK, then the device broadcasts NEASMART2-XX-XXX. Default Wi-Fi password is the first 8 characters of the WLAN MAC address (without colons). Setup UI is at http://192.168.0.2." width="640"/>
+</p>
+
+What the sequence does, in plain words:
+
 1. Stand in front of the NEA SMART 2.
-2. Use the physical button combination shown in the device's manual (or the image at the top of this README) to enter AP mode.
-3. After a few seconds, the NEA SMART 2 will start broadcasting its own Wi-Fi network. The network name (SSID) looks something like `NEASMART2-XXXXXX`.
+2. **Hold `OK + AP` for ~3 seconds.** The WiFi/WLAN and AP LEDs start blinking.
+3. **Press `OK` again** to confirm. AP mode is now active: the WLAN LED stays ON, AP LED stays ON.
+4. The device starts broadcasting its own Wi-Fi network — SSID looks like `NEASMART2-XX-XXX` (the suffix is part of its MAC address).
+5. The Wi-Fi password is the **first 8 characters of the device's WLAN MAC address, without the colons**. You'll find that MAC printed in the manual / on a sticker, or shown on the device screen under Settings.
+6. Once joined, the setup page is at <http://192.168.0.2>.
 
 > **Important: the Ethernet port on the NEA SMART 2 is disabled in AP mode.** Wi-Fi is the only way to reach it. Don't try to use a cable — it won't work.
+>
+> *Image © REHAU — reproduced here for instructional purposes; consult the official NEA SMART 2.0 manual (Chapter 08.03 "Operating in AP mode") for the authoritative version and per-firmware variations.*
 
 ---
 
