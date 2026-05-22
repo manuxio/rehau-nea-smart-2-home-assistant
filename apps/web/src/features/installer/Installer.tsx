@@ -186,40 +186,27 @@ export function Installer() {
                 key={v}
                 type="button"
                 onClick={() => setTab(v)}
+                aria-label={t(`installer.tabs.${v}`)}
+                title={t(`installer.tabs.${v}`)}
                 style={{
                   ...btnStyle(isActive ? "primary" : "ghost", "sm"),
                   padding: "8px 12px",
                   borderRadius: 999,
-                  whiteSpace: "nowrap",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 6,
-                  // Flex children default to shrink:1 — without this the
-                  // strip's flex layout squashes the icon SVGs down to
-                  // near-zero width when total content exceeds the
-                  // container, instead of letting the strip overflow-x
-                  // scroll as designed. That's why the icons were
-                  // invisible in v6.0.16-v6.0.18.
+                  justifyContent: "center",
+                  // flex children default to shrink:1, which collapses
+                  // SVG icons to near-zero width when total content
+                  // exceeds the strip — overflow-x:auto on the parent
+                  // only helps if buttons keep their natural size.
                   flexShrink: 0,
                 }}
               >
-                {/* Inactive tabs paint the icon in accent purple so it
-                    really pops next to the muted-grey label text;
-                    active tab gets the dark text color (inherited via
-                    `currentColor` default) so the icon stays readable
-                    on the purple pill. Size bumped to 16 since 14
-                    rendered nearly invisible at the previous palette. */}
-                {/* Active tab inherits text color (dark on purple)
-                    via the Glyph default of currentColor; passing
-                    color={undefined} explicitly trips
-                    exactOptionalPropertyTypes, so omit the prop
-                    entirely on the active branch. */}
                 {isActive ? (
-                  <Glyph name={TAB_ICONS[v]} size={20} />
+                  <Glyph name={TAB_ICONS[v]} size={22} />
                 ) : (
-                  <Glyph name={TAB_ICONS[v]} size={20} color="var(--accent)" />
+                  <Glyph name={TAB_ICONS[v]} size={22} color="var(--accent)" />
                 )}
-                {t(`installer.tabs.${v}`)}
               </button>
             );
           })}

@@ -36,43 +36,60 @@ REHAU base station.
 ### In the bundled Web UI (mobile)
 
 The bundled web UI is mobile-first — installable as a PWA from any
-browser, themed for dark and light, EN + IT. Below is the resident
-side (top row) and the installer side (bottom row), captured on
-iPhone in standalone PWA mode.
+browser, themed for dark / light, EN + IT. Every shot below comes
+straight from the running SPA against a real REHAU base station on
+the LAN — no mocks, no Photoshop, just headless-Chromium + a CSS
+phone frame.
 
 <table>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/screenshots/01-home.png" alt="Home dashboard" width="240"/><br/>
-      <sub><b>Home</b> — installation name, scenes, room cards with live temperature, setpoint and a fancoil-running / light-on indicator.</sub>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/00-login.png" alt="Login" width="280"/><br/>
+      <sub><b>Login</b> — JWT-bearer, local-only. No e-mail, no cloud, no 2FA. Under HA ingress the form is skipped entirely: the bridge reads <code>X-Ingress-Path</code> and hands the SPA a token automatically.</sub>
     </td>
-    <td align="center" width="33%">
-      <img src="docs/screenshots/02-room-dial.png" alt="Room detail" width="240"/><br/>
-      <sub><b>Room detail</b> — radial setpoint dial, current temperature, humidity, and a mode segmented control (standby / normal / reduced / program).</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/screenshots/03-room-prefs.png" alt="Room preferences" width="240"/><br/>
-      <sub><b>Preferences & accessories</b> — display lock, auto-start, open-window detection toggles, plus fan / flap / light status and calibration read-out.</sub>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/01-home.png" alt="Dashboard" width="280"/><br/>
+      <sub><b>Dashboard</b> — rooms grouped by floor, live temperature and humidity, current mode pill, and the active setpoint. Scenes (one-tap mode + setpoint roll-outs) sit at the top.</sub>
     </td>
   </tr>
   <tr>
-    <td align="center" width="33%">
-      <img src="docs/screenshots/04-system.png" alt="System view" width="240"/><br/>
-      <sub><b>System</b> — operating mode tiles (heating / cooling, with manual variants), energy level pills, outdoor temperature and active offset.</sub>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/02-room-detail.png" alt="Room — mode + setpoint" width="280"/><br/>
+      <sub><b>Room — mode + setpoint</b> — segmented mode chooser drives a radial dial. Writes are optimistic on the bridge: the new target shows instantly and reverts only if REHAU refuses it.</sub>
     </td>
-    <td align="center" width="33%">
-      <img src="docs/screenshots/05-programs-daily.png" alt="Programs editor" width="240"/><br/>
-      <sub><b>Programs</b> — drag-to-paint 24×4 grid editor for the 10 daily programs (15-minute resolution). Weekly programs map a daily id to each weekday.</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/screenshots/06-installer-calibration.png" alt="Installer calibration" width="240"/><br/>
-      <sub><b>Installer · Calibration</b> — outdoor probe offset and per-room temperature / humidity offsets, with debounced commits to the device.</sub>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/03-system.png" alt="System" width="280"/><br/>
+      <sub><b>System</b> — heating / cooling / manual tiles, energy-level pills (Normal · Reduced · Standby · Auto · Vacation), live outdoor temperature, and the active winter ↔ summer window.</sub>
     </td>
   </tr>
   <tr>
-    <td align="center" width="33%" colspan="3">
-      <img src="docs/screenshots/07-installer-curve.png" alt="Installer heat curve" width="240"/><br/>
-      <sub><b>Installer · Curve</b> — live heat-curve preview with slope, reduction and max-flow, plus direct edit of every installer parameter exposed by the REHAU page.</sub>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/04-floors.png" alt="Floors editor" width="280"/><br/>
+      <sub><b>Floors editor</b> — assign each room to a floor label. The Dashboard regroups (alphabetic) automatically; below the floors list sit the REHAU-state telemetry and app-version chips.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/05-scenes-editor.png" alt="Scene editor — global mode + setpoint" width="280"/><br/>
+      <sub><b>Scene editor — global</b> — name, icon (twenty options), scope (All rooms / Per-room), the target mode and, for Normal / Reduced, a setpoint Stepper. Apply once → every room writes through the optimistic-write path.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/06-scenes-perroom.png" alt="Scene editor — per-room" width="280"/><br/>
+      <sub><b>Scene editor — per-room</b> — flip the Scope toggle and each room gets its own mode + setpoint pair. Rooms left on "Skip" stay untouched when the scene fires — useful for asymmetric night-time profiles.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/07-programs.png" alt="Programs" width="280"/><br/>
+      <sub><b>Programs</b> — five weekly programs × ten daily slots, mirrored straight from the device. The slot picker is filled lazily — every slot is reachable, even ones REHAU's UI hides behind the dropdown.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/08-messages.png" alt="Messages" width="280"/><br/>
+      <sub><b>Messages</b> — REHAU notification log: alarm code, source channel, start / resolved timestamps. "Active only" filter and a one-tap "Acknowledge all" that POSTs <code>MessagesHidden=</code> on the device.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/phone/09-installer.png" alt="Installer — icon tabs" width="280"/><br/>
+      <sub><b>Installer</b> — restricted-access section for users with the installer code. Six subtabs (Curve, Calibration, Bus, I/O, Diagnostics, Advanced) live behind a horizontally-scrolling icon strip. Edits batch behind one Save button so REHAU's all-or-nothing forms get a single round-trip.</sub>
     </td>
   </tr>
 </table>
