@@ -194,6 +194,13 @@ export function Installer() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
+                  // Flex children default to shrink:1 — without this the
+                  // strip's flex layout squashes the icon SVGs down to
+                  // near-zero width when total content exceeds the
+                  // container, instead of letting the strip overflow-x
+                  // scroll as designed. That's why the icons were
+                  // invisible in v6.0.16-v6.0.18.
+                  flexShrink: 0,
                 }}
               >
                 {/* Inactive tabs paint the icon in accent purple so it

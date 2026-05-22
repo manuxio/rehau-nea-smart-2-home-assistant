@@ -1,5 +1,20 @@
 # Changelog
 
+## 6.0.20 — 2026-05-22
+
+- **Installer tab icons now actually visible.** The tabs are laid out
+  with `display: flex`, and SVG children have default `flex-shrink: 1`,
+  so once total content exceeded the strip width the icons got
+  squashed to ~3 px wide while the labels stayed full-size — making
+  the icons invisible. The strip is already `overflow-x: auto`, so
+  the proper behaviour is for the WHOLE button to keep its natural
+  size and the strip to scroll. Adding `flex-shrink: 0` to each tab
+  button restores that. v6.0.16 ↔ v6.0.19 shipped the icons but
+  rendered them invisibly — this is the real fix.
+- Also adds a `__SPA_BUILD__` console marker at boot so any future
+  "is this even the right bundle?" question is settled by opening
+  devtools.
+
 ## 6.0.18 — 2026-05-22
 
 - Installer tab icons now larger (16 px) and accent-coloured on
