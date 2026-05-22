@@ -1,5 +1,34 @@
 # Changelog
 
+## 6.0.23 — 2026-05-22
+
+### Fixed — cooling mode setpoint routing
+
+REHAU's `room-operating.html` reuses one set of JS variables
+(`normalSetPoint`, `reducedSetPoint`, `standbySetPoint`) for whichever
+season is active — in heating mode they carry heating values, in
+cooling they carry cooling values. The parser correctly extracted the
+numbers but the poller wrote them unconditionally into
+`setpointHeating`, leaving `setpointCooling` permanently null even
+when the system was in `manual_cooling` / `cooling_only`.
+
+Behaviour now:
+
+- Poller routes the active value into `setpointHeating` (heating
+  season) or `setpointCooling` (cooling season); the other side is
+  set to null so consumers can tell which is live at a glance.
+- `commander.setRoomSetpoint` / `setRoomMode` write the optimistic
+  patch to the matching slot too.
+- `setRoomLight` falls back across both slots (the room-page POST
+  needs *a* setpoint regardless of season).
+- SPA dashboard tile renders whichever slot is non-null.
+- HA MQTT climate template falls back across both, range widened to
+  5–35°C to span both seasons, mode list adds `cool`.
+
+Parsers themselves were not changed — they were already correct.
+Verified by running every parser against live `10.160.18.139` HTML
+in cooling mode.
+
 ## 6.0.22 — 2026-05-22
 
 - **Installer tabs go icon-only.** Same treatment as the bottom TabBar

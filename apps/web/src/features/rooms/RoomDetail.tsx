@@ -108,7 +108,7 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
     onSuccess: (r: Room) => {
       qc.setQueryData(["room", roomId], r);
       void qc.invalidateQueries({ queryKey: ["rooms"] });
-      toast.success(t("toast.setpointAt", { room: r.name, value: r.setpointHeating?.toFixed(1) ?? "—" }));
+      toast.success(t("toast.setpointAt", { room: r.name, value: (r.setpointHeating ?? r.setpointCooling)?.toFixed(1) ?? "—" }));
     },
     onError: () => toast.error(t("toast.saveFailed")),
     onSettled: () => {

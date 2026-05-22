@@ -195,11 +195,26 @@ export class Poller {
     return safe(logger, store, `room-detail-${zone}`, async () => {
       const d = await source.fetchRoomDetail(zone);
       const room = store.ensureRoomForZone(d.zone, d.name);
+
+      // REHAU's room-operating.html reuses the same JS vars
+      // (normalSetPoint / reducedSetPoint) for whichever season is
+      // active — they hold heating values when the system is heating
+      // and cooling values when it's cooling. The parser can't tell
+      // which is which from the page alone; we look at the system's
+      // operating mode and route the parsed value into the matching
+      // field, leaving the other side null. `setpointNormal` /
+      // `setpointReduced` mirror the active mode's slot pair so the
+      // SPA's per-mode chooser always reads the right number.
+      const sysMode = store.getSystem().operatingMode;
+      const isCooling = sysMode === "cooling_only" || sysMode === "manual_cooling";
+      const active = activeSetpoint(d);
+
       store.patchRoom(room.id, {
         name: d.name,
         temperature: d.temperature,
         humidity: d.humidity,
-        setpointHeating: activeSetpoint(d),
+        setpointHeating: isCooling ? null : active,
+        setpointCooling: isCooling ? active : null,
         setpointNormal: d.setpointHeatingNormal,
         setpointReduced: d.setpointHeatingReduced,
         setpointStandby: d.setpointStandby,

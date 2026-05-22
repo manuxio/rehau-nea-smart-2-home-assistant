@@ -88,12 +88,33 @@ export class Commander {
     }
   }
 
+  /**
+   * Whether the system is currently in a cooling-flavoured operating
+   * mode — affects which Room setpoint slot (setpointHeating vs
+   * setpointCooling) carries the active value. REHAU's room-operating
+   * page reuses one set of JS variables across both seasons, so we
+   * track the routing here.
+   */
+  private isCoolingActive(): boolean {
+    const m = this.a.store.getSystem().operatingMode;
+    return m === "cooling_only" || m === "manual_cooling";
+  }
+
+  /** Optimistic patch: write the value into the active-season slot and
+   *  null out the other so consumers can tell at a glance which
+   *  setpoint is live. */
+  private setpointPatch(value: number | null): Partial<Room> {
+    return this.isCoolingActive()
+      ? { setpointCooling: value, setpointHeating: null }
+      : { setpointHeating: value, setpointCooling: null };
+  }
+
   async setRoomSetpoint(roomId: string, value: number): Promise<Room | undefined> {
     const room = this.a.store.getRoom(roomId);
     if (!room) return undefined;
     return this.optimistic(
       room,
-      { setpointHeating: value },
+      this.setpointPatch(value),
       () =>
         this.a.source.setRoomSetpoint({
           zone: room.zone,
@@ -122,7 +143,7 @@ export class Commander {
     }
     return this.optimistic(
       room,
-      { mode, setpointHeating: slot },
+      { mode, ...this.setpointPatch(slot) },
       () =>
         this.a.source.setRoomMode({
           zone: room.zone,
@@ -138,10 +159,13 @@ export class Commander {
   async setRoomLight(roomId: string, light: boolean): Promise<Room | undefined> {
     const room = this.a.store.getRoom(roomId);
     if (!room) return undefined;
-    if (room.setpointHeating === null) {
+    // The light POST piggy-backs on the room-page.html form, which
+    // requires a setpoint field. Use whichever side is currently
+    // populated — they're never both non-null after a successful poll.
+    const sp = room.setpointHeating ?? room.setpointCooling;
+    if (sp === null) {
       throw Object.assign(new Error("room setpoint not yet known"), { statusCode: 503 });
     }
-    const heat = room.setpointHeating;
     return this.optimistic(
       room,
       { light },
@@ -150,7 +174,7 @@ export class Commander {
           zone: room.zone,
           name: room.name,
           light,
-          setpoint: heat,
+          setpoint: sp,
           mode: room.mode,
         }),
       () => this.a.poller.refreshRoom(room.zone),

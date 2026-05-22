@@ -133,12 +133,29 @@ var Commander = class {
       throw err;
     }
   }
+  /**
+   * Whether the system is currently in a cooling-flavoured operating
+   * mode — affects which Room setpoint slot (setpointHeating vs
+   * setpointCooling) carries the active value. REHAU's room-operating
+   * page reuses one set of JS variables across both seasons, so we
+   * track the routing here.
+   */
+  isCoolingActive() {
+    const m = this.a.store.getSystem().operatingMode;
+    return m === "cooling_only" || m === "manual_cooling";
+  }
+  /** Optimistic patch: write the value into the active-season slot and
+   *  null out the other so consumers can tell at a glance which
+   *  setpoint is live. */
+  setpointPatch(value) {
+    return this.isCoolingActive() ? { setpointCooling: value, setpointHeating: null } : { setpointHeating: value, setpointCooling: null };
+  }
   async setRoomSetpoint(roomId, value) {
     const room = this.a.store.getRoom(roomId);
     if (!room) return void 0;
     return this.optimistic(
       room,
-      { setpointHeating: value },
+      this.setpointPatch(value),
       () => this.a.source.setRoomSetpoint({
         zone: room.zone,
         name: room.name,
@@ -158,7 +175,7 @@ var Commander = class {
     }
     return this.optimistic(
       room,
-      { mode, setpointHeating: slot },
+      { mode, ...this.setpointPatch(slot) },
       () => this.a.source.setRoomMode({
         zone: room.zone,
         name: room.name,
@@ -172,10 +189,10 @@ var Commander = class {
   async setRoomLight(roomId, light) {
     const room = this.a.store.getRoom(roomId);
     if (!room) return void 0;
-    if (room.setpointHeating === null) {
+    const sp = room.setpointHeating ?? room.setpointCooling;
+    if (sp === null) {
       throw Object.assign(new Error("room setpoint not yet known"), { statusCode: 503 });
     }
-    const heat = room.setpointHeating;
     return this.optimistic(
       room,
       { light },
@@ -183,7 +200,7 @@ var Commander = class {
         zone: room.zone,
         name: room.name,
         light,
-        setpoint: heat,
+        setpoint: sp,
         mode: room.mode
       }),
       () => this.a.poller.refreshRoom(room.zone)
@@ -438,11 +455,15 @@ var Poller = class {
     return safe(logger, store, `room-detail-${zone}`, async () => {
       const d = await source.fetchRoomDetail(zone);
       const room = store.ensureRoomForZone(d.zone, d.name);
+      const sysMode = store.getSystem().operatingMode;
+      const isCooling = sysMode === "cooling_only" || sysMode === "manual_cooling";
+      const active = activeSetpoint(d);
       store.patchRoom(room.id, {
         name: d.name,
         temperature: d.temperature,
         humidity: d.humidity,
-        setpointHeating: activeSetpoint(d),
+        setpointHeating: isCooling ? null : active,
+        setpointCooling: isCooling ? active : null,
         setpointNormal: d.setpointHeatingNormal,
         setpointReduced: d.setpointHeatingReduced,
         setpointStandby: d.setpointStandby,
@@ -3430,12 +3451,17 @@ var buildRoomClimate = (ctx, room) => ({
     current_humidity_topic: ctx.topics.roomState(room.id),
     current_humidity_template: "{% if value_json.humidity is none %}unknown{% else %}{{ value_json.humidity }}{% endif %}",
     temperature_state_topic: ctx.topics.roomState(room.id),
-    temperature_state_template: "{% if value_json.setpointHeating is none %}unknown{% else %}{{ value_json.setpointHeating }}{% endif %}",
+    // Whichever season is active populates one slot; the other is null.
+    // Pick whichever is non-none. (See poller pollRoomDetail routing.)
+    temperature_state_template: "{% set sp = value_json.setpointHeating if value_json.setpointHeating is not none else value_json.setpointCooling %}{% if sp is none %}unknown{% else %}{{ sp }}{% endif %}",
     temperature_command_topic: ctx.topics.roomSetpointSet(room.id),
+    // Span the union of heating (5–31) and cooling (15–35) ranges so
+    // the HA climate card accepts a setpoint regardless of season.
+    // REHAU enforces the per-season range on its own side.
     min_temp: 5,
-    max_temp: 31,
+    max_temp: 35,
     temp_step: 0.5,
-    modes: ["off", "heat", "auto"],
+    modes: ["off", "heat", "cool", "auto"],
     mode_state_topic: ctx.topics.roomState(room.id),
     mode_state_template: ROOM_MODE_TO_HA_MODE_JINJA,
     mode_command_topic: ctx.topics.roomModeSet(room.id),

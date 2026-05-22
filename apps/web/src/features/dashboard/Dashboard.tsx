@@ -236,7 +236,13 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
                           fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {r.setpointHeating !== null ? `${r.setpointHeating.toFixed(1)}°` : "—"}
+                        {(() => {
+                          // Whichever season is active populates one
+                          // field; the other is null. Render whichever
+                          // is non-null, fall back to "—".
+                          const sp = r.setpointHeating ?? r.setpointCooling;
+                          return sp !== null ? `${sp.toFixed(1)}°` : "—";
+                        })()}
                       </div>
                     </div>
                   </div>
