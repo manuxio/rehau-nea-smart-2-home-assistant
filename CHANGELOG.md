@@ -1,5 +1,19 @@
 # Changelog
 
+## 6.0.16 — 2026-05-22
+
+### Added
+
+- Icons in the Installer tab strip — chart, sliders, network, io,
+  eye, wrench (Curve / Calibration / Bus / I/O / Diagnostics /
+  Advanced).
+
+### Fixed
+
+- Programs tab now shows all 5 weekly + 10 daily slots. The list
+  endpoints lazy-fill missing slots on first call instead of
+  returning only whatever happened to be cached.
+
 ## 6.0.15 — 2026-05-22
 
 - "Text size (testing)" → "Text size" — the slider is staying.

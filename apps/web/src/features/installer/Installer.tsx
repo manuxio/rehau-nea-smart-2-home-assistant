@@ -138,6 +138,17 @@ type Tab = "curve" | "calib" | "devices" | "io" | "diag" | "advanced";
 
 const TAB_VALUES: Tab[] = ["curve", "calib", "devices", "io", "diag", "advanced"];
 
+/** Icon per tab. Mostly reuses existing Glyphs; `chart`, `network` and
+ * `io` were added to ui.tsx in v6.0.16 specifically for this. */
+const TAB_ICONS: Record<Tab, string> = {
+  curve:    "chart",
+  calib:    "sliders",
+  devices:  "network",
+  io:       "io",
+  diag:     "eye",
+  advanced: "wrench",
+};
+
 const ADVANCED_GROUP_KEYS: InstallerSettingsGroup[] = ["heatcool", "devices", "functions", "pid", "fancoil"];
 
 export function Installer() {
@@ -175,11 +186,15 @@ export function Installer() {
               onClick={() => setTab(v)}
               style={{
                 ...btnStyle(tab === v ? "primary" : "ghost", "sm"),
-                padding: "8px 14px",
+                padding: "8px 12px",
                 borderRadius: 999,
                 whiteSpace: "nowrap",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
               }}
             >
+              <Glyph name={TAB_ICONS[v]} size={14} />
               {t(`installer.tabs.${v}`)}
             </button>
           ))}

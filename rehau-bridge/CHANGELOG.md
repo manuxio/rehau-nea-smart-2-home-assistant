@@ -1,5 +1,26 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.16
+
+### Added
+
+- **Icons in the Installer tab strip** — chart (Curve), sliders
+  (Calibration), network (Bus), io (I/O), eye (Diagnostics), wrench
+  (Advanced). Three new Glyphs (chart, network, io) for the tabs
+  that didn't have a good existing match.
+
+### Fixed
+
+- **Programs tab showed 1 weekly program instead of 5** (and
+  similarly daily programs trickled in one at a time). The Store
+  boots empty in live mode under the no-defaults rule, and the
+  list-endpoints just returned whatever happened to be cached.
+  `GET /api/v1/programs/daily` and `.../weekly` now lazy-fill any
+  missing slot (1..10 daily, 1..5 weekly) before responding. One-
+  time tax of a few seconds on the first Programs-tab visit;
+  subsequent reads come from cache. Errors per slot are swallowed
+  so one bad slot can't break the whole list.
+
 ## 6.0.15
 
 - Rename Settings: "Dim. testo (prova)" / "Text size (testing)" →

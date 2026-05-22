@@ -2871,7 +2871,17 @@ var registerProgramsRoutes = (app, { store, commander }) => {
       response: { 200: z7.array(dailyProgramSchema) },
       security: [{ bearerAuth: [] }]
     }
-  }, async () => store.listDailyPrograms());
+  }, async () => {
+    for (let n = 1; n <= 10; n++) {
+      if (!store.getDailyProgram(n)) {
+        try {
+          await commander.refreshDailyProgram(n);
+        } catch {
+        }
+      }
+    }
+    return store.listDailyPrograms();
+  });
   app.get("/api/v1/programs/daily/:n", {
     schema: {
       tags: ["programs"],
@@ -2912,7 +2922,17 @@ var registerProgramsRoutes = (app, { store, commander }) => {
       response: { 200: z7.array(weeklyProgramSchema) },
       security: [{ bearerAuth: [] }]
     }
-  }, async () => store.listWeeklyPrograms());
+  }, async () => {
+    for (let n = 1; n <= 5; n++) {
+      if (!store.getWeeklyProgram(n)) {
+        try {
+          await commander.refreshWeeklyProgram(n);
+        } catch {
+        }
+      }
+    }
+    return store.listWeeklyPrograms();
+  });
   app.get("/api/v1/programs/weekly/:n", {
     schema: {
       tags: ["programs"],

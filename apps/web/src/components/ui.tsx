@@ -80,6 +80,13 @@ export const Glyph = ({
     case "film":          return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h3M3 15h3M18 9h3M18 15h3M8 4v16M16 4v16"/></svg>;
     // Gift box — party / guests scene.
     case "gift":          return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 8h20v4H2z"/><path d="M12 8v13"/><path d="M12 8s-1-5-4-5-1 5 4 5zM12 8s1-5 4-5 1 5-4 5z"/></svg>;
+    // ─── Installer-tab additions ─────────────────────────────────────
+    // Trending line on an X/Y axis — the heat curve tab.
+    case "chart":         return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16"/><polyline points="7,16 11,10 14,13 20,5"/></svg>;
+    // Central node + four satellites — bus topology.
+    case "network":       return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5"><circle cx="12" cy="12" r="2.5"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M6.5 6.5l4 4M17.5 6.5l-4 4M6.5 17.5l4-4M17.5 17.5l-4-4" strokeLinecap="round"/></svg>;
+    // Two opposed arrows — I/O channels (signals in + out).
+    case "io":            return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h13M12 4l4 4-4 4"/><path d="M21 16H8M12 20l-4-4 4-4"/></svg>;
     default: return null;
   }
 };

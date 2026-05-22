@@ -24,13 +24,29 @@ export const registerProgramsRoutes = (
   { store, commander }: ProgramsRoutesDeps,
 ): void => {
   // ─── daily ──────────────────────────────────────────────────
+  // Lazy-fill any missing slot before returning the list. REHAU exposes
+  // a fixed catalogue of 10 daily and 5 weekly programs; with the
+  // no-defaults rule the Store boots empty in live mode, so a fresh
+  // bridge would otherwise show "0 weekly programs" until the user
+  // manually opened each one. Refresh-on-list-call fixes that with a
+  // one-time tax (~3.5s for 10 daily, ~1.8s for 5 weekly) the first
+  // time the SPA visits the Programs tab; subsequent reads come from
+  // the in-memory cache. Errors per slot are swallowed so a single
+  // bad slot doesn't break the whole list.
   app.get("/api/v1/programs/daily", {
     schema: {
       tags: ["programs"],
       response: { 200: z.array(dailyProgramSchema) },
       security: [{ bearerAuth: [] }],
     },
-  }, async () => store.listDailyPrograms());
+  }, async () => {
+    for (let n = 1; n <= 10; n++) {
+      if (!store.getDailyProgram(n)) {
+        try { await commander.refreshDailyProgram(n); } catch { /* skip slot */ }
+      }
+    }
+    return store.listDailyPrograms();
+  });
 
   app.get("/api/v1/programs/daily/:n", {
     schema: {
@@ -69,13 +85,24 @@ export const registerProgramsRoutes = (
   });
 
   // ─── weekly ─────────────────────────────────────────────────
+  // Same lazy-fill story as the daily-list handler above. The user
+  // reported seeing 1 weekly program instead of 5 — that was because
+  // only the one they'd opened got cached; with the no-defaults sweep
+  // removing the mock seed in live mode the other slots stayed empty.
   app.get("/api/v1/programs/weekly", {
     schema: {
       tags: ["programs"],
       response: { 200: z.array(weeklyProgramSchema) },
       security: [{ bearerAuth: [] }],
     },
-  }, async () => store.listWeeklyPrograms());
+  }, async () => {
+    for (let n = 1; n <= 5; n++) {
+      if (!store.getWeeklyProgram(n)) {
+        try { await commander.refreshWeeklyProgram(n); } catch { /* skip slot */ }
+      }
+    }
+    return store.listWeeklyPrograms();
+  });
 
   app.get("/api/v1/programs/weekly/:n", {
     schema: {
