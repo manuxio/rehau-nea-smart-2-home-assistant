@@ -220,13 +220,21 @@ export interface Scene {
   /** Icon shown on the Dashboard tile. One of `SCENE_ICONS`. */
   icon: SceneIcon;
   /**
-   * The action the scene runs. For v1 we only support "apply this room
-   * mode to every room". Per-room overrides + system mode changes can
-   * extend this discriminated union later without breaking older
-   * persisted scenes.
+   * The action the scene runs. Two shapes today:
+   *
+   *  - `applyRoomMode` — single mode applied to every existing room.
+   *    This is the v1 "global" form; cheap to author, room-agnostic.
+   *
+   *  - `perRoom` — explicit `roomId → mode` map. Rooms NOT in the map
+   *    are left untouched. Lets the user say e.g. "Sera = bedroom
+   *    Normal, kitchen Reduced, everywhere else: skip".
+   *
+   * Keep both forms so legacy scenes still load. System-mode + energy
+   * changes can extend this union further later.
    */
   action:
-    | { type: "applyRoomMode"; mode: RoomMode };
+    | { type: "applyRoomMode"; mode: RoomMode }
+    | { type: "perRoom"; rooms: Record<string, RoomMode> };
 }
 
 /** Body for POST /api/v1/scenes. */

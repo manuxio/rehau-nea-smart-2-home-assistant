@@ -2651,7 +2651,11 @@ var sceneIconSchema = z3.enum([
   "alert"
 ]);
 var sceneActionSchema = z3.discriminatedUnion("type", [
-  z3.object({ type: z3.literal("applyRoomMode"), mode: roomModeSchema })
+  z3.object({ type: z3.literal("applyRoomMode"), mode: roomModeSchema }),
+  z3.object({
+    type: z3.literal("perRoom"),
+    rooms: z3.record(z3.string(), roomModeSchema)
+  })
 ]);
 var sceneSchema = z3.object({
   id: z3.string(),
@@ -3154,6 +3158,11 @@ var registerScenesRoutes = (app, { store, commander }) => {
       const mode = scene.action.mode;
       for (const r of store.listRooms()) {
         void commander.setRoomMode(r.id, mode);
+      }
+    } else if (scene.action.type === "perRoom") {
+      for (const [roomId, mode] of Object.entries(scene.action.rooms)) {
+        if (!store.getRoom(roomId)) continue;
+        void commander.setRoomMode(roomId, mode);
       }
     }
     return { ok: true };

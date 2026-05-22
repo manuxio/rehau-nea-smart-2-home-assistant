@@ -115,6 +115,14 @@ export const registerScenesRoutes = (
         // and updates the store optimistically in turn.
         void commander.setRoomMode(r.id, mode);
       }
+    } else if (scene.action.type === "perRoom") {
+      // Only touch rooms the scene explicitly names. Rooms missing from
+      // the map (e.g. a new room added after the scene was authored)
+      // are intentionally left alone — same "skip" semantics.
+      for (const [roomId, mode] of Object.entries(scene.action.rooms)) {
+        if (!store.getRoom(roomId)) continue;
+        void commander.setRoomMode(roomId, mode);
+      }
     }
     return { ok: true as const };
   });

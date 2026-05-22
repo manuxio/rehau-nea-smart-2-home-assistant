@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.13 — 2026-05-22
+
+- **Per-room mode in scenes.** Scene editor gains a Scope toggle —
+  "All rooms" keeps the existing single-mode shape, "Per room" lets
+  you pick a different mode per room (or skip rooms entirely).
+  Persisted as the new `perRoom` action shape; legacy `applyRoomMode`
+  scenes keep working.
+
 ## 6.0.12 — 2026-05-22
 
 User-editable floors + scenes, persisted to `/data/state.json`.

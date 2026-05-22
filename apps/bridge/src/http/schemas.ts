@@ -286,6 +286,10 @@ export const sceneIconSchema = z.enum([
 
 export const sceneActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("applyRoomMode"), mode: roomModeSchema }),
+  z.object({
+    type: z.literal("perRoom"),
+    rooms: z.record(z.string(), roomModeSchema),
+  }),
 ]);
 
 export const sceneSchema = z.object({

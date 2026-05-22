@@ -150,32 +150,75 @@ export function FloorsEditor() {
 
 // ─── Scenes editor ─────────────────────────────────────────────────────
 
+// `kind` toggles the editor between two action shapes:
+//   - "global"  → action is `applyRoomMode` with one mode for every room
+//   - "perRoom" → action is `perRoom` with a per-room map; "skip" means
+//                 omit the room from the map entirely (left untouched
+//                 when the scene fires)
+type RoomModeOrSkip = RoomMode | "skip";
 interface SceneFormState {
   id: string | null; // null = new
   name: string;
   icon: SceneIcon;
-  mode: RoomMode;
+  kind: "global" | "perRoom";
+  // Used when kind === "global".
+  globalMode: RoomMode;
+  // Used when kind === "perRoom". Keyed by room id; "skip" rooms get
+  // serialised as missing entries in the persisted scene.
+  perRoom: Record<string, RoomModeOrSkip>;
 }
 
 const emptySceneForm = (): SceneFormState => ({
   id: null,
   name: "",
   icon: "sun",
-  mode: "normal",
+  kind: "global",
+  globalMode: "normal",
+  perRoom: {},
 });
 
-const sceneToForm = (s: Scene): SceneFormState => ({
-  id: s.id,
-  name: s.name,
-  icon: s.icon,
-  mode: s.action.type === "applyRoomMode" ? s.action.mode : "normal",
-});
+const sceneToForm = (s: Scene): SceneFormState => {
+  if (s.action.type === "applyRoomMode") {
+    return {
+      id: s.id,
+      name: s.name,
+      icon: s.icon,
+      kind: "global",
+      globalMode: s.action.mode,
+      perRoom: {},
+    };
+  }
+  // perRoom — fill the map verbatim. Any room not present is "skip".
+  return {
+    id: s.id,
+    name: s.name,
+    icon: s.icon,
+    kind: "perRoom",
+    globalMode: "normal",
+    perRoom: { ...s.action.rooms },
+  };
+};
 
-const formToPayload = (f: SceneFormState): SceneCreate => ({
-  name: f.name.trim(),
-  icon: f.icon,
-  action: { type: "applyRoomMode", mode: f.mode },
-});
+const formToPayload = (f: SceneFormState): SceneCreate => {
+  if (f.kind === "global") {
+    return {
+      name: f.name.trim(),
+      icon: f.icon,
+      action: { type: "applyRoomMode", mode: f.globalMode },
+    };
+  }
+  // Strip "skip" entries before sending — only rooms the user explicitly
+  // assigned a mode to should make it into the persisted scene.
+  const rooms: Record<string, RoomMode> = {};
+  for (const [roomId, mode] of Object.entries(f.perRoom)) {
+    if (mode !== "skip") rooms[roomId] = mode;
+  }
+  return {
+    name: f.name.trim(),
+    icon: f.icon,
+    action: { type: "perRoom", rooms },
+  };
+};
 
 export function ScenesEditor() {
   const { api } = useAuth();
@@ -210,8 +253,30 @@ export function ScenesEditor() {
     onSuccess: invalidate,
   });
 
+  // Rooms list is needed for the per-room editor below + to render the
+  // human-readable summary of a perRoom scene in the list.
+  const roomsQ = useQuery({ queryKey: ["rooms"], queryFn: () => api.rooms.list() });
+  const rooms = roomsQ.data ?? [];
   const scenes = scenesQ.data ?? [];
   const canSave = useMemo(() => (form?.name.trim().length ?? 0) > 0, [form]);
+
+  /** When the user switches the kind toggle: pre-fill the "other" half of
+   * the form so they don't get an empty editor surface on flip. */
+  const switchKind = (next: SceneFormState["kind"]) => {
+    if (!form || form.kind === next) return;
+    if (next === "perRoom") {
+      // Seed perRoom map with the global mode for every existing room.
+      const map: Record<string, RoomModeOrSkip> = {};
+      for (const r of rooms) {
+        // Use existing entry if present (re-toggle), else seed with current
+        // global mode so the user starts with "apply to all" semantics.
+        map[r.id] = form.perRoom[r.id] ?? form.globalMode;
+      }
+      setForm({ ...form, kind: "perRoom", perRoom: map });
+    } else {
+      setForm({ ...form, kind: "global" });
+    }
+  };
 
   return (
     <Card style={{ margin: "0 16px" }}>
@@ -350,17 +415,17 @@ export function ScenesEditor() {
           </div>
 
           <div>
-            <Label>{t("system.scenes.mode")}</Label>
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {ROOM_MODES.map((m) => {
-                const active = form.mode === m;
+            <Label>{t("system.scenes.scope")}</Label>
+            <div style={{ display: "flex", gap: 4 }}>
+              {(["global", "perRoom"] as const).map((k) => {
+                const active = form.kind === k;
                 return (
                   <button
-                    key={m}
+                    key={k}
                     type="button"
-                    onClick={() => setForm({ ...form, mode: m })}
+                    onClick={() => switchKind(k)}
                     style={{
-                      padding: "6px 10px",
+                      padding: "6px 12px",
                       borderRadius: 6,
                       border: "none",
                       background: active ? "var(--accent)" : "transparent",
@@ -371,12 +436,124 @@ export function ScenesEditor() {
                       cursor: "pointer",
                     }}
                   >
-                    {t(`roomMode.${m}`)}
+                    {t(`system.scenes.scope_${k}`)}
                   </button>
                 );
               })}
             </div>
           </div>
+
+          {form.kind === "global" ? (
+            <div>
+              <Label>{t("system.scenes.mode")}</Label>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                {ROOM_MODES.map((m) => {
+                  const active = form.globalMode === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setForm({ ...form, globalMode: m })}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: active ? "var(--accent)" : "transparent",
+                        color: active ? "#1a1024" : "var(--muted)",
+                        fontFamily: "var(--body)",
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {t(`roomMode.${m}`)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Label>{t("system.scenes.perRoom")}</Label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {rooms
+                  .slice()
+                  .sort((a, b) =>
+                    (a.floor || "￿").localeCompare(b.floor || "￿") || a.name.localeCompare(b.name),
+                  )
+                  .map((r) => {
+                    const cur = form.perRoom[r.id] ?? "skip";
+                    return (
+                      <div
+                        key={r.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "4px 0",
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontFamily: "var(--body)",
+                              fontSize: "0.8125rem",
+                              color: "var(--text)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {r.name}
+                          </div>
+                          {r.floor && (
+                            <div
+                              style={{
+                                fontFamily: "var(--mono)",
+                                fontSize: "0.5625rem",
+                                color: "var(--dim)",
+                                letterSpacing: 0.5,
+                              }}
+                            >
+                              {r.floor}
+                            </div>
+                          )}
+                        </div>
+                        <select
+                          aria-label={r.name}
+                          value={cur}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              perRoom: {
+                                ...form.perRoom,
+                                [r.id]: e.target.value as RoomModeOrSkip,
+                              },
+                            })
+                          }
+                          style={{
+                            background: "var(--surface)",
+                            border: "1px solid var(--border)",
+                            color: "var(--text)",
+                            fontFamily: "var(--body)",
+                            fontSize: "0.75rem",
+                            padding: "5px 8px",
+                            borderRadius: 6,
+                          }}
+                        >
+                          <option value="skip">{t("system.scenes.skip")}</option>
+                          {ROOM_MODES.map((m) => (
+                            <option key={m} value={m}>
+                              {t(`roomMode.${m}`)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
             <button

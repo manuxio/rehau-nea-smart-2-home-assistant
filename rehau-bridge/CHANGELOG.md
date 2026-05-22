@@ -1,5 +1,18 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.13
+
+### Added
+
+- **Per-room mode in scenes.** The scene editor now exposes a "Scope"
+  toggle: *All rooms* (existing behaviour — apply one mode to every
+  room) or *Per room* (per-room dropdown: pick a mode for some rooms
+  and "Skip" for others). The new `perRoom` action shape persists as
+  `{ type: "perRoom", rooms: { [roomId]: mode } }`. Rooms missing
+  from the map are intentionally untouched when the scene fires.
+- Existing scenes keep their `applyRoomMode` action — the bridge
+  handles both shapes — so legacy saves still work.
+
 ## 6.0.12
 
 ### Added
