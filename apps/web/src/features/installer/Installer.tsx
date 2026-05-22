@@ -10,9 +10,101 @@ import type {
   RoomCalibration,
 } from "@rehau/types";
 
-const COMMIT_DEBOUNCE_MS = 500;
-
 type CalibrationPatch = { outdoor?: number; rooms?: RoomCalibration[] };
+
+/**
+ * Sticky footer for any installer-tab editor: explicit Save / Cancel
+ * with a pending-count indicator. Replaces the old 500 ms-debounced
+ * auto-flush which was firing one POST per field tweak and stacking up
+ * against REHAU's all-or-nothing form semantics — multiple consecutive
+ * +/-/toggle interactions now coalesce into a single batch write the
+ * user can review before committing.
+ *
+ * Save  → flushes everything pending in one device round trip.
+ * Cancel → discards the local draft and pulls the canonical server
+ *          state back into the cache.
+ */
+const SaveBar = ({
+  pendingCount,
+  saving,
+  onSave,
+  onCancel,
+}: {
+  pendingCount: number;
+  saving: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) => {
+  const { t } = useTranslation();
+  const disabled = pendingCount === 0 || saving;
+  if (pendingCount === 0 && !saving) return null;
+  return (
+    <div
+      style={{
+        position: "sticky",
+        // Lift just enough to clear the TabBar (52 pt + safe-area on iOS).
+        bottom: "calc(72px + env(safe-area-inset-bottom))",
+        zIndex: 20,
+        margin: "16px",
+        padding: "10px 12px",
+        background: "color-mix(in oklab, var(--accent) 14%, var(--surface))",
+        border: "1px solid color-mix(in oklab, var(--accent) 40%, transparent)",
+        borderRadius: 12,
+        boxShadow: "0 12px 24px rgba(0,0,0,.25)",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}
+    >
+      <span
+        style={{
+          flex: 1,
+          fontFamily: "var(--mono)",
+          fontSize: "0.6875rem",
+          color: "var(--text)",
+        }}
+      >
+        {saving ? t("installer.savebar.saving") : t("installer.savebar.pending", { n: pendingCount })}
+      </span>
+      <button
+        type="button"
+        onClick={onCancel}
+        disabled={saving}
+        style={{
+          background: "transparent",
+          border: "1px solid var(--border)",
+          color: "var(--muted)",
+          fontFamily: "var(--body)",
+          fontSize: "0.75rem",
+          fontWeight: 600,
+          padding: "6px 12px",
+          borderRadius: 8,
+          cursor: saving ? "default" : "pointer",
+        }}
+      >
+        {t("installer.savebar.cancel")}
+      </button>
+      <button
+        type="button"
+        onClick={onSave}
+        disabled={disabled}
+        style={{
+          background: disabled ? "var(--surface)" : "var(--accent)",
+          border: "none",
+          color: disabled ? "var(--muted)" : "#1a1024",
+          fontFamily: "var(--body)",
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          padding: "6px 14px",
+          borderRadius: 8,
+          cursor: disabled ? "default" : "pointer",
+        }}
+      >
+        {t("installer.savebar.save")}
+      </button>
+    </div>
+  );
+};
 
 /**
  * Merge two calibration patches. `outdoor` takes the latest value;
@@ -189,22 +281,31 @@ function CalibrationTab() {
       void qc.invalidateQueries({ queryKey: ["installer", "calibration"] });
       toast.error(t("toast.calibrationFailed"));
     },
-    onSuccess: (next) => qc.setQueryData(["installer", "calibration"], next),
+    onSuccess: (next) => {
+      qc.setQueryData(["installer", "calibration"], next);
+      pendingPatch.current = null;
+      setPendingCount(0);
+    },
   });
 
-  // Per-tab debounced commit. The Stepper +/- buttons can fire several times
-  // a second; we update the cache optimistically every time but only POST
-  // 500 ms after the last click, coalescing all changes into a single patch.
+  // Local draft buffer + a counter so the Save button knows when to enable.
+  // Every edit (Stepper +/- or a direct value) optimistically updates the
+  // query cache for instant feedback, then accumulates into pendingPatch.
+  // Nothing leaves the SPA until the user clicks Save — see SaveBar above.
   const pendingPatch = useRef<CalibrationPatch | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const flush = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
+  const onSave = useCallback(() => {
     const p = pendingPatch.current;
-    pendingPatch.current = null;
     if (p) save.mutate(p);
   }, [save]);
+
+  const onCancel = useCallback(() => {
+    pendingPatch.current = null;
+    setPendingCount(0);
+    // Pull authoritative state back — the user explicitly threw away the draft.
+    void qc.invalidateQueries({ queryKey: ["installer", "calibration"] });
+  }, [qc]);
 
   const schedule = useCallback((input: CalibrationPatch): void => {
     // 1. Optimistic cache update — instant visual feedback.
@@ -225,18 +326,21 @@ function CalibrationTab() {
 
     // 2. Coalesce into the pending patch.
     pendingPatch.current = mergePatches(pendingPatch.current, input);
+    // Pending count: outdoor counts once, each touched room counts once.
+    let n = pendingPatch.current?.outdoor !== undefined ? 1 : 0;
+    n += pendingPatch.current?.rooms?.length ?? 0;
+    setPendingCount(n);
+  }, [qc]);
 
-    // 3. (Re)start the debounce timer.
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(flush, COMMIT_DEBOUNCE_MS);
-  }, [qc, flush]);
-
-  // Flush any pending edit when leaving the tab so we don't lose changes.
+  // Safety net: if the user navigates away with unsaved changes, push them
+  // anyway so a slow +/- session isn't lost. The user can still hit Cancel
+  // before leaving to discard.
   useEffect(() => {
     return () => {
-      flush();
+      if (pendingPatch.current) save.mutate(pendingPatch.current);
     };
-  }, [flush]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!q.data) return <Loading />;
 
@@ -283,7 +387,9 @@ function CalibrationTab() {
                 </div>
                 {named && (
                   <span style={{ fontFamily: "var(--mono)", fontSize: "0.6875rem", color: "var(--muted)" }}>
-                    {named.temperature.toFixed(1)}° / {named.humidity}%
+                    {named.temperature !== null ? `${named.temperature.toFixed(1)}°` : "—"}
+                    {" / "}
+                    {named.humidity !== null ? `${named.humidity}%` : "—"}
                   </span>
                 )}
               </div>
@@ -326,6 +432,12 @@ function CalibrationTab() {
           {t("installer.calib.saveFailed")}
         </div>
       )}
+      <SaveBar
+        pendingCount={pendingCount}
+        saving={save.isPending}
+        onSave={onSave}
+        onCancel={onCancel}
+      />
     </>
   );
 }
@@ -601,38 +713,53 @@ function SettingsEditor({ group }: { group: InstallerSettingsGroup }) {
       void qc.invalidateQueries({ queryKey });
       toast.error(t("toast.settingsFailed"));
     },
-    onSuccess: (next) => qc.setQueryData(queryKey, next),
+    onSuccess: (next) => {
+      qc.setQueryData(queryKey, next);
+      pending.current = new Map();
+      setPendingCount(0);
+    },
   });
 
-  // Debounced commit: every +/-/toggle updates the cache instantly, and a
-  // single PUT goes out 500 ms after the last interaction with the merged
-  // field changes.
+  // Local draft (Map of name → value). Every +/-/toggle updates the cache
+  // optimistically for instant feedback AND adds an entry here. Nothing
+  // leaves the SPA until the user clicks Save — see SaveBar above.
   const pending = useRef<Map<string, number | boolean>>(new Map());
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const flush = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    const m = pending.current;
-    pending.current = new Map();
-    if (m.size > 0) {
-      save.mutate([...m.entries()].map(([name, value]) => ({ name, value })));
-    }
+  const onSave = useCallback(() => {
+    if (pending.current.size === 0) return;
+    save.mutate([...pending.current.entries()].map(([name, value]) => ({ name, value })));
   }, [save]);
+
+  const onCancel = useCallback(() => {
+    pending.current = new Map();
+    setPendingCount(0);
+    void qc.invalidateQueries({ queryKey });
+  }, [qc, queryKey]);
 
   const schedule = useCallback(
     (name: string, value: number | boolean): void => {
       pending.current.set(name, value);
+      setPendingCount(pending.current.size);
       qc.setQueryData<InstallerSettingsSnapshot>(queryKey, (cur) =>
         cur ? { ...cur, fields: cur.fields.map((f) => (f.name === name ? { ...f, value } : f)) } : cur,
       );
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(flush, 500);
     },
-    [qc, queryKey, flush],
+    [qc, queryKey],
   );
 
-  useEffect(() => () => flush(), [flush]);
+  // Safety net: auto-flush pending edits on unmount so a slow editing
+  // session isn't silently dropped when the user navigates away.
+  useEffect(() => {
+    return () => {
+      if (pending.current.size > 0) {
+        save.mutate(
+          [...pending.current.entries()].map(([name, value]) => ({ name, value })),
+        );
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!q.data) return <Loading />;
 
@@ -641,18 +768,12 @@ function SettingsEditor({ group }: { group: InstallerSettingsGroup }) {
       {q.data.fields.map((f) => (
         <FieldCard key={f.name} field={f} onChange={(v) => schedule(f.name, v)} />
       ))}
-      <div
-        style={{
-          fontFamily: "var(--mono)",
-          fontSize: "0.5625rem",
-          color: "var(--dim)",
-          textAlign: "center",
-          marginTop: 4,
-          letterSpacing: 0.3,
-        }}
-      >
-        {save.isPending ? t("installer.advanced.saving") : t("installer.advanced.debounceHint")}
-      </div>
+      <SaveBar
+        pendingCount={pendingCount}
+        saving={save.isPending}
+        onSave={onSave}
+        onCancel={onCancel}
+      />
     </div>
   );
 }

@@ -56,6 +56,12 @@ var envSchema = z.object({
   POLL_ROOM_DETAIL_S: z.coerce.number().int().positive().default(60),
   POLL_MESSAGES_S: z.coerce.number().int().positive().default(300),
   POLL_IO_S: z.coerce.number().int().positive().default(10),
+  // Calibration auto-poll cadence. Calibration lives behind an installer
+  // session (full open/close per fetch), so we keep it slow by default.
+  // 0 disables the auto-poll entirely; the force-refresh button in the
+  // SPA (POST /api/v1/installer/refresh) and the existing Installer-tab
+  // GET still trigger one-shot fetches on demand.
+  POLL_CALIBRATION_S: z.coerce.number().int().nonnegative().default(180),
   EXPOSE_IO: z.coerce.boolean().default(true),
   EXPOSE_CALIBRATION: z.coerce.boolean().default(false),
   // ui-only mapping
@@ -78,14 +84,14 @@ ${issues}`);
 var slotForMode = (room, mode) => {
   switch (mode) {
     case "normal":
-      return room.setpointNormal || room.setpointHeating;
+      return room.setpointNormal ?? room.setpointHeating;
     case "reduced":
-      return room.setpointReduced || room.setpointHeating;
+      return room.setpointReduced ?? room.setpointHeating;
     case "standby":
-      return room.setpointStandby || room.setpointHeating;
+      return room.setpointStandby ?? room.setpointHeating;
     case "program":
     case "program_override":
-      return room.setpointNormal || room.setpointHeating;
+      return room.setpointNormal ?? room.setpointHeating;
   }
 };
 var Commander = class {
@@ -93,45 +99,90 @@ var Commander = class {
     this.a = a;
   }
   a;
+  /**
+   * Patch the in-memory Store with `next` BEFORE awaiting the device
+   * write, then re-poll so the Store ends up with the canonical device
+   * value. On failure, revert the touched fields to whatever they were
+   * before the write.
+   *
+   * Why: a slow REHAU write was previously blocking GET responses for
+   * other concurrent clients (mobile + browser tabs share the same Store
+   * cache). With this, any GET during the write sees the user-intended
+   * value immediately. If REHAU rejects the write, we roll back and the
+   * client sees the error so its own optimistic state can revert too.
+   */
+  async optimistic(room, next, doWrite, afterWrite) {
+    const prev = {};
+    const prevRec = prev;
+    const roomRec = room;
+    for (const k of Object.keys(next)) {
+      prevRec[k] = roomRec[k];
+    }
+    this.a.store.patchRoom(room.id, next);
+    try {
+      await doWrite();
+      await afterWrite();
+      return this.a.store.getRoom(room.id);
+    } catch (err) {
+      this.a.store.patchRoom(room.id, prev);
+      throw err;
+    }
+  }
   async setRoomSetpoint(roomId, value) {
     const room = this.a.store.getRoom(roomId);
     if (!room) return void 0;
-    await this.a.source.setRoomSetpoint({
-      zone: room.zone,
-      name: room.name,
-      value,
-      mode: room.mode,
-      light: room.light
-    });
-    await this.a.poller.refreshRoom(room.zone);
-    return this.a.store.getRoom(roomId);
+    return this.optimistic(
+      room,
+      { setpointHeating: value },
+      () => this.a.source.setRoomSetpoint({
+        zone: room.zone,
+        name: room.name,
+        value,
+        mode: room.mode,
+        light: room.light
+      }),
+      () => this.a.poller.refreshRoom(room.zone)
+    );
   }
   async setRoomMode(roomId, mode, setpoint) {
     const room = this.a.store.getRoom(roomId);
     if (!room) return void 0;
     const slot = setpoint ?? slotForMode(room, mode);
-    await this.a.source.setRoomMode({
-      zone: room.zone,
-      name: room.name,
-      mode,
-      setpoint: slot,
-      light: room.light
-    });
-    await this.a.poller.refreshRoom(room.zone);
-    return this.a.store.getRoom(roomId);
+    if (slot === null) {
+      throw Object.assign(new Error("room setpoint not yet known"), { statusCode: 503 });
+    }
+    return this.optimistic(
+      room,
+      { mode, setpointHeating: slot },
+      () => this.a.source.setRoomMode({
+        zone: room.zone,
+        name: room.name,
+        mode,
+        setpoint: slot,
+        light: room.light
+      }),
+      () => this.a.poller.refreshRoom(room.zone)
+    );
   }
   async setRoomLight(roomId, light) {
     const room = this.a.store.getRoom(roomId);
     if (!room) return void 0;
-    await this.a.source.setRoomLight({
-      zone: room.zone,
-      name: room.name,
-      light,
-      setpoint: room.setpointHeating,
-      mode: room.mode
-    });
-    await this.a.poller.refreshRoom(room.zone);
-    return this.a.store.getRoom(roomId);
+    if (room.setpointHeating === null) {
+      throw Object.assign(new Error("room setpoint not yet known"), { statusCode: 503 });
+    }
+    const heat = room.setpointHeating;
+    return this.optimistic(
+      room,
+      { light },
+      () => this.a.source.setRoomLight({
+        zone: room.zone,
+        name: room.name,
+        light,
+        setpoint: heat,
+        mode: room.mode
+      }),
+      () => this.a.poller.refreshRoom(room.zone)
+    );
   }
   /**
    * Generic patch for the three room-set-up flags. Only fields explicitly set
@@ -140,17 +191,38 @@ var Commander = class {
   async setRoomFlags(roomId, patch) {
     const room = this.a.store.getRoom(roomId);
     if (!room) return void 0;
-    await this.a.source.setRoomSetup(room.zone, patch);
-    await this.a.poller.refreshRoomSetup(room.zone);
-    return this.a.store.getRoom(roomId);
+    return this.optimistic(
+      room,
+      patch,
+      // setRoomSetup returns RoomSetupSnapshot; the optimistic helper
+      // only needs a Promise<void>, so swallow the value.
+      async () => {
+        await this.a.source.setRoomSetup(room.zone, patch);
+      },
+      () => this.a.poller.refreshRoomSetup(room.zone)
+    );
   }
   async setOperatingMode(mode) {
-    await this.a.source.setOperatingMode(mode);
-    await this.a.poller.refreshDashboard();
+    const prev = this.a.store.getSystem().operatingMode;
+    this.a.store.patchSystem({ operatingMode: mode });
+    try {
+      await this.a.source.setOperatingMode(mode);
+      await this.a.poller.refreshDashboard();
+    } catch (err) {
+      this.a.store.patchSystem({ operatingMode: prev });
+      throw err;
+    }
   }
   async setEnergyLevel(level) {
-    await this.a.source.setEnergyLevel(level);
-    await this.a.poller.refreshDashboard();
+    const prev = this.a.store.getSystem().energyLevel;
+    this.a.store.patchSystem({ energyLevel: level });
+    try {
+      await this.a.source.setEnergyLevel(level);
+      await this.a.poller.refreshDashboard();
+    } catch (err) {
+      this.a.store.patchSystem({ energyLevel: prev });
+      throw err;
+    }
   }
   /** Lazy-load + cache a single daily program. */
   async refreshDailyProgram(id) {
@@ -209,7 +281,6 @@ var safe = async (logger, store, label, fn) => {
     store.setReachable(false);
   }
 };
-var fmtRoomId = (zone, name) => `r-${name.toLowerCase().replace(/\s+/g, "-") || "zone"}-z${zone}`;
 var Poller = class {
   constructor(opts) {
     this.opts = opts;
@@ -228,11 +299,19 @@ var Poller = class {
       this.timers.push(setInterval(() => void this.pollIO(), c.POLL_IO_S * SECOND));
       void this.pollIO();
     }
-    void this.pollSystemInfo();
-    void this.pollDashboard();
-    void this.pollRoomList();
-    void this.pollMessages();
-    void this.pollAllRoomDetails();
+    if (c.POLL_CALIBRATION_S > 0 && this.opts.source.hasInstaller) {
+      this.timers.push(
+        setInterval(() => void this.pollCalibration(), c.POLL_CALIBRATION_S * SECOND)
+      );
+      setTimeout(() => void this.pollCalibration(), 8e3);
+    }
+    void (async () => {
+      await this.pollDashboard();
+      await this.pollRoomList();
+      await this.pollAllRoomDetails();
+      void this.pollMessages();
+      void this.pollSystemInfo();
+    })();
   }
   stop() {
     for (const t of this.timers) clearInterval(t);
@@ -247,6 +326,26 @@ var Poller = class {
   }
   refreshRoom(zone) {
     return this.pollRoomDetail(zone);
+  }
+  refreshCalibration() {
+    return this.pollCalibration();
+  }
+  /**
+   * Force-refresh hook used by the SPA's "Refresh" button — kicks off
+   * every cheap poll in parallel plus the expensive calibration one if
+   * the bridge has installer access. Returns when all of them have
+   * settled so the SPA can show progress feedback.
+   */
+  async refreshAll() {
+    const tasks = [
+      this.pollSystemInfo(),
+      this.pollDashboard(),
+      this.pollRoomList(),
+      this.pollAllRoomDetails(),
+      this.pollMessages()
+    ];
+    if (this.opts.source.hasInstaller) tasks.push(this.pollCalibration());
+    await Promise.allSettled(tasks);
   }
   // ─── poll bodies ────────────────────────────────────────────
   pollSystemInfo() {
@@ -279,9 +378,8 @@ var Poller = class {
     return safe(logger, store, "room-list", async () => {
       const list = await source.fetchRoomList();
       for (const r of list) {
-        const existing = store.getRoomByZone(r.zone);
-        const id = existing?.id ?? fmtRoomId(r.zone, r.name);
-        store.patchRoom(id, { name: r.name, temperature: r.temperature, zone: r.zone });
+        const room = store.ensureRoomForZone(r.zone, r.name);
+        store.patchRoom(room.id, { name: r.name, temperature: r.temperature, zone: r.zone });
       }
     });
   }
@@ -355,6 +453,27 @@ var Poller = class {
     return safe(logger, store, "io", async () => {
       const io = await source.fetchIO();
       store.setIO(io);
+    });
+  }
+  /**
+   * Fetch calibration (outdoor + per-room offsets) and mirror it into the
+   * matching Room entries so RoomDetail's "Calibration (read-only)" card
+   * has values without the SPA needing to hit the installer endpoint.
+   * Each call opens + closes an installer session, so this is the most
+   * expensive poll — hence the long default interval.
+   */
+  pollCalibration() {
+    const { source, store, logger } = this.opts;
+    return safe(logger, store, "calibration", async () => {
+      const snap = await source.fetchCalibration();
+      for (const c of snap.rooms) {
+        const room = store.getRoomByZone(c.zone);
+        if (!room) continue;
+        store.patchRoom(room.id, {
+          calibrationTemp: c.tempOffset,
+          calibrationHumidity: c.humidityOffset
+        });
+      }
     });
   }
 };
@@ -622,6 +741,10 @@ var seedWeeklyPrograms = [
 
 // src/core/store.ts
 var nowIso = () => (/* @__PURE__ */ new Date()).toISOString();
+var FAIL_STREAK_FOR_DEGRADED = 3;
+var QUIET_MS_FOR_DEGRADED = 6e4;
+var QUIET_MS_FOR_OFFLINE = 3e5;
+var FETCH_BUFFER_SIZE = 15;
 var Store = class {
   rooms = /* @__PURE__ */ new Map();
   system;
@@ -631,13 +754,34 @@ var Store = class {
   io = null;
   reachable = true;
   lastReadAt = nowIso();
+  connection = {
+    // Start as "online" — we haven't seen a failure yet. The first
+    // successful poll will reinforce that; the first failure starts a streak.
+    state: "online",
+    lastSuccessAt: null,
+    lastAttemptAt: null,
+    consecutiveFailures: 0,
+    reason: null
+  };
+  fetches = [];
   events = new EventEmitter();
-  constructor() {
-    for (const r of seedRooms) this.rooms.set(r.id, { ...r });
+  /**
+   * @param opts.seed When `true`, populate every collection from the mock
+   *   fixtures so the bridge has plausible answers from boot — useful in
+   *   `DEVICE_MODE=mock` and tests. When `false` (default), boot empty:
+   *   rooms get created on demand by the LiveSource through
+   *   `ensureRoomForZone`, with EVERY device-sourced field starting as
+   *   `null`. This is the no-defaults rule the SPA depends on.
+   */
+  constructor(opts = {}) {
+    if (opts.seed) {
+      for (const r of seedRooms) this.rooms.set(r.id, { ...r });
+      for (const d of seedDailyPrograms) this.daily.set(d.id, { ...d, bits: [...d.bits] });
+      for (const w of seedWeeklyPrograms)
+        this.weekly.set(w.id, { ...w, days: [...w.days] });
+    }
     this.system = { ...seedSystem };
-    this.messages = seedAlarms.slice();
-    for (const d of seedDailyPrograms) this.daily.set(d.id, { ...d, bits: [...d.bits] });
-    for (const w of seedWeeklyPrograms) this.weekly.set(w.id, { ...w, days: [...w.days] });
+    this.messages = opts.seed ? seedAlarms.slice() : [];
   }
   // ─── reads ────────────────────────────────────────────────
   listRooms() {
@@ -658,6 +802,32 @@ var Store = class {
   }
   getDeviceStatus() {
     return { online: this.reachable, lastReadAt: this.lastReadAt };
+  }
+  getConnection() {
+    return { ...this.connection };
+  }
+  getDiagnostics() {
+    const recent = this.fetches.slice().reverse();
+    const successes = this.fetches.filter((f) => f.outcome === "ok");
+    const failures = this.fetches.length - successes.length;
+    const avgMsSuccess = successes.length > 0 ? Math.round(successes.reduce((a, f) => a + f.ms, 0) / successes.length) : null;
+    let p95MsSuccess = null;
+    if (successes.length >= 5) {
+      const sorted = successes.map((f) => f.ms).sort((a, b) => a - b);
+      const idx = Math.min(sorted.length - 1, Math.ceil(0.95 * sorted.length) - 1);
+      p95MsSuccess = sorted[idx] ?? null;
+    }
+    return {
+      connection: this.getConnection(),
+      recent,
+      aggregates: {
+        total: this.fetches.length,
+        success: successes.length,
+        failure: failures,
+        avgMsSuccess,
+        p95MsSuccess
+      }
+    };
   }
   listDailyPrograms() {
     return [...this.daily.values()].sort((a, b) => a.id - b.id);
@@ -714,12 +884,39 @@ var Store = class {
   }
   setReachable(online) {
     this.lastReadAt = nowIso();
-    if (this.reachable === online) {
-      this.events.emit("device.status", { online, lastReadAt: this.lastReadAt });
-      return;
-    }
-    this.reachable = online;
+    if (this.reachable !== online) this.reachable = online;
     this.events.emit("device.status", { online, lastReadAt: this.lastReadAt });
+  }
+  /**
+   * Record a single device fetch (success or failure). Maintains the recent-
+   * fetch ring buffer and the connection state machine. Called from
+   * `device/client.ts` via the `onTelemetry` callback.
+   */
+  recordFetch(entry) {
+    this.fetches.push(entry);
+    while (this.fetches.length > FETCH_BUFFER_SIZE) this.fetches.shift();
+    const prev = this.connection;
+    const next = { ...prev, lastAttemptAt: entry.at };
+    if (entry.outcome === "ok") {
+      next.lastSuccessAt = entry.at;
+      next.consecutiveFailures = 0;
+      next.state = "online";
+      next.reason = null;
+    } else {
+      next.consecutiveFailures = prev.consecutiveFailures + 1;
+      const quietMs = next.lastSuccessAt ? Date.now() - new Date(next.lastSuccessAt).getTime() : Number.POSITIVE_INFINITY;
+      let computed = prev.state;
+      if (quietMs >= QUIET_MS_FOR_OFFLINE) computed = "offline";
+      else if (next.consecutiveFailures >= FAIL_STREAK_FOR_DEGRADED || quietMs >= QUIET_MS_FOR_DEGRADED) {
+        computed = "degraded";
+      }
+      next.state = computed;
+      next.reason = computed === "offline" ? `No successful fetch in ${Math.round(quietMs / 1e3)}s` : computed === "degraded" ? `${next.consecutiveFailures} consecutive failures (${entry.outcome}${entry.error ? `: ${entry.error}` : ""})` : null;
+    }
+    this.connection = next;
+    if (prev.state !== next.state || prev.consecutiveFailures !== next.consecutiveFailures || prev.reason !== next.reason) {
+      this.events.emit("connection.changed", { ...next });
+    }
   }
   /** Best-effort lookup by name for new rooms that the live device returned. */
   ensureRoomForZone(zone, name) {
@@ -729,13 +926,13 @@ var Store = class {
       id: `r-${name.toLowerCase().replace(/\s+/g, "-")}-z${zone}`,
       zone,
       name,
-      temperature: 0,
-      humidity: 0,
-      setpointHeating: 20,
-      setpointCooling: 24,
-      setpointNormal: 20,
-      setpointReduced: 18.5,
-      setpointStandby: 23,
+      temperature: null,
+      humidity: null,
+      setpointHeating: null,
+      setpointCooling: null,
+      setpointNormal: null,
+      setpointReduced: null,
+      setpointStandby: null,
       mode: "standby",
       programOverride: false,
       hasFan: false,
@@ -745,8 +942,8 @@ var Store = class {
       flap: 0,
       light: false,
       fanRunning: false,
-      calibrationTemp: 0,
-      calibrationHumidity: 0,
+      calibrationTemp: null,
+      calibrationHumidity: null,
       programDailyId: 1,
       programWeeklyId: 1,
       floor: "",
@@ -820,11 +1017,35 @@ var DeviceClient = class {
     return this.enqueue(() => this.request("POST", path, `${encodeURIComponent(key)}=`));
   }
   async request(method, path, body) {
-    const { logger, timeoutMs } = this.opts;
+    const { logger, timeoutMs, onTelemetry } = this.opts;
     const t0 = Date.now();
+    const startedAt = (/* @__PURE__ */ new Date()).toISOString();
     const reqBytes = body?.length ?? 0;
     const headers = { connection: "close" };
     if (body) headers["content-type"] = "application/x-www-form-urlencoded";
+    const classify = (err) => {
+      const code = err.code;
+      if (code === "UND_ERR_HEADERS_TIMEOUT" || code === "UND_ERR_CONNECT_TIMEOUT" || code === "UND_ERR_BODY_TIMEOUT") {
+        return { outcome: "timeout" };
+      }
+      const m = /→\s+(\d{3})$/.exec(err.message ?? "");
+      if (m) return { outcome: "http", status: Number(m[1]) };
+      return { outcome: "tcp" };
+    };
+    const emit = (ms, outcome, status, error) => {
+      if (!onTelemetry) return;
+      try {
+        onTelemetry({
+          at: startedAt,
+          what: `${method} ${path}`,
+          ms,
+          outcome,
+          ...status !== void 0 ? { status } : {},
+          ...error ? { error: error.slice(0, 200) } : {}
+        });
+      } catch {
+      }
+    };
     const once = async () => {
       const res = await this.pool.request({
         method,
@@ -847,6 +1068,7 @@ var DeviceClient = class {
         { method, path, ms, reqBytes, resBytes: text.length },
         `device ${method} ${path} \u2192 200 in ${ms}ms`
       );
+      emit(ms, "ok");
       return text;
     } catch (err) {
       const code = err.code;
@@ -865,6 +1087,7 @@ var DeviceClient = class {
             { method, path, ms: ms2, reqBytes, resBytes: text.length, retried: true },
             `device ${method} ${path} \u2192 200 in ${ms2}ms (after retry)`
           );
+          emit(ms2, "ok");
           return text;
         } catch (retryErr) {
           const ms2 = Date.now() - t0;
@@ -872,6 +1095,8 @@ var DeviceClient = class {
             { err: retryErr, method, path, ms: ms2, reqBytes },
             `device ${method} ${path} FAILED after ${ms2}ms (incl. retry)`
           );
+          const cls2 = classify(retryErr);
+          emit(ms2, cls2.outcome, cls2.status, retryErr.message);
           throw retryErr;
         }
       }
@@ -880,6 +1105,8 @@ var DeviceClient = class {
         { err, method, path, ms, reqBytes },
         `device ${method} ${path} FAILED after ${ms}ms`
       );
+      const cls = classify(err);
+      emit(ms, cls.outcome, cls.status, err.message);
       throw err;
     }
   }
@@ -1275,7 +1502,7 @@ var parseCalibration = (html) => {
 var parseUptime = (html) => {
   const $ = cheerio.load(html);
   const text = $("body").text().replace(/\s+/g, " ");
-  const m = /(\d+)\s*Anno[a-z]*\s+(\d+)\s*Giorn[a-z]*\s+(\d+)\s*Or[a-z]*/i.exec(text);
+  const m = /(\d+)\s+[^\d\s]+\s+(\d+)\s+[^\d\s]+\s+(\d+)\s+[^\d\s]+/.exec(text);
   return {
     years: m ? Number(m[1]) : 0,
     days: m ? Number(m[2]) : 0,
@@ -1535,6 +1762,14 @@ var LiveDeviceSource = class {
   fetchRoomList = async () => parseRoomList(await this.http.get("/room-page.html"));
   fetchRoomDetail = async (zone) => parseRoomDetail(await this.http.postKey("/room-operating.html", String(zone)));
   fetchMessages = async () => parseMessages(await this.http.get("/messages.html"));
+  // POST the messages-page form back. REHAU's table is wrapped in
+  // `<form action="user-menu.html"><input name="MessagesHidden" ...>`
+  // — submitting it (no extra fields needed) is the device's
+  // "acknowledge all alarms" trigger. The body string mirrors what the
+  // built-in Confirm button submits.
+  clearMessages = async () => {
+    await this.http.postForm("/user-menu.html", { MessagesHidden: "" });
+  };
   fetchSystemInfo = async () => parseSystemInfo(await this.http.get("/user-config-installer.html"));
   async setRoomSetpoint(i) {
     const { RSH, temp } = setpointToDeviceForm(i.value, i.mode);
@@ -1677,7 +1912,16 @@ var LiveDeviceSource = class {
   }
   async fetchUptime() {
     const s = this.requireInstaller();
-    return s.run(async () => parseUptime(await this.http.get("/installer-system-statistics.html")));
+    return s.run(async () => {
+      const html = await this.http.get("/installer-system-statistics.html");
+      const out = parseUptime(html);
+      if (out.years === 0 && out.days === 0 && out.hours === 0) {
+        console.warn(
+          "[uptime] parser returned 0 0 0 \u2014 sample of /installer-system-statistics.html:\n" + html.replace(/<script[\s\S]*?<\/script>/gi, "").slice(0, 1500)
+        );
+      }
+      return out;
+    });
   }
   async fetchTopology() {
     const s = this.requireInstaller();
@@ -1722,19 +1966,20 @@ var MockDeviceSource = class {
     };
   }
   async fetchRoomList() {
-    return this.rooms.map((r) => ({ zone: r.zone, name: r.name, temperature: r.temperature }));
+    return this.rooms.map((r) => ({ zone: r.zone, name: r.name, temperature: r.temperature ?? 0 }));
   }
   async fetchRoomDetail(zone) {
     const r = this.rooms.find((x) => x.zone === zone);
     if (!r) throw new Error(`unknown zone ${zone}`);
+    const heat = r.setpointHeating ?? 20;
     return {
       zone: r.zone,
       name: r.name,
-      temperature: r.temperature,
-      humidity: r.humidity,
-      setpoint: r.mode === "standby" ? r.setpointHeating : r.setpointHeating,
-      setpointHeatingNormal: r.setpointHeating,
-      setpointHeatingReduced: Math.max(5, r.setpointHeating - 1.5),
+      temperature: r.temperature ?? 0,
+      humidity: r.humidity ?? 0,
+      setpoint: heat,
+      setpointHeatingNormal: heat,
+      setpointHeatingReduced: Math.max(5, heat - 1.5),
       setpointStandby: 23,
       mode: r.mode,
       programActive: 1,
@@ -1749,6 +1994,9 @@ var MockDeviceSource = class {
   }
   async fetchMessages() {
     return this.messages;
+  }
+  async clearMessages() {
+    this.messages = [];
   }
   async fetchSystemInfo() {
     return {
@@ -1835,12 +2083,15 @@ var MockDeviceSource = class {
     if (p) p.days = [...days];
   }
   // ─── installer-tier (synthetic) ──────────────────────────
+  // RoomCalibration expects concrete numbers (writes back to the device).
+  // The seed Room may carry `null` for calibration after the no-defaults
+  // sweep, so coerce to 0 here — mock-only.
   calibration = {
     outdoor: 0,
     rooms: seedRooms.map((r) => ({
       zone: r.zone,
-      tempOffset: r.calibrationTemp,
-      humidityOffset: r.calibrationHumidity
+      tempOffset: r.calibrationTemp ?? 0,
+      humidityOffset: r.calibrationHumidity ?? 0
     }))
   };
   async fetchCalibration() {
@@ -2087,13 +2338,17 @@ var roomSchema = z3.object({
   id: z3.string(),
   zone: z3.number().int(),
   name: z3.string(),
-  temperature: z3.number(),
-  humidity: z3.number(),
-  setpointHeating: z3.number(),
-  setpointCooling: z3.number(),
-  setpointNormal: z3.number(),
-  setpointReduced: z3.number(),
-  setpointStandby: z3.number(),
+  // Nullable readings — `null` until the bridge has actually parsed each
+  // value from the device. See packages/types Room comments + the no-defaults
+  // rule. SPA must render null as a placeholder ("—" or hidden card),
+  // never as 0/"" — that was the whole point of removing the seed defaults.
+  temperature: z3.number().nullable(),
+  humidity: z3.number().nullable(),
+  setpointHeating: z3.number().nullable(),
+  setpointCooling: z3.number().nullable(),
+  setpointNormal: z3.number().nullable(),
+  setpointReduced: z3.number().nullable(),
+  setpointStandby: z3.number().nullable(),
   mode: roomModeSchema,
   programOverride: z3.boolean(),
   hasFan: z3.boolean(),
@@ -2103,8 +2358,8 @@ var roomSchema = z3.object({
   flap: z3.number().int().min(0).max(1),
   light: z3.boolean(),
   fanRunning: z3.boolean(),
-  calibrationTemp: z3.number(),
-  calibrationHumidity: z3.number(),
+  calibrationTemp: z3.number().nullable(),
+  calibrationHumidity: z3.number().nullable(),
   programDailyId: z3.number().int(),
   programWeeklyId: z3.number().int(),
   floor: z3.string(),
@@ -2295,11 +2550,21 @@ var installerSettingsPatchSchema = z3.object({
 
 // src/http/routes/installer.ts
 var nowIso2 = () => (/* @__PURE__ */ new Date()).toISOString();
-var registerInstallerRoutes = (app, { config, source }) => {
+var registerInstallerRoutes = (app, { config, source, store }) => {
   const guard = async () => {
     if (!source.hasInstaller || !config.DEVICE_INSTALLER_CODE) {
       const err = Object.assign(new Error("installer_disabled"), { statusCode: 503 });
       throw err;
+    }
+  };
+  const mirrorCalibration = (snap) => {
+    for (const c of snap.rooms) {
+      const room = store.getRoomByZone(c.zone);
+      if (!room) continue;
+      store.patchRoom(room.id, {
+        calibrationTemp: c.tempOffset,
+        calibrationHumidity: c.humidityOffset
+      });
     }
   };
   app.get("/api/v1/installer/calibration", {
@@ -2312,6 +2577,7 @@ var registerInstallerRoutes = (app, { config, source }) => {
     req.requireRole("installer");
     await guard();
     const snap = await source.fetchCalibration();
+    mirrorCalibration(snap);
     return { ...snap, meta: { lastUpdatedAt: nowIso2() } };
   });
   app.put("/api/v1/installer/calibration", {
@@ -2329,6 +2595,7 @@ var registerInstallerRoutes = (app, { config, source }) => {
     if (body.outdoor !== void 0) patch.outdoor = body.outdoor;
     if (body.rooms !== void 0) patch.rooms = body.rooms;
     const fresh = await source.setCalibration(patch);
+    mirrorCalibration(fresh);
     return { ...fresh, meta: { lastUpdatedAt: nowIso2() } };
   });
   app.get("/api/v1/installer/io", {
@@ -2410,7 +2677,7 @@ var registerInstallerRoutes = (app, { config, source }) => {
 
 // src/http/routes/messages.ts
 import { z as z5 } from "zod";
-var registerMessagesRoutes = (app, { store }) => {
+var registerMessagesRoutes = (app, { store, source }) => {
   app.get("/api/v1/messages", {
     schema: {
       tags: ["messages"],
@@ -2422,6 +2689,17 @@ var registerMessagesRoutes = (app, { store }) => {
     const { activeOnly } = req.query;
     const all = store.getMessages();
     return activeOnly ? all.filter((m) => !m.resolvedAt) : all;
+  });
+  app.post("/api/v1/messages/clear", {
+    schema: {
+      tags: ["messages"],
+      response: { 200: z5.object({ ok: z5.literal(true) }) },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async () => {
+    await source.clearMessages();
+    store.setMessages([]);
+    return { ok: true };
   });
 };
 
@@ -2700,6 +2978,7 @@ var buildServer = async ({
   store,
   commander,
   source,
+  poller,
   spaDir
 }) => {
   const app = Fastify({
@@ -2734,19 +3013,30 @@ var buildServer = async ({
   });
   await registerOpenApi(app);
   await registerAuth(app, config);
+  const addonVersion = process.env.ADDON_VERSION || "dev";
   app.get("/healthz", async () => ({
     ok: true,
     bridge: "0.1.0",
+    addon: addonVersion,
     source: config.DEVICE_MODE,
     device: { url: config.DEVICE_URL, ...store.getDeviceStatus() },
+    connection: store.getConnection(),
     installerAccess: Boolean(config.DEVICE_INSTALLER_CODE)
   }));
+  app.get("/api/v1/diagnostics/fetches", async () => ({
+    ...store.getDiagnostics(),
+    versions: { bridge: "0.1.0", addon: addonVersion }
+  }));
+  app.post("/api/v1/diagnostics/refresh", async () => {
+    await poller.refreshAll();
+    return { ok: true };
+  });
   registerAuthRoutes(app, config);
   registerRoomsRoutes(app, { store, commander });
   registerSystemRoutes(app, { store, commander });
-  registerMessagesRoutes(app, { store });
+  registerMessagesRoutes(app, { store, source });
   registerProgramsRoutes(app, { store, commander });
-  registerInstallerRoutes(app, { config, source });
+  registerInstallerRoutes(app, { config, source, store });
   if (spaDir && existsSync(spaDir)) {
     await app.register(fastifyStatic, { root: resolve(spaDir), prefix: "/" });
     app.setNotFoundHandler(async (req, reply) => {
@@ -2848,11 +3138,14 @@ var buildRoomClimate = (ctx, room) => ({
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}`,
     availability_topic: ctx.topics.availability,
     current_temperature_topic: ctx.topics.roomState(room.id),
-    current_temperature_template: "{{ value_json.temperature }}",
+    // Render Python `None` for the no-defaults nullable fields so HA shows
+    // "unavailable" instead of "0" / blank. Otherwise an un-polled Room
+    // would surface phantom 0°C readings in HA dashboards.
+    current_temperature_template: "{% if value_json.temperature is none %}unknown{% else %}{{ value_json.temperature }}{% endif %}",
     current_humidity_topic: ctx.topics.roomState(room.id),
-    current_humidity_template: "{{ value_json.humidity }}",
+    current_humidity_template: "{% if value_json.humidity is none %}unknown{% else %}{{ value_json.humidity }}{% endif %}",
     temperature_state_topic: ctx.topics.roomState(room.id),
-    temperature_state_template: "{{ value_json.setpointHeating }}",
+    temperature_state_template: "{% if value_json.setpointHeating is none %}unknown{% else %}{{ value_json.setpointHeating }}{% endif %}",
     temperature_command_topic: ctx.topics.roomSetpointSet(room.id),
     min_temp: 5,
     max_temp: 31,
@@ -2880,7 +3173,7 @@ var buildRoomHumiditySensor = (ctx, room) => ({
     name: `${room.name} umidit\xE0`,
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_humidity`,
     state_topic: ctx.topics.roomState(room.id),
-    value_template: "{{ value_json.humidity }}",
+    value_template: "{% if value_json.humidity is none %}unknown{% else %}{{ value_json.humidity }}{% endif %}",
     unit_of_measurement: "%",
     device_class: "humidity",
     state_class: "measurement",
@@ -3046,7 +3339,7 @@ var buildRoomTempCalibrationSensor = (ctx, room) => ({
     name: `${room.name} \xB7 offset temperatura`,
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_cal_temp`,
     state_topic: ctx.topics.roomState(room.id),
-    value_template: "{{ value_json.calibrationTemp }}",
+    value_template: "{% if value_json.calibrationTemp is none %}unknown{% else %}{{ value_json.calibrationTemp }}{% endif %}",
     unit_of_measurement: "\xB0C",
     device_class: "temperature",
     state_class: "measurement",
@@ -3062,7 +3355,7 @@ var buildRoomHumidityCalibrationSensor = (ctx, room) => ({
     name: `${room.name} \xB7 offset umidit\xE0`,
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_cal_humidity`,
     state_topic: ctx.topics.roomState(room.id),
-    value_template: "{{ value_json.calibrationHumidity }}",
+    value_template: "{% if value_json.calibrationHumidity is none %}unknown{% else %}{{ value_json.calibrationHumidity }}{% endif %}",
     unit_of_measurement: "%",
     state_class: "measurement",
     entity_category: "diagnostic",
@@ -3502,25 +3795,26 @@ var main = async () => {
     installerAccess: Boolean(config.DEVICE_INSTALLER_CODE),
     mqtt: config.MQTT_URL ? "enabled" : "disabled"
   }, "bridge starting");
+  const store = new Store({ seed: config.DEVICE_MODE !== "live" });
+  store.patchSystem({ installationName: config.INSTALLATION_NAME });
   let source;
   if (config.DEVICE_MODE === "live") {
     const http = new DeviceClient({
       baseUrl: config.DEVICE_URL,
       timeoutMs: config.DEVICE_REQUEST_TIMEOUT_MS,
       minGapMs: config.DEVICE_MIN_GAP_MS,
-      logger
+      logger,
+      onTelemetry: (entry) => store.recordFetch(entry)
     });
     const installer = config.DEVICE_INSTALLER_CODE ? new InstallerSession({ http, code: config.DEVICE_INSTALLER_CODE, logger }) : void 0;
     source = new LiveDeviceSource(http, installer);
   } else {
     source = new MockDeviceSource();
   }
-  const store = new Store();
-  store.patchSystem({ installationName: config.INSTALLATION_NAME });
   const poller = new Poller({ config, source, store, logger });
   const commander = new Commander({ source, store, poller });
   const spaDir = resolve2(import.meta.dirname, "..", "web");
-  const app = await buildServer({ config, logger, store, commander, source, spaDir });
+  const app = await buildServer({ config, logger, store, commander, source, poller, spaDir });
   poller.start();
   let mqttBridge = null;
   if (config.MQTT_URL) {

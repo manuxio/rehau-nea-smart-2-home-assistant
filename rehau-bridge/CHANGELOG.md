@@ -1,5 +1,86 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.11
+
+Big quality-of-life pass that lands the connection-state telemetry,
+optimistic writes, no-defaults rule, and several papercut fixes.
+Shipped iteratively as 6.0.10-dev1..dev11; this is the consolidated
+release.
+
+### Added
+
+- **Connection-state machine** (`online / degraded / offline`) with
+  tolerance — 3 consecutive failures OR 60 s without a successful
+  fetch → degraded; 5 min → offline. Surfaced through `/healthz`,
+  the new `GET /api/v1/diagnostics/fetches`, and MQTT (`unknown` for
+  null fields instead of phantom `0`).
+- **REHAU state panel** in the System tab — connection dot + reason,
+  recent-fetch ring buffer (last 15), success/failure aggregates with
+  average + p95 latency.
+- **Force-refresh** button on the System tab and new endpoint
+  `POST /api/v1/diagnostics/refresh` that runs every poll in parallel.
+- **Calibration auto-poll** (`POLL_CALIBRATION_S`, default 180 s, 0
+  disables). Each pass mirrors `{tempOffset, humidityOffset}` into
+  the corresponding Room so RoomDetail's read-only Calibration card
+  populates without manually visiting the installer tab.
+- **Acknowledge-all-messages** button in the Messages tab + new
+  endpoint `POST /api/v1/messages/clear` — mirrors REHAU's built-in
+  Confirm button.
+- **Installer Save / Cancel buttons** — Calibration tab and every
+  Advanced settings sub-group now use a sticky save bar. Edits stay
+  local until you hit Save, eliminating the per-field POST storm that
+  used to fight REHAU's all-or-nothing form semantics.
+- **`scripts/deploy-local.mjs`** + `npm run deploy:local` — build +
+  copy to a samba-mounted HA host with auto-bumped `-devN` suffix.
+- **App version row** in the System tab (sourced via
+  `bashio::addon.version` → `ADDON_VERSION` env → `/healthz`).
+
+### Changed
+
+- **Boot order** in the poller: dashboard → room list → all room
+  details → messages → system info. Previously system info ran first
+  and opened an installer session that blocked every other fetch for
+  2-3 s. Visible state now lands ~3 s earlier on cold boot.
+- **Optimistic writes** in the bridge. `Commander.setRoom*`,
+  `setOperatingMode` and `setEnergyLevel` patch the in-memory Store
+  before awaiting the device write; if REHAU rejects, the store
+  reverts. Because `Store.patchRoom/patchSystem` emit events, MQTT
+  publishes the user-intended value instantly (and re-publishes the
+  reverted value on failure), so HA dashboards no longer freeze
+  during a slow REHAU round trip.
+- **No-defaults rule.** Room fields that are read from the device
+  (`temperature`, `humidity`, `setpointHeating/Cooling/Normal/
+  Reduced/Standby`, `calibrationTemp`, `calibrationHumidity`) are
+  now `T | null`. The bridge no longer seeds rooms with placeholder
+  zeros / 20 °C / etc. — every value starts `null` and only takes
+  a real value once parsed. The SPA renders `null` as `—` and the
+  setpoint dial shows "loading…" until the room has been polled.
+- **Diagnostics poll is gated to the System tab.** The previous
+  always-on 8 s `/api/v1/diagnostics/fetches` poll consumed bandwidth
+  even when the user wasn't looking; now only the RehauState panel
+  drives the fetch. Banner + write-gating read from cache.
+
+### Fixed
+
+- **Uptime parser** was Italian-locked and returned 0 0 0 on every
+  English / German / etc. install. Rewritten to match `<num> <word>
+  <num> <word> <num> <word>` where each "word" is any non-whitespace,
+  non-digit run — absorbs parentheses on plural suffixes
+  ("Year(s)", "Tag(e)") and accented letters. New unit tests cover
+  EN, IT, DE.
+- **Stepper rounding** hardcoded one decimal place regardless of
+  `step`. Heat-curve fields with `step: 0.01` ("Pendenza normale",
+  "Pendenza assenza") looked uneditable because every +/- click
+  rounded back to the original value. Now rounding and display both
+  derive from `step` (0/1/2/3 decimals).
+- **Room detail crash on cold start** (React error #310). The new
+  `useConnection()` hook was called below an early-return; moved to
+  the top of the component so hook order stays stable.
+- **No rooms visible after no-defaults sweep**. Dashboard poll used
+  `store.patchRoom(id, ...)` which silently no-ops when the room
+  doesn't exist; with the seed gated to mock-only it never created
+  the first set of rooms in live mode. Now uses `ensureRoomForZone`.
+
 ## 6.0.10
 
 - **Dashboard scroll position survives a room visit.** Going Home →

@@ -12,6 +12,7 @@ import {
   btnStyle,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
+import { canWrite, useConnection } from "../../lib/connection";
 import { labelEnergyLevel, labelSystemMode, staleSec } from "../../lib/labels";
 import { usePrefs } from "../../lib/prefs";
 import {
@@ -29,6 +30,12 @@ export function System() {
   const qc = useQueryClient();
   const { theme, lang, uiScale, setTheme, setLang, setUiScale } = usePrefs();
   const scalePercent = Math.round((uiScale - 1) * 100);
+  const { state: connState, diag } = useConnection();
+  // While the bridge can't reach REHAU, operating-mode / energy-level
+  // writes would queue up against a dead socket. Disable the controls;
+  // the persistent banner already explains why.
+  const writesDisabled = !canWrite(connState);
+  const versions = diag?.versions;
   const sysQ = useQuery({ queryKey: ["system"], queryFn: () => api.system.get(), refetchInterval: 5000 });
 
   const setOp = useMutation({
@@ -143,7 +150,7 @@ export function System() {
               key={m}
               type="button"
               onClick={() => setOp.mutate(m)}
-              disabled={setOp.isPending}
+              disabled={setOp.isPending || writesDisabled}
               style={{
                 ...btnStyle(active ? "primary" : "secondary", "md"),
                 flexDirection: "column",
@@ -194,7 +201,7 @@ export function System() {
               key={l}
               type="button"
               onClick={() => setEnergy.mutate(l)}
-              disabled={setEnergy.isPending}
+              disabled={setEnergy.isPending || writesDisabled}
               style={{
                 ...btnStyle(active ? "primary" : "ghost", "sm"),
                 padding: "8px 14px",
@@ -266,6 +273,16 @@ export function System() {
       <Card style={{ margin: "0 16px" }}>
         <KV label={t("system.winter")} value={`${sys.seasonStart} → ${sys.seasonEnd}`} />
       </Card>
+
+      <SectionHead title={t("system.app")} />
+      <Card style={{ margin: "0 16px" }}>
+        <KV label={t("system.appVersion")} value={versions?.addon ?? "—"} />
+        <Sep />
+        <KV label={t("system.appBridge")} value={versions?.bridge ?? "—"} />
+      </Card>
+
+      <SectionHead title={t("system.rehauState")} />
+      <RehauState />
 
       <SectionHead title={t("system.device")} />
       <Card style={{ margin: "0 16px" }}>
@@ -395,6 +412,207 @@ export function System() {
         </a>
       </Card>
     </div>
+  );
+}
+
+// ─── REHAU state panel (TODO.md §"Server-error visibility" layer 3) ─────
+// Reads diag from useConnection and renders the rolling fetch buffer +
+// aggregates so a slow/buggy device is visible at a glance from the SPA.
+//
+// Style is matching the rest of the System tab's "spec sheet" feel —
+// monospaced figures, low-contrast labels, accent colour for the state
+// dot. No write controls live here; this is pure observability.
+
+function RehauState() {
+  const { t } = useTranslation();
+  const { api } = useAuth();
+  const qc = useQueryClient();
+  // ACTIVE consumer — owns the diagnostics poll while the System tab is
+  // mounted. Every other useConnection() call across the SPA reads from
+  // the same query cache without firing a fetch. See lib/connection.ts.
+  const { conn, diag } = useConnection({ active: true });
+
+  // Force-refresh mutation — POST /api/v1/diagnostics/refresh runs every
+  // poll on the bridge in parallel, then we invalidate the local caches
+  // so the SPA picks up the fresh state. Calibration goes through
+  // /api/v1/installer/calibration which is gated on the installer role,
+  // so we invalidate it separately; the bridge already mirrored the
+  // values into Room during the refresh.
+  const refresh = useMutation({
+    mutationFn: () => api.diagnostics.refresh(),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["system"] });
+      void qc.invalidateQueries({ queryKey: ["rooms"] });
+      void qc.invalidateQueries({ queryKey: ["room"] });
+      void qc.invalidateQueries({ queryKey: ["messages"] });
+      void qc.invalidateQueries({ queryKey: ["installer", "calibration"] });
+      void qc.invalidateQueries({ queryKey: ["diagnostics", "fetches"] });
+    },
+  });
+
+  if (!conn || !diag) {
+    return (
+      <Card style={{ margin: "0 16px" }}>
+        <div style={{ fontFamily: "var(--mono)", fontSize: "0.75rem", color: "var(--muted)" }}>
+          {t("common.loading")}
+        </div>
+      </Card>
+    );
+  }
+
+  const stateColor =
+    conn.state === "online"
+      ? "var(--accent)"
+      : conn.state === "degraded"
+        ? "var(--warning, var(--accent))"
+        : "var(--alert)";
+  const stateLabel = t(`system.connState.${conn.state}` as const);
+  const fmtMs = (n: number | null) => (n === null ? "—" : `${n} ms`);
+
+  return (
+    <Card style={{ margin: "0 16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span
+          aria-hidden
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 999,
+            background: stateColor,
+            boxShadow: `0 0 10px ${stateColor}`,
+            flexShrink: 0,
+          }}
+        />
+        <div style={{ flex: 1 }}>
+          <div
+            style={{
+              color: "var(--text)",
+              fontFamily: "var(--body)",
+              fontSize: "0.9375rem",
+              fontWeight: 600,
+            }}
+          >
+            {stateLabel}
+          </div>
+          {conn.reason && (
+            <div
+              style={{
+                color: "var(--muted)",
+                fontFamily: "var(--mono)",
+                fontSize: "0.6875rem",
+                marginTop: 2,
+                lineHeight: 1.4,
+              }}
+            >
+              {conn.reason}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => refresh.mutate()}
+          disabled={refresh.isPending}
+          style={{
+            background: "transparent",
+            border: "1px solid var(--border)",
+            color: refresh.isPending ? "var(--muted)" : "var(--accent)",
+            fontFamily: "var(--body)",
+            fontSize: "0.75rem",
+            fontWeight: 600,
+            padding: "6px 12px",
+            borderRadius: 8,
+            cursor: refresh.isPending ? "default" : "pointer",
+          }}
+        >
+          {refresh.isPending ? t("system.rehauRefreshing") : t("system.rehauRefresh")}
+        </button>
+      </div>
+
+      <Sep />
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 8,
+          fontFamily: "var(--mono)",
+          fontSize: "0.75rem",
+        }}
+      >
+        <KV label={t("system.rehauOk")} value={`${diag.aggregates.success} / ${diag.aggregates.total}`} />
+        <KV label={t("system.rehauFail")} value={String(diag.aggregates.failure)} />
+        <KV label={t("system.rehauAvg")} value={fmtMs(diag.aggregates.avgMsSuccess)} />
+        <KV label={t("system.rehauP95")} value={fmtMs(diag.aggregates.p95MsSuccess)} />
+      </div>
+
+      <Sep />
+
+      <div
+        style={{
+          fontFamily: "var(--mono)",
+          fontSize: "0.5625rem",
+          color: "var(--muted)",
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+          marginBottom: 6,
+        }}
+      >
+        {t("system.rehauRecent", { n: diag.recent.length })}
+      </div>
+
+      {diag.recent.length === 0 ? (
+        <div style={{ fontFamily: "var(--mono)", fontSize: "0.75rem", color: "var(--dim)" }}>
+          {t("system.rehauEmpty")}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {diag.recent.map((f, i) => {
+            const ok = f.outcome === "ok";
+            const time = new Date(f.at).toLocaleTimeString();
+            return (
+              <div
+                key={`${f.at}-${i}`}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "auto 1fr auto auto",
+                  gap: 8,
+                  alignItems: "baseline",
+                  fontFamily: "var(--mono)",
+                  fontSize: "0.6875rem",
+                  color: ok ? "var(--text)" : "var(--alert)",
+                  borderTop: i > 0 ? "1px solid var(--border)" : "none",
+                  paddingTop: i > 0 ? 4 : 0,
+                }}
+              >
+                <span style={{ color: "var(--dim)" }}>{time}</span>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {f.what}
+                </span>
+                <span style={{ color: "var(--muted)", fontVariantNumeric: "tabular-nums" }}>{f.ms} ms</span>
+                <span style={{ color: ok ? "var(--accent)" : "var(--alert)" }}>
+                  {ok ? "ok" : f.outcome + (f.status ? ` ${f.status}` : "")}
+                </span>
+                {!ok && f.error && (
+                  <span
+                    style={{
+                      gridColumn: "2 / -1",
+                      color: "var(--muted)",
+                      fontSize: "0.625rem",
+                      lineHeight: 1.4,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {f.error}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }
 

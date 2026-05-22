@@ -32,6 +32,17 @@ const main = async (): Promise<void> => {
     mqtt: config.MQTT_URL ? "enabled" : "disabled",
   }, "bridge starting");
 
+  // Store first so we can wire device-fetch telemetry into it as the
+  // DeviceClient is constructed — every request flows through
+  // `store.recordFetch`, which drives the connection state machine.
+  // Seed only when running against the mock device — live mode boots
+  // with empty rooms and every field starts as `null` until parsed.
+  const store = new Store({ seed: config.DEVICE_MODE !== "live" });
+  // The installation name comes from env, not the device — patch it in
+  // immediately so the first GET /api/v1/system already returns the right
+  // label (before the first device poll lands).
+  store.patchSystem({ installationName: config.INSTALLATION_NAME });
+
   let source: DeviceSource;
   if (config.DEVICE_MODE === "live") {
     const http = new DeviceClient({
@@ -39,6 +50,7 @@ const main = async (): Promise<void> => {
       timeoutMs: config.DEVICE_REQUEST_TIMEOUT_MS,
       minGapMs: config.DEVICE_MIN_GAP_MS,
       logger,
+      onTelemetry: (entry) => store.recordFetch(entry),
     });
     const installer = config.DEVICE_INSTALLER_CODE
       ? new InstallerSession({ http, code: config.DEVICE_INSTALLER_CODE, logger })
@@ -47,12 +59,6 @@ const main = async (): Promise<void> => {
   } else {
     source = new MockDeviceSource();
   }
-
-  const store = new Store();
-  // The installation name comes from env, not the device — patch it in
-  // immediately so the first GET /api/v1/system already returns the right
-  // label (before the first device poll lands).
-  store.patchSystem({ installationName: config.INSTALLATION_NAME });
   const poller = new Poller({ config, source, store, logger });
   const commander = new Commander({ source, store, poller });
 
@@ -61,7 +67,7 @@ const main = async (): Promise<void> => {
   // to the running script.
   const spaDir = resolve(import.meta.dirname, "..", "web");
 
-  const app = await buildServer({ config, logger, store, commander, source, spaDir });
+  const app = await buildServer({ config, logger, store, commander, source, poller, spaDir });
   poller.start();
 
   let mqttBridge: MqttBridge | null = null;

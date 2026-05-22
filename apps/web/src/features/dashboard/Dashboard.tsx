@@ -168,7 +168,7 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
                           fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {r.temperature.toFixed(1)}
+                        {r.temperature !== null ? r.temperature.toFixed(1) : "—"}
                       </span>
                       <span style={{ color: "var(--muted)", fontFamily: "var(--display)", fontSize: "1.125rem", marginLeft: 2 }}>
                         °C
@@ -176,7 +176,9 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--cool)" }}>
                       <Glyph name="drop" size={14} />
-                      <span style={{ fontFamily: "var(--mono)", fontSize: "0.75rem" }}>{r.humidity}%</span>
+                      <span style={{ fontFamily: "var(--mono)", fontSize: "0.75rem" }}>
+                        {r.humidity !== null ? `${r.humidity}%` : "—"}
+                      </span>
                     </div>
                     <div style={{ marginLeft: "auto", textAlign: "right" }}>
                       <div
@@ -198,7 +200,7 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
                           fontVariantNumeric: "tabular-nums",
                         }}
                       >
-                        {r.setpointHeating.toFixed(1)}°
+                        {r.setpointHeating !== null ? `${r.setpointHeating.toFixed(1)}°` : "—"}
                       </div>
                     </div>
                   </div>

@@ -61,6 +61,12 @@ const envSchema = z.object({
   POLL_ROOM_DETAIL_S: z.coerce.number().int().positive().default(60),
   POLL_MESSAGES_S: z.coerce.number().int().positive().default(300),
   POLL_IO_S: z.coerce.number().int().positive().default(10),
+  // Calibration auto-poll cadence. Calibration lives behind an installer
+  // session (full open/close per fetch), so we keep it slow by default.
+  // 0 disables the auto-poll entirely; the force-refresh button in the
+  // SPA (POST /api/v1/installer/refresh) and the existing Installer-tab
+  // GET still trigger one-shot fetches on demand.
+  POLL_CALIBRATION_S: z.coerce.number().int().nonnegative().default(180),
   EXPOSE_IO: z.coerce.boolean().default(true),
   EXPOSE_CALIBRATION: z.coerce.boolean().default(false),
 

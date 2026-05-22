@@ -87,7 +87,12 @@ export ROOM_FLOORS="$(opt room_floors)"
 export LOG_LEVEL="$(opt log_level)"
 export LOG_FORMAT="$(opt log_format)"
 
-bashio::log.info "Starting bridge on :${HTTP_PORT} (installation '${INSTALLATION_NAME}')."
+# Surface the addon version to the bridge so the SPA can display it on the
+# System page. bashio reads it from the addon's config.yaml at install
+# time so we don't have to parse the file ourselves.
+export ADDON_VERSION="$(bashio::addon.version || echo "unknown")"
+
+bashio::log.info "Starting bridge on :${HTTP_PORT} (installation '${INSTALLATION_NAME}', version ${ADDON_VERSION})."
 
 cd /app
 exec node dist/main.js

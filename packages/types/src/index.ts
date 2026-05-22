@@ -40,26 +40,30 @@ export interface Room {
   /** Device-side zero-based zone index used in `room-operating.html` POSTs. */
   zone: number;
   name: string;
-  /** Current measured temperature in °C. */
-  temperature: number;
-  /** Relative humidity %. */
-  humidity: number;
+  // ── Device-sourced readings: `null` until the bridge successfully parses
+  // them from the device. Consumers MUST render `null` as a placeholder
+  // (e.g. `—`) rather than 0 — that's the whole point of the no-defaults
+  // rule. Background: showing `+0.0 °C` for unparsed Calibration was the
+  // original complaint; it propagated to every "until we know" field.
+  /** Current measured temperature in °C, or `null` if unread. */
+  temperature: number | null;
+  /** Relative humidity %, or `null` if unread. */
+  humidity: number | null;
   /**
    * Active heating setpoint °C — whichever of the three slots below is in use
-   * for the current `mode`. Range 5.0..31.0 step 0.5.
+   * for the current `mode`. Range 5.0..31.0 step 0.5. `null` until read.
    */
-  setpointHeating: number;
-  /** Cooling setpoint °C — range 15.0..35.0 step 0.5. */
-  setpointCooling: number;
+  setpointHeating: number | null;
+  /** Cooling setpoint °C — range 15.0..35.0 step 0.5. `null` until read. */
+  setpointCooling: number | null;
   /**
    * REHAU stores three independent heating setpoints per room. We mirror them
    * so a mode change can target the right slot without overwriting another.
-   * Populated from the room-detail page on first poll; default to the active
-   * value until then.
+   * `null` until the room-detail page has been parsed at least once.
    */
-  setpointNormal: number;
-  setpointReduced: number;
-  setpointStandby: number;
+  setpointNormal: number | null;
+  setpointReduced: number | null;
+  setpointStandby: number | null;
   mode: RoomMode;
   /** True when the room is currently overriding its program. */
   programOverride: boolean;
@@ -71,10 +75,10 @@ export interface Room {
   light: boolean;
   /** True when the fancoil motor is currently running (REHAU paints its icon pink). */
   fanRunning: boolean;
-  /** -5.0..+5.0 °C, step 0.1. Installer-only write. */
-  calibrationTemp: number;
-  /** -25..+25 %, step 1. Installer-only write. */
-  calibrationHumidity: number;
+  /** -5.0..+5.0 °C, step 0.1. Installer-only write. `null` until first install fetch. */
+  calibrationTemp: number | null;
+  /** -25..+25 %, step 1. Installer-only write. `null` until first install fetch. */
+  calibrationHumidity: number | null;
   /** Daily program slot 1..10 currently assigned. */
   programDailyId: number;
   /** Weekly program slot 1..5 currently assigned. */
@@ -196,6 +200,68 @@ export interface RoomCalibration {
   tempOffset: number;
   /** -25..+25 %, step 1. */
   humidityOffset: number;
+}
+
+// ─── Bridge ↔ device connection health ──────────────────────────────────
+// The bridge keeps a small ring buffer of recent device fetches and exposes
+// a coarse-grained "online / degraded / offline" state so HA and the SPA can
+// surface "REHAU is slow / unreachable" without polling /healthz.
+//
+// Tolerance is built in — REHAU is slow and bursty. We don't flip "online"
+// to "degraded" on a single failure; we wait for either consecutive failures
+// OR a sustained gap with no successful fetch (see core/store.ts).
+
+export type BridgeConnectionState = "online" | "degraded" | "offline";
+
+export interface BridgeConnection {
+  state: BridgeConnectionState;
+  /** ISO timestamp of the last successful device fetch. `null` if no success yet. */
+  lastSuccessAt: string | null;
+  /** ISO timestamp of the last attempted device fetch (success or failure). */
+  lastAttemptAt: string | null;
+  /** Consecutive failures since the last success. Resets to 0 on any success. */
+  consecutiveFailures: number;
+  /** Short human-readable reason when state is degraded/offline. `null` when online. */
+  reason: string | null;
+}
+
+export type FetchOutcome = "ok" | "timeout" | "http" | "tcp" | "parse";
+
+export interface FetchTelemetryEntry {
+  /** ISO timestamp when the fetch started. */
+  at: string;
+  /** `GET /menu.html`, `POST /room-page.html`, ... */
+  what: string;
+  /** Duration ms (request start → response body fully received, or failure). */
+  ms: number;
+  outcome: FetchOutcome;
+  /** HTTP status if `outcome === "http"`. */
+  status?: number;
+  /** Short error message for non-`ok` outcomes. */
+  error?: string;
+}
+
+export interface DiagnosticsSnapshot {
+  connection: BridgeConnection;
+  /** Most recent fetches (up to N), newest first. */
+  recent: FetchTelemetryEntry[];
+  aggregates: {
+    /** Total fetches in the buffer. */
+    total: number;
+    success: number;
+    failure: number;
+    /** Average duration of successful fetches in ms. `null` if no successes. */
+    avgMsSuccess: number | null;
+    /** p95 duration of successful fetches in ms. `null` if < 5 successes. */
+    p95MsSuccess: number | null;
+  };
+  /** Build/runtime versions surfaced on the System page. */
+  versions?: {
+    /** Internal bridge bundle version (apps/bridge). */
+    bridge: string;
+    /** Addon release version from rehau-bridge/config.yaml. */
+    addon: string;
+  };
 }
 
 export interface CalibrationState {

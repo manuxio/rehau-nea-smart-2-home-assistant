@@ -421,41 +421,53 @@ export const Stepper = ({
   max?: number;
   step?: number;
   suffix?: string;
-}) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onChange(Math.max(min, Math.round((value - step) * 10) / 10));
-      }}
-      style={btnStyle("ghost", "sm")}
-    >
-      <Glyph name="minus" size={14} />
-    </button>
-    <span
-      style={{
-        fontFamily: "var(--mono)",
-        fontSize: "0.875rem",
-        color: "var(--text)",
-        width: 48,
-        textAlign: "center",
-        fontVariantNumeric: "tabular-nums",
-      }}
-    >
-      {step >= 1 ? value.toFixed(0) : value.toFixed(1)}
-      {suffix}
-    </span>
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onChange(Math.min(max, Math.round((value + step) * 10) / 10));
-      }}
-      style={btnStyle("ghost", "sm")}
-    >
-      <Glyph name="plus" size={14} />
-    </button>
-  </div>
-);
+}) => {
+  // Granularity drives both the rounding of the +/- delta AND the display.
+  // Previously this was hard-coded to 1 decimal, which silently swallowed
+  // step values < 0.1 (e.g. heat-curve "Pendenza" uses step 0.01) —
+  // pressing + or - would round back to the old value and the user couldn't
+  // change anything. Derive from `step` so the editor matches the field.
+  const decimals = step >= 1 ? 0 : step >= 0.1 ? 1 : step >= 0.01 ? 2 : 3;
+  const quantum = Math.pow(10, decimals);
+  const round = (v: number): number => Math.round(v * quantum) / quantum;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange(Math.max(min, round(value - step)));
+        }}
+        style={btnStyle("ghost", "sm")}
+      >
+        <Glyph name="minus" size={14} />
+      </button>
+      <span
+        style={{
+          fontFamily: "var(--mono)",
+          fontSize: "0.875rem",
+          color: "var(--text)",
+          // 2- and 3-decimal values need a wider slot or they overlap the
+          // suffix glyph.
+          width: decimals >= 2 ? 56 : 48,
+          textAlign: "center",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {value.toFixed(decimals)}
+        {suffix}
+      </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange(Math.min(max, round(value + step)));
+        }}
+        style={btnStyle("ghost", "sm")}
+      >
+        <Glyph name="plus" size={14} />
+      </button>
+    </div>
+  );
+};
 
 // ─── Button factory ───────────────────────────────────────────────────
 export type BtnVariant = "primary" | "secondary" | "ghost" | "danger";

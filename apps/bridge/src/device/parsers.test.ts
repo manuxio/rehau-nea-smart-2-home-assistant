@@ -8,6 +8,7 @@ import {
   parseRoomDetail,
   parseRoomList,
   parseSystemInfo,
+  parseUptime,
   parseWeeklyProgram,
 } from "./parsers.js";
 
@@ -92,6 +93,38 @@ describe("parseDailyProgram", () => {
     expect(p.bits.length).toBe(96);
     expect(p.bits.slice(24, 36).every((b) => b === 1)).toBe(true);
     expect(p.bits.slice(0, 24).every((b) => b === 0)).toBe(true);
+  });
+});
+
+describe("parseUptime", () => {
+  // REHAU writes the line in whichever UI language the device is set to,
+  // sometimes with parentheses around the plural suffix ("Year(s)").
+  // The parser must extract <years, days, hours> from all of these.
+  const wrap = (s: string) =>
+    `<html><body><h1>System statistics</h1><p>${s}</p></body></html>`;
+  it("English with parens", () => {
+    expect(parseUptime(wrap("Controller running : 0 Year(s) 0 Day(s) 3 Hour(s)"))).toEqual({
+      years: 0,
+      days: 0,
+      hours: 3,
+    });
+  });
+  it("Italian", () => {
+    expect(parseUptime(wrap("Sistema operativo da: 0 Anno 14 Giorno 6 Ora"))).toEqual({
+      years: 0,
+      days: 14,
+      hours: 6,
+    });
+  });
+  it("German with parens", () => {
+    expect(parseUptime(wrap("Steuerung läuft seit: 1 Jahr(e) 3 Tag(e) 12 Stunde(n)"))).toEqual({
+      years: 1,
+      days: 3,
+      hours: 12,
+    });
+  });
+  it("returns zeros when no match found", () => {
+    expect(parseUptime(wrap("Nothing here"))).toEqual({ years: 0, days: 0, hours: 0 });
   });
 });
 

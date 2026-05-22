@@ -71,12 +71,42 @@ export class Poller {
       void this.pollIO();
     }
 
-    // Kick off an initial pass so the store is populated quickly.
-    void this.pollSystemInfo();
-    void this.pollDashboard();
-    void this.pollRoomList();
-    void this.pollMessages();
-    void this.pollAllRoomDetails();
+    // Calibration auto-poll. Each pass opens + closes a full installer
+    // session, so the cadence is generous by default (config:
+    // POLL_CALIBRATION_S, default 180 s). 0 disables; the force-refresh
+    // button still works via the on-demand HTTP route.
+    if (c.POLL_CALIBRATION_S > 0 && this.opts.source.hasInstaller) {
+      this.timers.push(
+        setInterval(() => void this.pollCalibration(), c.POLL_CALIBRATION_S * SECOND),
+      );
+      // Defer the first fetch a few seconds so the initial dashboard +
+      // room list passes land first — calibration is useless until the
+      // rooms it mirrors into actually exist in the Store.
+      setTimeout(() => void this.pollCalibration(), 8_000);
+    }
+
+    // Boot sequence — prioritised so the SPA + MQTT see meaningful data
+    // FAST. Every fetch funnels through DeviceClient's single-flight
+    // chain (REHAU's TCP stack can't take overlapping requests), so the
+    // ORDER below is the order the user perceives state landing in.
+    //
+    //   1. Dashboard      — outdoor temp + operating mode + energy level
+    //   2. Room list      — creates the Room entries with names + temps
+    //   3. All room details — fills setpoint / humidity / mode per room
+    //   4. Messages       — alerts (rarely changes; can wait)
+    //   5. System info    — firmware versions etc. (installer page,
+    //                       slowest; pure metadata, can wait)
+    //
+    // System info used to run first; on a fresh boot it opened an
+    // installer session before any user-visible data landed,
+    // adding 2-3 s of latency in front of every other fetch.
+    void (async () => {
+      await this.pollDashboard();
+      await this.pollRoomList();
+      await this.pollAllRoomDetails();
+      void this.pollMessages();
+      void this.pollSystemInfo();
+    })();
   }
 
   stop(): void {
@@ -88,6 +118,24 @@ export class Poller {
   refreshDashboard(): Promise<void> { return this.pollDashboard(); }
   refreshRoomList(): Promise<void> { return this.pollRoomList(); }
   refreshRoom(zone: number): Promise<void> { return this.pollRoomDetail(zone); }
+  refreshCalibration(): Promise<void> { return this.pollCalibration(); }
+  /**
+   * Force-refresh hook used by the SPA's "Refresh" button — kicks off
+   * every cheap poll in parallel plus the expensive calibration one if
+   * the bridge has installer access. Returns when all of them have
+   * settled so the SPA can show progress feedback.
+   */
+  async refreshAll(): Promise<void> {
+    const tasks: Promise<void>[] = [
+      this.pollSystemInfo(),
+      this.pollDashboard(),
+      this.pollRoomList(),
+      this.pollAllRoomDetails(),
+      this.pollMessages(),
+    ];
+    if (this.opts.source.hasInstaller) tasks.push(this.pollCalibration());
+    await Promise.allSettled(tasks);
+  }
 
   // ─── poll bodies ────────────────────────────────────────────
   private pollSystemInfo(): Promise<void> {
@@ -122,9 +170,14 @@ export class Poller {
     return safe(logger, store, "room-list", async () => {
       const list = await source.fetchRoomList();
       for (const r of list) {
-        const existing = store.getRoomByZone(r.zone);
-        const id = existing?.id ?? fmtRoomId(r.zone, r.name);
-        store.patchRoom(id, { name: r.name, temperature: r.temperature, zone: r.zone });
+        // ensureRoomForZone() is what CREATES the room if it doesn't exist
+        // yet (with every nullable field starting as null per the
+        // no-defaults rule). Before the seed was gated to mock-only, this
+        // step relied on the seed rooms always being present; without
+        // them, patchRoom() silently no-ops when the zone is unseen, and
+        // no detail polls ever fire because store.listRooms() stays empty.
+        const room = store.ensureRoomForZone(r.zone, r.name);
+        store.patchRoom(room.id, { name: r.name, temperature: r.temperature, zone: r.zone });
       }
     });
   }
@@ -204,6 +257,28 @@ export class Poller {
     return safe(logger, store, "io", async () => {
       const io = await source.fetchIO();
       store.setIO(io);
+    });
+  }
+
+  /**
+   * Fetch calibration (outdoor + per-room offsets) and mirror it into the
+   * matching Room entries so RoomDetail's "Calibration (read-only)" card
+   * has values without the SPA needing to hit the installer endpoint.
+   * Each call opens + closes an installer session, so this is the most
+   * expensive poll — hence the long default interval.
+   */
+  private pollCalibration(): Promise<void> {
+    const { source, store, logger } = this.opts;
+    return safe(logger, store, "calibration", async () => {
+      const snap = await source.fetchCalibration();
+      for (const c of snap.rooms) {
+        const room = store.getRoomByZone(c.zone);
+        if (!room) continue;
+        store.patchRoom(room.id, {
+          calibrationTemp: c.tempOffset,
+          calibrationHumidity: c.humidityOffset,
+        });
+      }
     });
   }
 }

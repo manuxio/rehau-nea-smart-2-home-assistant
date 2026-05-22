@@ -6,6 +6,7 @@ import type {
   AlarmMessage,
   CalibrationState,
   DailyProgram,
+  DiagnosticsSnapshot,
   EnergyLevel,
   HeatCurveState,
   InstallerSettingsGroup,
@@ -126,6 +127,20 @@ export class ApiClient {
   messages = {
     list: (activeOnly = false): Promise<AlarmMessage[]> =>
       this.request("GET", `/api/v1/messages${activeOnly ? "?activeOnly=true" : ""}`),
+    /** Acknowledge all REHAU alarms (same as the device's built-in Confirm button). */
+    clear: (): Promise<{ ok: true }> => this.request("POST", "/api/v1/messages/clear"),
+  };
+
+  diagnostics = {
+    /** Connection state + last-N fetches + aggregates (see TODO.md §"Server-error visibility"). */
+    fetches: (): Promise<DiagnosticsSnapshot> => this.request("GET", "/api/v1/diagnostics/fetches"),
+    /**
+     * Force the bridge to re-poll every endpoint immediately and return
+     * once everything has settled. Used by the "Refresh now" button in
+     * the System tab's REHAU state panel to populate freshly after a
+     * cold start without waiting for the next scheduled tick.
+     */
+    refresh: (): Promise<{ ok: true }> => this.request("POST", "/api/v1/diagnostics/refresh"),
   };
 
   programs = {

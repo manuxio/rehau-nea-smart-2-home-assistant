@@ -15,6 +15,7 @@ import {
   btnStyle,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
+import { canWrite, useConnection } from "../../lib/connection";
 import { fmtRelTime } from "../../lib/labels";
 
 const ROOM_MODE_VALUES: RoomMode[] = ["standby", "normal", "reduced", "program"];
@@ -107,7 +108,7 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
     onSuccess: (r: Room) => {
       qc.setQueryData(["room", roomId], r);
       void qc.invalidateQueries({ queryKey: ["rooms"] });
-      toast.success(t("toast.setpointAt", { room: r.name, value: r.setpointHeating.toFixed(1) }));
+      toast.success(t("toast.setpointAt", { room: r.name, value: r.setpointHeating?.toFixed(1) ?? "—" }));
     },
     onError: () => toast.error(t("toast.saveFailed")),
     onSettled: () => {
@@ -166,6 +167,10 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
     refetchInterval: edit !== null || committing || writing ? false : 5000,
   });
   const sysQ = useQuery({ queryKey: ["system"], queryFn: () => api.system.get(), refetchInterval: 5000 });
+  // IMPORTANT: must sit ABOVE the `if (!room) return …` early return below
+  // so React's hook order stays stable across renders. Moving it down past
+  // the conditional return triggered React error #310.
+  const { state: connState } = useConnection();
 
   useEffect(() => {
     return () => {
@@ -187,7 +192,12 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
 
   const serverSp = isCooling ? room.setpointCooling : room.setpointHeating;
   const sp = edit ?? serverSp;
-  const dialDisabled = room.mode === "standby";
+  // Disable every write surface while REHAU is fully unreachable —
+  // queued mutations against a dead socket would just toast errors.
+  // "degraded" still allows writes (REHAU is just slow); we keep
+  // optimistic UI and let TanStack Query retry naturally.
+  const writesDisabled = !canWrite(connState);
+  const dialDisabled = room.mode === "standby" || writesDisabled;
 
   /**
    * The setpoint dial fires onChange on every pointer event during a drag.
@@ -208,6 +218,10 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
   // ± buttons fire immediately — no debounce needed for one tap.
   const bump = (delta: number): void => {
     if (dialDisabled) return;
+    // We never call bump when setpoint is unknown — the dial is disabled in
+    // that state — but guard explicitly so TypeScript can narrow `sp` away
+    // from null and so a stray gesture can't fire a write with NaN.
+    if (sp === null) return;
     const min = isCooling ? 15 : 5;
     const max = isCooling ? 35 : 31;
     const next = Math.max(min, Math.min(max, Math.round((sp + delta) * 2) / 2));
@@ -288,20 +302,42 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
           display: "flex",
           justifyContent: "center",
           padding: "16px 0 8px",
-          opacity: dialDisabled ? 0.4 : 1,
+          // Disable the dial while we still don't have a setpoint to draw —
+          // the SetpointDial expects concrete numbers (it'd render NaN /
+          // crash otherwise). Same visual treatment as "standby" disabled.
+          opacity: dialDisabled || sp === null ? 0.4 : 1,
           transition: "opacity .2s",
-          pointerEvents: dialDisabled ? "none" : "auto",
+          pointerEvents: dialDisabled || sp === null ? "none" : "auto",
         }}
       >
-        <SetpointDial
-          value={sp}
-          onChange={handleDial}
-          current={room.temperature}
-          mode={isCooling ? "cooling" : "heating"}
-          min={isCooling ? 15 : 5}
-          max={isCooling ? 35 : 31}
-          size={280}
-        />
+        {sp !== null ? (
+          <SetpointDial
+            value={sp}
+            onChange={handleDial}
+            current={room.temperature ?? sp}
+            mode={isCooling ? "cooling" : "heating"}
+            min={isCooling ? 15 : 5}
+            max={isCooling ? 35 : 31}
+            size={280}
+          />
+        ) : (
+          <div
+            style={{
+              width: 280,
+              height: 280,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "var(--mono)",
+              fontSize: "0.75rem",
+              color: "var(--dim)",
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+            }}
+          >
+            {t("common.loading")}
+          </div>
+        )}
       </div>
 
       <div
@@ -442,13 +478,19 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
         </>
       )}
 
+      {/* Calibration is an installer-only reading — `null` until the
+          installer endpoint has been fetched at least once. We keep the
+          section visible so the user can see the placeholder ("—") and
+          knows the slot exists; the bridge mirrors values into Room when
+          /api/v1/installer/calibration runs (e.g. on Installer tab open). */}
       <SectionHead title={t("room.sectionCalibration")} />
       <Card style={{ margin: "0 16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--mono)", fontSize: "0.75rem" }}>
           <span style={{ color: "var(--muted)" }}>{t("room.offsetTemp")}</span>
           <span style={{ color: "var(--text)" }}>
-            {room.calibrationTemp >= 0 ? "+" : ""}
-            {room.calibrationTemp.toFixed(1)} °C
+            {room.calibrationTemp === null
+              ? "—"
+              : `${room.calibrationTemp >= 0 ? "+" : ""}${room.calibrationTemp.toFixed(1)} °C`}
           </span>
         </div>
         <div
@@ -462,8 +504,9 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
         >
           <span style={{ color: "var(--muted)" }}>{t("room.offsetHum")}</span>
           <span style={{ color: "var(--text)" }}>
-            {room.calibrationHumidity >= 0 ? "+" : ""}
-            {room.calibrationHumidity} %
+            {room.calibrationHumidity === null
+              ? "—"
+              : `${room.calibrationHumidity >= 0 ? "+" : ""}${room.calibrationHumidity} %`}
           </span>
         </div>
       </Card>

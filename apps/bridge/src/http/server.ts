@@ -9,6 +9,7 @@ import {
   validatorCompiler,
 } from "fastify-type-provider-zod";
 import type { Commander } from "../core/commander.js";
+import type { Poller } from "../core/poller.js";
 import type { Store } from "../core/store.js";
 import type { Config } from "../config.js";
 import type { Logger } from "../observability/log.js";
@@ -27,6 +28,7 @@ export interface BuildServerArgs {
   store: Store;
   commander: Commander;
   source: DeviceSource;
+  poller: Poller;
   /** When set, Fastify serves the built SPA from this directory at `/`. */
   spaDir?: string | undefined;
 }
@@ -37,6 +39,7 @@ export const buildServer = async ({
   store,
   commander,
   source,
+  poller,
   spaDir,
 }: BuildServerArgs) => {
   // Configure Fastify with its own pino options (logger generic must remain
@@ -83,21 +86,53 @@ export const buildServer = async ({
   await registerAuth(app, config);
 
   // ─── public ────────────────────────────────────────────────
+  // Addon version is exported by rehau-bridge/run.sh as ADDON_VERSION
+  // (bashio::addon.version). Falls back to "dev" when running outside the
+  // addon container (npm run -w @rehau/bridge dev), so the System tab
+  // shows something useful in both modes.
+  const addonVersion = process.env.ADDON_VERSION || "dev";
+
   app.get("/healthz", async () => ({
     ok: true,
     bridge: "0.1.0",
+    addon: addonVersion,
     source: config.DEVICE_MODE,
     device: { url: config.DEVICE_URL, ...store.getDeviceStatus() },
+    connection: store.getConnection(),
     installerAccess: Boolean(config.DEVICE_INSTALLER_CODE),
   }));
+
+  // Full ring-buffer + aggregates view for the Diagnostics UI / TODO.md
+  // "Server-error visibility" layer 1. Auth-gated (under /api/v1) so it's
+  // not advertised to anonymous probes. Includes addon + bridge version
+  // so the SPA's System tab can show them in a single fetch.
+  app.get("/api/v1/diagnostics/fetches", async () => ({
+    ...store.getDiagnostics(),
+    versions: { bridge: "0.1.0", addon: addonVersion },
+  }));
+
+  /**
+   * Force-refresh — the SPA's "Refresh now" button hits this to bypass
+   * the schedule and pull every meaningful endpoint immediately
+   * (dashboard, room list, room detail, messages, calibration if
+   * installer access is available). Returns after all calls have
+   * settled so the SPA can flip a spinner off when the work is done.
+   * Errors during the refresh are still logged by the poller's `safe`
+   * wrapper — they don't fail this endpoint, so a partial refresh
+   * (e.g. dashboard ok but calibration timed out) still returns 200.
+   */
+  app.post("/api/v1/diagnostics/refresh", async () => {
+    await poller.refreshAll();
+    return { ok: true };
+  });
 
   // ─── api ───────────────────────────────────────────────────
   registerAuthRoutes(app, config);
   registerRoomsRoutes(app, { store, commander });
   registerSystemRoutes(app, { store, commander });
-  registerMessagesRoutes(app, { store });
+  registerMessagesRoutes(app, { store, source });
   registerProgramsRoutes(app, { store, commander });
-  registerInstallerRoutes(app, { config, source });
+  registerInstallerRoutes(app, { config, source, store });
 
   // ─── SPA (built React) ─────────────────────────────────────
   if (spaDir && existsSync(spaDir)) {

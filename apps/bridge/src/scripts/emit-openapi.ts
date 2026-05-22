@@ -25,7 +25,7 @@ const main = async (): Promise<void> => {
   const store = new Store();
   const poller = new Poller({ config, source, store, logger });
   const commander = new Commander({ source, store, poller });
-  const app = await buildServer({ config, logger, store, commander, source });
+  const app = await buildServer({ config, logger, store, commander, source, poller });
   await app.ready();
 
   // Will use @fastify/swagger once registered:

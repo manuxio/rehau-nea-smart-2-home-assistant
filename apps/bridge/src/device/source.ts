@@ -77,6 +77,14 @@ export interface DeviceSource {
   fetchRoomList(): Promise<RoomListEntry[]>;
   fetchRoomDetail(zone: number): Promise<RoomDetailSnapshot>;
   fetchMessages(): Promise<AlarmMessage[]>;
+  /**
+   * Acknowledge all REHAU alarms. The device's /messages.html page wraps
+   * its table in `<form action="user-menu.html" method="post">` carrying
+   * a single hidden `MessagesHidden` input — POSTing that form back is
+   * what its built-in "Confirm" button does. After acknowledgement the
+   * device clears the messages table on the next /messages.html GET.
+   */
+  clearMessages(): Promise<void>;
   fetchSystemInfo(): Promise<SystemInfoSnapshot>;
   fetchDailyProgram(id: number): Promise<DailyProgramSnapshot>;
   fetchWeeklyProgram(id: number): Promise<WeeklyProgramSnapshot>;
@@ -167,6 +175,15 @@ export class LiveDeviceSource implements DeviceSource {
 
   fetchMessages = async (): Promise<AlarmMessage[]> =>
     parseMessages(await this.http.get("/messages.html"));
+
+  // POST the messages-page form back. REHAU's table is wrapped in
+  // `<form action="user-menu.html"><input name="MessagesHidden" ...>`
+  // — submitting it (no extra fields needed) is the device's
+  // "acknowledge all alarms" trigger. The body string mirrors what the
+  // built-in Confirm button submits.
+  clearMessages = async (): Promise<void> => {
+    await this.http.postForm("/user-menu.html", { MessagesHidden: "" });
+  };
 
   fetchSystemInfo = async (): Promise<SystemInfoSnapshot> =>
     parseSystemInfo(await this.http.get("/user-config-installer.html"));
@@ -339,7 +356,21 @@ export class LiveDeviceSource implements DeviceSource {
 
   async fetchUptime(): Promise<UptimeState> {
     const s = this.requireInstaller();
-    return s.run(async () => parseUptime(await this.http.get("/installer-system-statistics.html")));
+    return s.run(async () => {
+      const html = await this.http.get("/installer-system-statistics.html");
+      const out = parseUptime(html);
+      // Diagnostic: when the parser returns 0/0/0, dump a sample of the
+      // body to the addon logs so we can capture the actual REHAU page
+      // shape (e.g. a language we haven't covered yet, or a firmware
+      // that changed the layout) and update the parser.
+      if (out.years === 0 && out.days === 0 && out.hours === 0) {
+        console.warn(
+          "[uptime] parser returned 0 0 0 — sample of /installer-system-statistics.html:\n" +
+            html.replace(/<script[\s\S]*?<\/script>/gi, "").slice(0, 1500),
+        );
+      }
+      return out;
+    });
   }
 
   async fetchTopology(): Promise<Topology> {
@@ -398,20 +429,26 @@ export class MockDeviceSource implements DeviceSource {
   }
 
   async fetchRoomList(): Promise<RoomListEntry[]> {
-    return this.rooms.map((r) => ({ zone: r.zone, name: r.name, temperature: r.temperature }));
+    // The mock-seed Rooms always have real numeric values, but the type is
+    // now `number | null` (no-defaults rule). Coerce via `??` so the
+    // mock path satisfies the RoomListEntry contract — parsers in live
+    // mode produce real numbers, so this fallback is mock-only.
+    return this.rooms.map((r) => ({ zone: r.zone, name: r.name, temperature: r.temperature ?? 0 }));
   }
 
   async fetchRoomDetail(zone: number): Promise<RoomDetailSnapshot> {
     const r = this.rooms.find((x) => x.zone === zone);
     if (!r) throw new Error(`unknown zone ${zone}`);
+    // Same null-coercion as fetchRoomList — mock seed always has numbers.
+    const heat = r.setpointHeating ?? 20;
     return {
       zone: r.zone,
       name: r.name,
-      temperature: r.temperature,
-      humidity: r.humidity,
-      setpoint: r.mode === "standby" ? r.setpointHeating : r.setpointHeating,
-      setpointHeatingNormal: r.setpointHeating,
-      setpointHeatingReduced: Math.max(5, r.setpointHeating - 1.5),
+      temperature: r.temperature ?? 0,
+      humidity: r.humidity ?? 0,
+      setpoint: heat,
+      setpointHeatingNormal: heat,
+      setpointHeatingReduced: Math.max(5, heat - 1.5),
       setpointStandby: 23,
       mode: r.mode,
       programActive: 1,
@@ -427,6 +464,10 @@ export class MockDeviceSource implements DeviceSource {
 
   async fetchMessages(): Promise<AlarmMessage[]> {
     return this.messages;
+  }
+
+  async clearMessages(): Promise<void> {
+    this.messages = [];
   }
 
   async fetchSystemInfo(): Promise<SystemInfoSnapshot> {
@@ -531,12 +572,15 @@ export class MockDeviceSource implements DeviceSource {
   }
 
   // ─── installer-tier (synthetic) ──────────────────────────
+  // RoomCalibration expects concrete numbers (writes back to the device).
+  // The seed Room may carry `null` for calibration after the no-defaults
+  // sweep, so coerce to 0 here — mock-only.
   private calibration: CalibrationSnapshot = {
     outdoor: 0,
     rooms: seedRooms.map((r) => ({
       zone: r.zone,
-      tempOffset: r.calibrationTemp,
-      humidityOffset: r.calibrationHumidity,
+      tempOffset: r.calibrationTemp ?? 0,
+      humidityOffset: r.calibrationHumidity ?? 0,
     })),
   };
 

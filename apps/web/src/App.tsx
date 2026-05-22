@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { BANNER_RESERVED_PX, ConnectionBanner } from "./components/ConnectionBanner";
 import { TabBar } from "./components/ui";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { Installer } from "./features/installer/Installer";
@@ -10,6 +11,7 @@ import { Programs } from "./features/programs/Programs";
 import { RoomDetail } from "./features/rooms/RoomDetail";
 import { System } from "./features/system/System";
 import { useAuth } from "./lib/auth";
+import { useConnection } from "./lib/connection";
 import { usePullToRefresh } from "./lib/ptr";
 import { useHashRoute, type Tab } from "./lib/useHashRoute";
 
@@ -80,6 +82,9 @@ export default function App() {
     ]);
   });
 
+  const { state: connState, conn } = useConnection();
+  const showBanner = connState !== "online" && !!conn;
+
   if (!session) return <Login />;
 
   const baseTabs = [
@@ -92,7 +97,18 @@ export default function App() {
   const tabs = session.role === "installer" ? [...baseTabs, installerTab] : baseTabs;
 
   return (
-    <div style={{ minHeight: "100vh", position: "relative" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        position: "relative",
+        // Reserve space for the fixed ConnectionBanner so it doesn't cover
+        // the AppHeader. CSS variable lets long lists / sticky bars react
+        // (TabBar already accounts for safe-area-inset-bottom on its own).
+        paddingTop: showBanner ? BANNER_RESERVED_PX : undefined,
+      }}
+    >
+      {showBanner && conn && <ConnectionBanner conn={conn} />}
+
       {/* Pull-to-refresh indicator */}
       {(offset > 0 || refreshing) && (
         <div

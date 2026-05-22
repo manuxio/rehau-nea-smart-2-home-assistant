@@ -376,8 +376,19 @@ export const parseCalibration = (html: string): CalibrationSnapshot => {
 export const parseUptime = (html: string): UptimeState => {
   const $ = cheerio.load(html);
   const text = $("body").text().replace(/\s+/g, " ");
-  // "Sistema ooperativo da: 0 Anno 0 Giorno 2 Ora"
-  const m = /(\d+)\s*Anno[a-z]*\s+(\d+)\s*Giorn[a-z]*\s+(\d+)\s*Or[a-z]*/i.exec(text);
+  // Language-agnostic match for "<N> <word> <N> <word> <N> <word>".
+  // REHAU writes the uptime line as e.g.:
+  //   English  "Controller running : 0 Year(s) 0 Day(s) 3 Hour(s)"
+  //   Italian  "Sistema operativo da: 0 Anno 0 Giorno 2 Ora"
+  //   German   "Steuerung läuft seit: 0 Jahr(e) 0 Tag(e) 3 Stunde(n)"
+  //
+  // Note the parentheses on the plural suffix (Year(s), Tag(e), …).
+  // Previously we restricted the word to \p{L}+ (letters only), which
+  // stopped at "(" and the regex never matched — every English/German
+  // install showed 0 0 0. Now each "word" is any non-whitespace,
+  // non-digit run, which absorbs parentheses, accents, etc.
+  // See CLAUDE.md §6 — DO NOT re-introduce locale-specific text matches.
+  const m = /(\d+)\s+[^\d\s]+\s+(\d+)\s+[^\d\s]+\s+(\d+)\s+[^\d\s]+/.exec(text);
   return {
     years: m ? Number(m[1]) : 0,
     days: m ? Number(m[2]) : 0,

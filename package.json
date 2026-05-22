@@ -18,7 +18,8 @@
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "snapshot": "tsx scripts/snapshot.ts",
-    "hashpw": "tsx scripts/hashpw.ts"
+    "hashpw": "tsx scripts/hashpw.ts",
+    "deploy:local": "node scripts/deploy-local.mjs"
   },
   "devDependencies": {
     "bcrypt": "^5.1.1",

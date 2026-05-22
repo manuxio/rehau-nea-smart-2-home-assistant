@@ -1,5 +1,16 @@
 # Changelog
 
+## 6.0.11 — 2026-05-22
+
+See [rehau-bridge/CHANGELOG.md](rehau-bridge/CHANGELOG.md) for the
+full set. Headlines: connection-state machine surfaced in HA + SPA,
+optimistic writes (bridge-side, so MQTT publishes user intent
+instantly), no-defaults rule throughout Room state, installer
+Save/Cancel buttons, REHAU-state panel + force-refresh button,
+acknowledge-all-messages, fixed uptime parser for non-Italian
+firmware, fixed Stepper rounding for `step < 0.1` fields,
+`npm run deploy:local` samba helper.
+
 ## 6.0.10 — 2026-05-20
 
 ### Changed

@@ -62,11 +62,17 @@ export const buildRoomClimate = (
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}`,
     availability_topic: ctx.topics.availability,
     current_temperature_topic: ctx.topics.roomState(room.id),
-    current_temperature_template: "{{ value_json.temperature }}",
+    // Render Python `None` for the no-defaults nullable fields so HA shows
+    // "unavailable" instead of "0" / blank. Otherwise an un-polled Room
+    // would surface phantom 0°C readings in HA dashboards.
+    current_temperature_template:
+      "{% if value_json.temperature is none %}unknown{% else %}{{ value_json.temperature }}{% endif %}",
     current_humidity_topic: ctx.topics.roomState(room.id),
-    current_humidity_template: "{{ value_json.humidity }}",
+    current_humidity_template:
+      "{% if value_json.humidity is none %}unknown{% else %}{{ value_json.humidity }}{% endif %}",
     temperature_state_topic: ctx.topics.roomState(room.id),
-    temperature_state_template: "{{ value_json.setpointHeating }}",
+    temperature_state_template:
+      "{% if value_json.setpointHeating is none %}unknown{% else %}{{ value_json.setpointHeating }}{% endif %}",
     temperature_command_topic: ctx.topics.roomSetpointSet(room.id),
     min_temp: 5,
     max_temp: 31,
@@ -98,7 +104,8 @@ export const buildRoomHumiditySensor = (
     name: `${room.name} umidità`,
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_humidity`,
     state_topic: ctx.topics.roomState(room.id),
-    value_template: "{{ value_json.humidity }}",
+    value_template:
+      "{% if value_json.humidity is none %}unknown{% else %}{{ value_json.humidity }}{% endif %}",
     unit_of_measurement: "%",
     device_class: "humidity",
     state_class: "measurement",
@@ -330,7 +337,8 @@ export const buildRoomTempCalibrationSensor = (
     name: `${room.name} · offset temperatura`,
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_cal_temp`,
     state_topic: ctx.topics.roomState(room.id),
-    value_template: "{{ value_json.calibrationTemp }}",
+    value_template:
+      "{% if value_json.calibrationTemp is none %}unknown{% else %}{{ value_json.calibrationTemp }}{% endif %}",
     unit_of_measurement: "°C",
     device_class: "temperature",
     state_class: "measurement",
@@ -350,7 +358,8 @@ export const buildRoomHumidityCalibrationSensor = (
     name: `${room.name} · offset umidità`,
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_cal_humidity`,
     state_topic: ctx.topics.roomState(room.id),
-    value_template: "{{ value_json.calibrationHumidity }}",
+    value_template:
+      "{% if value_json.calibrationHumidity is none %}unknown{% else %}{{ value_json.calibrationHumidity }}{% endif %}",
     unit_of_measurement: "%",
     state_class: "measurement",
     entity_category: "diagnostic",

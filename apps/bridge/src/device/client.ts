@@ -1,4 +1,5 @@
 import { Pool } from "undici";
+import type { FetchTelemetryEntry } from "@rehau/types";
 import type { Logger } from "../observability/log.js";
 
 export interface DeviceClientOptions {
@@ -12,6 +13,13 @@ export interface DeviceClientOptions {
    */
   minGapMs?: number;
   logger: Logger;
+  /**
+   * Optional sink for fetch telemetry — called once per request with the
+   * final outcome (`ok` if the body came back 2xx, otherwise a classified
+   * failure). Wired to `store.recordFetch` in main.ts so the connection
+   * state machine and `/api/v1/diagnostics` see every call.
+   */
+  onTelemetry?: (entry: FetchTelemetryEntry) => void;
 }
 
 /**
@@ -84,11 +92,48 @@ export class DeviceClient {
   }
 
   private async request(method: "GET" | "POST", path: string, body?: string): Promise<string> {
-    const { logger, timeoutMs } = this.opts;
+    const { logger, timeoutMs, onTelemetry } = this.opts;
     const t0 = Date.now();
+    const startedAt = new Date().toISOString();
     const reqBytes = body?.length ?? 0;
     const headers: Record<string, string> = { connection: "close" };
     if (body) headers["content-type"] = "application/x-www-form-urlencoded";
+
+    // Classify an error caught from `once()` so we can record a meaningful
+    // outcome in the telemetry buffer. The categories are coarse but enough
+    // for the Diagnostics page to highlight what's going wrong.
+    const classify = (err: unknown): { outcome: "timeout" | "http" | "tcp"; status?: number } => {
+      const code = (err as { code?: string }).code;
+      if (code === "UND_ERR_HEADERS_TIMEOUT" || code === "UND_ERR_CONNECT_TIMEOUT" || code === "UND_ERR_BODY_TIMEOUT") {
+        return { outcome: "timeout" };
+      }
+      // Errors thrown by our `once()` wrapper for non-2xx responses match
+      // `device ... → <status>`.
+      const m = /→\s+(\d{3})$/.exec((err as { message?: string }).message ?? "");
+      if (m) return { outcome: "http", status: Number(m[1]) };
+      return { outcome: "tcp" };
+    };
+
+    const emit = (
+      ms: number,
+      outcome: "ok" | "timeout" | "http" | "tcp",
+      status?: number,
+      error?: string,
+    ): void => {
+      if (!onTelemetry) return;
+      try {
+        onTelemetry({
+          at: startedAt,
+          what: `${method} ${path}`,
+          ms,
+          outcome,
+          ...(status !== undefined ? { status } : {}),
+          ...(error ? { error: error.slice(0, 200) } : {}),
+        });
+      } catch {
+        /* never let telemetry interfere with the request flow */
+      }
+    };
 
     /**
      * Internal call → either resolves with the body or throws. Used by the
@@ -117,6 +162,7 @@ export class DeviceClient {
         { method, path, ms, reqBytes, resBytes: text.length },
         `device ${method} ${path} → 200 in ${ms}ms`,
       );
+      emit(ms, "ok");
       return text;
     } catch (err) {
       const code = (err as { code?: string }).code;
@@ -139,6 +185,7 @@ export class DeviceClient {
             { method, path, ms, reqBytes, resBytes: text.length, retried: true },
             `device ${method} ${path} → 200 in ${ms}ms (after retry)`,
           );
+          emit(ms, "ok");
           return text;
         } catch (retryErr) {
           const ms = Date.now() - t0;
@@ -146,6 +193,8 @@ export class DeviceClient {
             { err: retryErr, method, path, ms, reqBytes },
             `device ${method} ${path} FAILED after ${ms}ms (incl. retry)`,
           );
+          const cls = classify(retryErr);
+          emit(ms, cls.outcome, cls.status, (retryErr as { message?: string }).message);
           throw retryErr;
         }
       }
@@ -154,6 +203,8 @@ export class DeviceClient {
         { err, method, path, ms, reqBytes },
         `device ${method} ${path} FAILED after ${ms}ms`,
       );
+      const cls = classify(err);
+      emit(ms, cls.outcome, cls.status, (err as { message?: string }).message);
       throw err;
     }
   }
