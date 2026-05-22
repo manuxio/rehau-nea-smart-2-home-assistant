@@ -208,9 +208,9 @@ export function Installer() {
                     exactOptionalPropertyTypes, so omit the prop
                     entirely on the active branch. */}
                 {isActive ? (
-                  <Glyph name={TAB_ICONS[v]} size={16} />
+                  <Glyph name={TAB_ICONS[v]} size={20} />
                 ) : (
-                  <Glyph name={TAB_ICONS[v]} size={16} color="var(--accent)" />
+                  <Glyph name={TAB_ICONS[v]} size={20} color="var(--accent)" />
                 )}
                 {t(`installer.tabs.${v}`)}
               </button>

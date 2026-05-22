@@ -8,6 +8,14 @@ import { PrefsProvider } from "./lib/prefs";
 import "./lib/i18n";
 import "./index.css";
 
+declare const __SPA_BUILD__: string;
+
+// Boot marker — F12 → Console to verify the browser is running the
+// freshly built bundle vs. a cached older one. The value is injected
+// by Vite at build time; see apps/web/vite.config.ts.
+// eslint-disable-next-line no-console
+console.log("[REHAU SPA] build", __SPA_BUILD__);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 5_000, refetchOnWindowFocus: false, retry: 1 },
