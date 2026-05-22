@@ -123,7 +123,13 @@ export class MqttBridge {
           .map(([k, v]) => `${k}:${v.relay.length}/${v.di.length}/${v.aiC.length}`)
           .join(",")
       : "noio";
-    return `${rooms}||${ioSig}`;
+    // Heating vs cooling season also drives the climate entity's
+    // modes / min_temp / max_temp / mode_state_template, so we want
+    // discovery to be republished on a season flip.
+    const opMode = this.o.store.getSystem().operatingMode;
+    const season =
+      opMode === "cooling_only" || opMode === "manual_cooling" ? "C" : "H";
+    return `${rooms}||${ioSig}||s:${season}`;
   }
 
   /**
@@ -165,6 +171,11 @@ export class MqttBridge {
 
   private publishSystem(s: SystemState): void {
     this.mqtt.publish(this.topics.systemState, s, { retain: true });
+    // Season change (heating ↔ cooling) flips the climate entity's
+    // modes list and the room-mode→HA-mode template. publishHaDiscovery
+    // is a no-op when the capability signature hasn't changed, so calling
+    // it on every system update is cheap and correct.
+    this.publishHaDiscovery();
   }
 
   private publishMessages(m: AlarmMessage[]): void {

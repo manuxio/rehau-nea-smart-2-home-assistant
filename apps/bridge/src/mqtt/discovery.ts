@@ -36,12 +36,22 @@ const deviceBlock = (ctx: DiscoveryContext) => ({
   sw_version: ctx.fwVersion,
 });
 
-// JINJA inline mapping for HA — must be a one-liner.
-const ROOM_MODE_TO_HA_MODE_JINJA =
-  "{{ {'standby':'off','normal':'heat','reduced':'heat','program':'auto','program_override':'auto'}.get(value_json.mode, 'off') }}";
+// JINJA inline mappings — must be one-liners. Active-mode words
+// (`heat` vs `cool`) are baked in at discovery time based on the
+// system's current operating mode; the bridge republishes discovery
+// whenever the season flips (see capabilitySignature in bridge.ts).
+// That way HA's climate card only ever shows the dropdown choices
+// that actually do something for the current season.
+const roomModeToHaJinja = (active: "heat" | "cool"): string =>
+  `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'auto','program_override':'auto'}.get(value_json.mode, 'off') }}`;
 
-const HA_MODE_TO_ROOM_MODE_JINJA =
-  "{{ {'off':'standby','heat':'normal','auto':'program','cool':'normal'}.get(value, 'normal') }}";
+const haModeToRoomJinja = (): string =>
+  // Both `heat` and `cool` map back to `normal` — the device decides
+  // heating vs cooling from the global operating mode, not per-room.
+  "{{ {'off':'standby','heat':'normal','cool':'normal','auto':'program'}.get(value, 'normal') }}";
+
+const isSystemCooling = (s: SystemState): boolean =>
+  s.operatingMode === "cooling_only" || s.operatingMode === "manual_cooling";
 
 // REHAU exposes 5 fancoil speeds via FV0..FV4 (configured) and a separate
 // fanRunning flag (motor actually spinning). We expose the *effective* speed:
@@ -55,7 +65,11 @@ const FAN_SPEED_STATE_JINJA =
 export const buildRoomClimate = (
   ctx: DiscoveryContext,
   room: Room,
-): DiscoveryMessage => ({
+  system: SystemState,
+): DiscoveryMessage => {
+  const cooling = isSystemCooling(system);
+  const haActiveMode: "heat" | "cool" = cooling ? "cool" : "heat";
+  return ({
   topic: `${ctx.prefix}/climate/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}/config`,
   payload: {
     name: room.name,
@@ -77,17 +91,21 @@ export const buildRoomClimate = (
       "{% set sp = value_json.setpointHeating if value_json.setpointHeating is not none else value_json.setpointCooling %}" +
       "{% if sp is none %}unknown{% else %}{{ sp }}{% endif %}",
     temperature_command_topic: ctx.topics.roomSetpointSet(room.id),
-    // Span the union of heating (5–31) and cooling (15–35) ranges so
-    // the HA climate card accepts a setpoint regardless of season.
-    // REHAU enforces the per-season range on its own side.
-    min_temp: 5,
-    max_temp: 35,
+    // Range matches the active season — heating 5–31, cooling 15–35.
+    // REHAU's <input id="RSH"> enforces the same bounds on the device
+    // side, so we mirror them exactly and HA won't offer values REHAU
+    // would reject.
+    min_temp: cooling ? 15 : 5,
+    max_temp: cooling ? 35 : 31,
     temp_step: 0.5,
-    modes: ["off", "heat", "cool", "auto"],
+    // Per the project rule: heating season exposes Off/Heat/Auto,
+    // cooling season exposes Off/Cool/Auto. Discovery is republished
+    // on every season change so the dropdown stays in sync.
+    modes: cooling ? ["off", "cool", "auto"] : ["off", "heat", "auto"],
     mode_state_topic: ctx.topics.roomState(room.id),
-    mode_state_template: ROOM_MODE_TO_HA_MODE_JINJA,
+    mode_state_template: roomModeToHaJinja(haActiveMode),
     mode_command_topic: ctx.topics.roomModeSet(room.id),
-    mode_command_template: HA_MODE_TO_ROOM_MODE_JINJA,
+    mode_command_template: haModeToRoomJinja(),
     preset_modes: ["normal", "reduced", "program", "program_override", "standby"],
     preset_mode_state_topic: ctx.topics.roomState(room.id),
     preset_mode_value_template: "{{ value_json.mode }}",
@@ -100,6 +118,7 @@ export const buildRoomClimate = (
     device: deviceBlock(ctx),
   },
 });
+};
 
 export const buildRoomHumiditySensor = (
   ctx: DiscoveryContext,
@@ -573,7 +592,7 @@ export const buildIODiscovery = (
 export const buildAllDiscovery = (
   ctx: DiscoveryContext,
   rooms: Room[],
-  _system: SystemState,
+  system: SystemState,
   io: IOSnapshot | null,
 ): DiscoveryMessage[] => [
   buildOutdoorSensor(ctx),
@@ -584,7 +603,7 @@ export const buildAllDiscovery = (
   ...(ctx.exposeCalibration ? [buildOutdoorOffsetSensor(ctx)] : []),
   ...rooms.flatMap((r) => {
     const msgs: DiscoveryMessage[] = [
-      buildRoomClimate(ctx, r),
+      buildRoomClimate(ctx, r, system),
       buildRoomHumiditySensor(ctx, r),
       buildRoomLockSwitch(ctx, r),
       buildRoomAutoStartSwitch(ctx, r),

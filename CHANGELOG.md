@@ -1,5 +1,25 @@
 # Changelog
 
+## 6.0.24 — 2026-05-22
+
+### Changed — HA climate modes match the current season
+
+The MQTT climate entity now advertises only the modes that actually
+work in the current operating mode:
+
+- Heating season (`heating_only` / `manual_heating`): `Off · Heat · Auto`
+- Cooling season (`cooling_only` / `manual_cooling`): `Off · Cool · Auto`
+
+REHAU decides heating vs cooling at the system level (per global
+operating mode), so it's wrong for HA's per-room climate card to
+offer both — picking "Heat" while the system is in cooling does
+nothing. The bridge republishes discovery whenever the season flips
+(operatingMode is now part of the discovery capability signature) so
+the dropdown updates automatically.
+
+`min_temp` / `max_temp` also narrow to the active season's REHAU
+range (5–31 heating, 15–35 cooling) instead of the previous union.
+
 ## 6.0.23 — 2026-05-22
 
 ### Fixed — cooling mode setpoint routing

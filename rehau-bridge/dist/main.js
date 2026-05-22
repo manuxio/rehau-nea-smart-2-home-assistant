@@ -3434,50 +3434,63 @@ var deviceBlock = (ctx) => ({
   model: "Nea Smart 2.0",
   sw_version: ctx.fwVersion
 });
-var ROOM_MODE_TO_HA_MODE_JINJA = "{{ {'standby':'off','normal':'heat','reduced':'heat','program':'auto','program_override':'auto'}.get(value_json.mode, 'off') }}";
-var HA_MODE_TO_ROOM_MODE_JINJA = "{{ {'off':'standby','heat':'normal','auto':'program','cool':'normal'}.get(value, 'normal') }}";
+var roomModeToHaJinja = (active) => `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'auto','program_override':'auto'}.get(value_json.mode, 'off') }}`;
+var haModeToRoomJinja = () => (
+  // Both `heat` and `cool` map back to `normal` — the device decides
+  // heating vs cooling from the global operating mode, not per-room.
+  "{{ {'off':'standby','heat':'normal','cool':'normal','auto':'program'}.get(value, 'normal') }}"
+);
+var isSystemCooling = (s) => s.operatingMode === "cooling_only" || s.operatingMode === "manual_cooling";
 var FAN_SPEED_STATE_JINJA = "{% if value_json.fanRunning %}{{ ['Spento','Bassa','Media','Alta','Massima'][value_json.fan|int] }}{% else %}Spento{% endif %}";
-var buildRoomClimate = (ctx, room) => ({
-  topic: `${ctx.prefix}/climate/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}/config`,
-  payload: {
-    name: room.name,
-    unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}`,
-    availability_topic: ctx.topics.availability,
-    current_temperature_topic: ctx.topics.roomState(room.id),
-    // Render Python `None` for the no-defaults nullable fields so HA shows
-    // "unavailable" instead of "0" / blank. Otherwise an un-polled Room
-    // would surface phantom 0°C readings in HA dashboards.
-    current_temperature_template: "{% if value_json.temperature is none %}unknown{% else %}{{ value_json.temperature }}{% endif %}",
-    current_humidity_topic: ctx.topics.roomState(room.id),
-    current_humidity_template: "{% if value_json.humidity is none %}unknown{% else %}{{ value_json.humidity }}{% endif %}",
-    temperature_state_topic: ctx.topics.roomState(room.id),
-    // Whichever season is active populates one slot; the other is null.
-    // Pick whichever is non-none. (See poller pollRoomDetail routing.)
-    temperature_state_template: "{% set sp = value_json.setpointHeating if value_json.setpointHeating is not none else value_json.setpointCooling %}{% if sp is none %}unknown{% else %}{{ sp }}{% endif %}",
-    temperature_command_topic: ctx.topics.roomSetpointSet(room.id),
-    // Span the union of heating (5–31) and cooling (15–35) ranges so
-    // the HA climate card accepts a setpoint regardless of season.
-    // REHAU enforces the per-season range on its own side.
-    min_temp: 5,
-    max_temp: 35,
-    temp_step: 0.5,
-    modes: ["off", "heat", "cool", "auto"],
-    mode_state_topic: ctx.topics.roomState(room.id),
-    mode_state_template: ROOM_MODE_TO_HA_MODE_JINJA,
-    mode_command_topic: ctx.topics.roomModeSet(room.id),
-    mode_command_template: HA_MODE_TO_ROOM_MODE_JINJA,
-    preset_modes: ["normal", "reduced", "program", "program_override", "standby"],
-    preset_mode_state_topic: ctx.topics.roomState(room.id),
-    preset_mode_value_template: "{{ value_json.mode }}",
-    preset_mode_command_topic: ctx.topics.roomModeSet(room.id),
-    // Fancoil speed and flap are exposed as separate `sensor` entities (see
-    // buildRoomFanSpeedSensor / buildRoomFlapSensor). HA doesn't have a
-    // read-only mode for climate's fan_mode/swing_mode — declaring them
-    // without a command topic leaves the dropdown clickable but does nothing,
-    // which is worse UX than putting the value on a plain sensor.
-    device: deviceBlock(ctx)
-  }
-});
+var buildRoomClimate = (ctx, room, system) => {
+  const cooling = isSystemCooling(system);
+  const haActiveMode = cooling ? "cool" : "heat";
+  return {
+    topic: `${ctx.prefix}/climate/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}/config`,
+    payload: {
+      name: room.name,
+      unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}`,
+      availability_topic: ctx.topics.availability,
+      current_temperature_topic: ctx.topics.roomState(room.id),
+      // Render Python `None` for the no-defaults nullable fields so HA shows
+      // "unavailable" instead of "0" / blank. Otherwise an un-polled Room
+      // would surface phantom 0°C readings in HA dashboards.
+      current_temperature_template: "{% if value_json.temperature is none %}unknown{% else %}{{ value_json.temperature }}{% endif %}",
+      current_humidity_topic: ctx.topics.roomState(room.id),
+      current_humidity_template: "{% if value_json.humidity is none %}unknown{% else %}{{ value_json.humidity }}{% endif %}",
+      temperature_state_topic: ctx.topics.roomState(room.id),
+      // Whichever season is active populates one slot; the other is null.
+      // Pick whichever is non-none. (See poller pollRoomDetail routing.)
+      temperature_state_template: "{% set sp = value_json.setpointHeating if value_json.setpointHeating is not none else value_json.setpointCooling %}{% if sp is none %}unknown{% else %}{{ sp }}{% endif %}",
+      temperature_command_topic: ctx.topics.roomSetpointSet(room.id),
+      // Range matches the active season — heating 5–31, cooling 15–35.
+      // REHAU's <input id="RSH"> enforces the same bounds on the device
+      // side, so we mirror them exactly and HA won't offer values REHAU
+      // would reject.
+      min_temp: cooling ? 15 : 5,
+      max_temp: cooling ? 35 : 31,
+      temp_step: 0.5,
+      // Per the project rule: heating season exposes Off/Heat/Auto,
+      // cooling season exposes Off/Cool/Auto. Discovery is republished
+      // on every season change so the dropdown stays in sync.
+      modes: cooling ? ["off", "cool", "auto"] : ["off", "heat", "auto"],
+      mode_state_topic: ctx.topics.roomState(room.id),
+      mode_state_template: roomModeToHaJinja(haActiveMode),
+      mode_command_topic: ctx.topics.roomModeSet(room.id),
+      mode_command_template: haModeToRoomJinja(),
+      preset_modes: ["normal", "reduced", "program", "program_override", "standby"],
+      preset_mode_state_topic: ctx.topics.roomState(room.id),
+      preset_mode_value_template: "{{ value_json.mode }}",
+      preset_mode_command_topic: ctx.topics.roomModeSet(room.id),
+      // Fancoil speed and flap are exposed as separate `sensor` entities (see
+      // buildRoomFanSpeedSensor / buildRoomFlapSensor). HA doesn't have a
+      // read-only mode for climate's fan_mode/swing_mode — declaring them
+      // without a command topic leaves the dropdown clickable but does nothing,
+      // which is worse UX than putting the value on a plain sensor.
+      device: deviceBlock(ctx)
+    }
+  };
+};
 var buildRoomHumiditySensor = (ctx, room) => ({
   topic: `${ctx.prefix}/sensor/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_humidity/config`,
   payload: {
@@ -3824,7 +3837,7 @@ var buildIODiscovery = (ctx, io) => {
   }
   return msgs;
 };
-var buildAllDiscovery = (ctx, rooms, _system, io) => [
+var buildAllDiscovery = (ctx, rooms, system, io) => [
   buildOutdoorSensor(ctx),
   buildOperatingModeSelect(ctx),
   buildEnergyLevelSelect(ctx),
@@ -3833,7 +3846,7 @@ var buildAllDiscovery = (ctx, rooms, _system, io) => [
   ...ctx.exposeCalibration ? [buildOutdoorOffsetSensor(ctx)] : [],
   ...rooms.flatMap((r) => {
     const msgs = [
-      buildRoomClimate(ctx, r),
+      buildRoomClimate(ctx, r, system),
       buildRoomHumiditySensor(ctx, r),
       buildRoomLockSwitch(ctx, r),
       buildRoomAutoStartSwitch(ctx, r),
@@ -3986,7 +3999,9 @@ var MqttBridge = class {
     const rooms = this.o.store.listRooms().map((r) => `${r.id}:${r.hasLight ? "L" : ""}${r.hasFan ? "F" : ""}${r.hasFlap ? "P" : ""}`).join("|");
     const io = this.o.store.getIO();
     const ioSig = io ? `m:${io.master.rz.length}/${io.master.relay.length}/${io.master.di.length}|` + Object.entries(io.umodules).map(([k, v]) => `${k}:${v.relay.length}/${v.di.length}/${v.aiC.length}`).join(",") : "noio";
-    return `${rooms}||${ioSig}`;
+    const opMode = this.o.store.getSystem().operatingMode;
+    const season = opMode === "cooling_only" || opMode === "manual_cooling" ? "C" : "H";
+    return `${rooms}||${ioSig}||s:${season}`;
   }
   /**
    * Publish HA discovery. Idempotent: a no-op if the room capability signature
@@ -4023,6 +4038,7 @@ var MqttBridge = class {
   }
   publishSystem(s) {
     this.mqtt.publish(this.topics.systemState, s, { retain: true });
+    this.publishHaDiscovery();
   }
   publishMessages(m) {
     this.mqtt.publish(this.topics.messages, m, { retain: true });
