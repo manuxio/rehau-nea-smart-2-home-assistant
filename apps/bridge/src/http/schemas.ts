@@ -271,3 +271,28 @@ export const installerSettingsPatchSchema = z.object({
     }),
   ),
 });
+
+// ─── Floors + Scenes (persistent, user-editable) ──────────────────────
+
+export const floorAssignmentsSchema = z.record(z.string(), z.string()).describe(
+  "Map of zone (string-keyed) → user-given floor label. Empty string = unassigned.",
+);
+
+export const sceneIconSchema = z.enum([
+  "sun", "moon", "flame", "snow", "drop",
+  "calendar", "clock", "home", "bell", "wrench",
+  "sliders", "alert",
+]);
+
+export const sceneActionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("applyRoomMode"), mode: roomModeSchema }),
+]);
+
+export const sceneSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  icon: sceneIconSchema,
+  action: sceneActionSchema,
+});
+
+export const sceneCreateSchema = sceneSchema.omit({ id: true });

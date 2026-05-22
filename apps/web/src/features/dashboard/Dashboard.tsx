@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { seedDailyPrograms } from "@rehau/types/mocks";
-import type { RoomMode } from "@rehau/types";
+import type { Room } from "@rehau/types";
 import {
   AppHeader,
   Banner,
@@ -15,12 +15,19 @@ import {
 import { useAuth } from "../../lib/auth";
 import { fmtClock, labelSystemMode, staleSec } from "../../lib/labels";
 
-const SCENES: { id: string; key: string; icon: string; mode: RoomMode }[] = [
-  { id: "stby", key: "home.sceneStandby", icon: "moon",     mode: "standby" },
-  { id: "eve",  key: "home.sceneEvening", icon: "flame",    mode: "normal" },
-  { id: "away", key: "home.sceneAway",    icon: "calendar", mode: "reduced" },
-  { id: "norm", key: "home.sceneNormal",  icon: "sun",      mode: "normal" },
-];
+/**
+ * Comparator: floor label A→Z, then room name A→Z within each floor.
+ * Rooms without a floor label sort LAST so the dashboard can show a
+ * single "Other" group at the bottom rather than mixing them into
+ * named floors. `￿` is the highest code point — sorts after any
+ * real label.
+ */
+const compareByFloorThenName = (a: Room, b: Room): number => {
+  const fa = a.floor || "￿";
+  const fb = b.floor || "￿";
+  if (fa !== fb) return fa.localeCompare(fb);
+  return a.name.localeCompare(b.name);
+};
 
 export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) {
   const { api } = useAuth();
@@ -28,16 +35,20 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
   const qc = useQueryClient();
   const sys = useQuery({ queryKey: ["system"], queryFn: () => api.system.get(), refetchInterval: 5000 });
   const rooms = useQuery({ queryKey: ["rooms"], queryFn: () => api.rooms.list(), refetchInterval: 5000 });
+  // User-defined scenes from /data/state.json (Stage 7). When the list is
+  // empty (fresh install) the editor in the System tab tells the user how
+  // to add some — the Dashboard simply doesn't render the section.
+  const scenes = useQuery({ queryKey: ["scenes"], queryFn: () => api.scenes.list() });
 
   const applyScene = useMutation({
-    mutationFn: async (mode: RoomMode) => {
-      const list = rooms.data ?? [];
-      for (const r of list) {
-        await api.rooms.setMode(r.id, mode);
-      }
-    },
+    mutationFn: (id: string) => api.scenes.apply(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["rooms"] }),
   });
+
+  // Sort rooms by floor label then name. Memoised through useQuery's
+  // select would be more elegant; for now the cost is tiny (≤ 16 rooms)
+  // so a per-render sort is fine.
+  const sortedRooms = (rooms.data ?? []).slice().sort(compareByFloorThenName);
 
   const now = new Date();
   const hour = now.getHours() + now.getMinutes() / 60;
@@ -76,27 +87,31 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
         }
       />
 
-      <SectionHead title={t("home.scenes")} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, padding: "0 16px" }}>
-        {SCENES.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            disabled={applyScene.isPending}
-            onClick={() => applyScene.mutate(s.mode)}
-            style={{
-              ...btnStyle("secondary", "md"),
-              flexDirection: "column",
-              padding: "12px 6px",
-              gap: 6,
-              fontSize: "0.6875rem",
-            }}
-          >
-            <Glyph name={s.icon} size={20} color="var(--accent)" />
-            {t(s.key)}
-          </button>
-        ))}
-      </div>
+      {(scenes.data?.length ?? 0) > 0 && (
+        <>
+          <SectionHead title={t("home.scenes")} />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, padding: "0 16px" }}>
+            {scenes.data!.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                disabled={applyScene.isPending}
+                onClick={() => applyScene.mutate(s.id)}
+                style={{
+                  ...btnStyle("secondary", "md"),
+                  flexDirection: "column",
+                  padding: "12px 6px",
+                  gap: 6,
+                  fontSize: "0.6875rem",
+                }}
+              >
+                <Glyph name={s.icon} size={20} color="var(--accent)" />
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <SectionHead
         title={t("home.rooms", { count: rooms.data?.length ?? 0 })}
@@ -115,7 +130,14 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "0 16px 16px" }}>
-        {(rooms.data ?? []).map((r) => {
+        {sortedRooms.map((r, i) => {
+          // Floor section header — print once at the start of each
+          // contiguous run of rooms sharing a floor label. Rooms without
+          // a floor get a single "Other" header at the bottom (since we
+          // sort them last).
+          const prevFloor = i === 0 ? null : sortedRooms[i - 1]?.floor ?? "";
+          const showFloorHeader = (r.floor || "") !== (prevFloor ?? "");
+          const headerLabel = r.floor || t("home.floorOther");
           // Program bits only make sense when the room is actually following a
           // schedule — hiding them otherwise reduces visual noise on the card.
           const showProgram = r.mode === "program" || r.mode === "program_override";
@@ -123,8 +145,22 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
             ? (seedDailyPrograms.find((d) => d.id === r.programDailyId) ?? seedDailyPrograms[0]!)
             : null;
           return (
+            <div key={r.id}>
+              {showFloorHeader && (
+                <div
+                  style={{
+                    fontFamily: "var(--mono)",
+                    fontSize: "0.625rem",
+                    color: "var(--muted)",
+                    letterSpacing: 0.8,
+                    textTransform: "uppercase",
+                    margin: i === 0 ? "0 0 6px" : "10px 0 6px",
+                  }}
+                >
+                  {headerLabel}
+                </div>
+              )}
             <Card
-              key={r.id}
               staleSeconds={staleSec(r.meta.lastUpdatedAt)}
               onClick={() => onOpenRoom(r.id)}
             >
@@ -247,6 +283,7 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
                 </div>
               )}
             </Card>
+            </div>
           );
         })}
         {rooms.isLoading && (

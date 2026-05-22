@@ -1,5 +1,33 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.12
+
+### Added
+
+- **User-editable floor assignments.** Pick a floor label per room
+  in System → Floors. Persisted to `/data/state.json` so it survives
+  addon updates. The Dashboard now groups rooms by floor (alphabetic
+  label, room name within), with rooms that have no floor in a
+  single "Unassigned" group at the bottom.
+- **Scenes CRUD.** Create / edit / delete scenes from System →
+  Scenes, with a per-scene name, icon (picked from a curated set)
+  and a room-mode to apply. The Dashboard's scene grid now renders
+  the user's saved scenes; the four hardcoded "Standby / Evening /
+  Away / Normal" placeholders are gone. Persisted to
+  `/data/state.json` alongside floor assignments.
+- New endpoints (auth-gated):
+  - `GET/PUT /api/v1/floors`
+  - `GET/POST /api/v1/scenes`, `PUT/DELETE /api/v1/scenes/:id`,
+    `POST /api/v1/scenes/:id/apply`
+- `STATE_FILE` env / addon option (default `/data/state.json`) —
+  path to the persistent state file.
+
+### Notes
+
+- The `ROOM_FLOORS` env var is kept as a seed default for fresh
+  installs that haven't customised yet. As soon as you save floors
+  in the SPA, the persisted file takes priority.
+
 ## 6.0.11
 
 Big quality-of-life pass that lands the connection-state telemetry,

@@ -8,6 +8,11 @@ dotenv.config({ path: resolve(import.meta.dirname, "../../../.env") });
 
 import { loadConfig } from "./config.js";
 import { Commander } from "./core/commander.js";
+import {
+  loadPersistentState,
+  savePersistentState,
+  type PersistentState,
+} from "./core/persistent-state.js";
 import { Poller } from "./core/poller.js";
 import { Store } from "./core/store.js";
 import { DeviceClient } from "./device/client.js";
@@ -42,6 +47,30 @@ const main = async (): Promise<void> => {
   // immediately so the first GET /api/v1/system already returns the right
   // label (before the first device poll lands).
   store.patchSystem({ installationName: config.INSTALLATION_NAME });
+
+  // ─── Persistent user state (floors + scenes) ────────────────────────
+  // /data/state.json on the HA addon volume. Loaded once at boot; saved
+  // by a small wrapper on every persistent.changed event from the Store.
+  const persistentState: PersistentState = loadPersistentState(config.STATE_FILE, (msg, err) => {
+    logger.warn({ err, path: config.STATE_FILE }, msg);
+  });
+  // ROOM_FLOORS env var is the legacy default; the persisted file takes
+  // priority so SPA edits stick. Merge so a fresh install with only the
+  // env var still labels rooms until the user customises.
+  const mergedFloors = { ...config.ROOM_FLOORS, ...persistentState.floors };
+  store.loadPersistent({ floors: mergedFloors, scenes: persistentState.scenes });
+  store.events.on("persistent.changed", () => {
+    try {
+      savePersistentState(config.STATE_FILE, {
+        ...persistentState,
+        version: 1,
+        floors: store.getFloorAssignments(),
+        scenes: store.getScenes(),
+      });
+    } catch (err) {
+      logger.warn({ err, path: config.STATE_FILE }, "could not save state file");
+    }
+  });
 
   let source: DeviceSource;
   if (config.DEVICE_MODE === "live") {

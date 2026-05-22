@@ -1,5 +1,21 @@
 # Changelog
 
+## 6.0.12 — 2026-05-22
+
+User-editable floors + scenes, persisted to `/data/state.json`.
+
+- **Floors**: assign a floor label per room (System → Floors). The
+  Dashboard groups rooms by floor (alphabetic label, then name), with
+  unassigned rooms in a single "Unassigned" group at the bottom.
+- **Scenes**: create / edit / delete scenes with a name, icon and a
+  room-mode to apply (System → Scenes). The Dashboard's scene grid
+  now renders saved scenes — the hardcoded placeholders are gone.
+  When the list is empty, the section is hidden.
+- New endpoints: `GET/PUT /api/v1/floors`, `GET/POST /api/v1/scenes`,
+  `PUT/DELETE /api/v1/scenes/:id`, `POST /api/v1/scenes/:id/apply`.
+- New `STATE_FILE` config (default `/data/state.json`). `ROOM_FLOORS`
+  env var still works as a seed default.
+
 ## 6.0.11 — 2026-05-22
 
 See [rehau-bridge/CHANGELOG.md](rehau-bridge/CHANGELOG.md) for the

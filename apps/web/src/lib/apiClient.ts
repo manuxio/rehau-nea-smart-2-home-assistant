@@ -8,6 +8,7 @@ import type {
   DailyProgram,
   DiagnosticsSnapshot,
   EnergyLevel,
+  FloorAssignments,
   HeatCurveState,
   InstallerSettingsGroup,
   InstallerSettingsPatch,
@@ -17,6 +18,8 @@ import type {
   Room,
   RoomCalibration,
   RoomMode,
+  Scene,
+  SceneCreate,
   SystemMode,
   SystemState,
   Topology,
@@ -129,6 +132,24 @@ export class ApiClient {
       this.request("GET", `/api/v1/messages${activeOnly ? "?activeOnly=true" : ""}`),
     /** Acknowledge all REHAU alarms (same as the device's built-in Confirm button). */
     clear: (): Promise<{ ok: true }> => this.request("POST", "/api/v1/messages/clear"),
+  };
+
+  floors = {
+    get: (): Promise<FloorAssignments> => this.request("GET", "/api/v1/floors"),
+    set: (assignments: FloorAssignments): Promise<FloorAssignments> =>
+      this.request("PUT", "/api/v1/floors", assignments),
+  };
+
+  scenes = {
+    list: (): Promise<Scene[]> => this.request("GET", "/api/v1/scenes"),
+    create: (input: SceneCreate): Promise<Scene> =>
+      this.request("POST", "/api/v1/scenes", input),
+    update: (id: string, input: SceneCreate): Promise<Scene> =>
+      this.request("PUT", `/api/v1/scenes/${encodeURIComponent(id)}`, input),
+    remove: (id: string): Promise<{ ok: true }> =>
+      this.request("DELETE", `/api/v1/scenes/${encodeURIComponent(id)}`),
+    apply: (id: string): Promise<{ ok: true }> =>
+      this.request("POST", `/api/v1/scenes/${encodeURIComponent(id)}/apply`),
   };
 
   diagnostics = {

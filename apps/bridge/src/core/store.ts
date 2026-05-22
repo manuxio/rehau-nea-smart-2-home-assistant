@@ -6,9 +6,11 @@ import type {
   DailyProgram,
   DiagnosticsSnapshot,
   FetchTelemetryEntry,
+  FloorAssignments,
   IOSnapshot,
   Room,
   RoomMode,
+  Scene,
   SystemState,
   WeeklyProgram,
 } from "@rehau/types";
@@ -41,6 +43,8 @@ type Events = {
   "device.status": (s: { online: boolean; lastReadAt: string }) => void;
   /** Coarse "online/degraded/offline" state machine — fires on every transition. */
   "connection.changed": (c: BridgeConnection) => void;
+  /** Fires when floors or scenes are edited — main.ts persists to /data/state.json. */
+  "persistent.changed": () => void;
   "daily.changed": (p: DailyProgram) => void;
   "weekly.changed": (p: WeeklyProgram) => void;
   "io.changed": (io: IOSnapshot) => void;
@@ -65,6 +69,12 @@ export class Store {
     reason: null,
   };
   private fetches: FetchTelemetryEntry[] = [];
+  // ─── User-editable persistent state ─────────────────────────
+  // Populated from /data/state.json on boot (see main.ts) and re-saved
+  // whenever the SPA edits it via REST. The Store fires `persistent.changed`
+  // on any change; main.ts subscribes and writes the file.
+  private floorAssignments: FloorAssignments = {};
+  private scenes: Scene[] = [];
   readonly events = new EventEmitter() as TypedEmitter<Events>;
 
   /**
@@ -104,6 +114,45 @@ export class Store {
   }
   getConnection(): BridgeConnection {
     return { ...this.connection };
+  }
+
+  // ─── User-editable persistent state ─────────────────────────
+  getFloorAssignments(): FloorAssignments {
+    return { ...this.floorAssignments };
+  }
+  setFloorAssignments(next: FloorAssignments): void {
+    // Drop empty-string assignments — "no label" is the absence of an entry.
+    const cleaned: FloorAssignments = {};
+    for (const [zone, label] of Object.entries(next)) {
+      const trimmed = (label ?? "").trim();
+      if (trimmed) cleaned[Number(zone)] = trimmed;
+    }
+    if (JSON.stringify(cleaned) === JSON.stringify(this.floorAssignments)) return;
+    this.floorAssignments = cleaned;
+    // Apply to current rooms so the SPA's `/api/v1/rooms` reflects the edit
+    // without waiting for the next dashboard poll.
+    for (const r of this.rooms.values()) {
+      const floor = this.floorAssignments[r.zone] ?? "";
+      if (r.floor !== floor) this.patchRoom(r.id, { floor });
+    }
+    this.events.emit("persistent.changed");
+  }
+  getScenes(): Scene[] {
+    return this.scenes.map((s) => ({ ...s }));
+  }
+  setScenes(next: Scene[]): void {
+    this.scenes = next.map((s) => ({ ...s }));
+    this.events.emit("persistent.changed");
+  }
+  /**
+   * Replace the persistent-state slices in one call — used by main.ts
+   * after reading the file at boot, so we only fire the persisted event
+   * once and the file doesn't get rewritten in response to its own load.
+   */
+  loadPersistent(state: { floors: FloorAssignments; scenes: Scene[] }): void {
+    this.floorAssignments = { ...state.floors };
+    this.scenes = state.scenes.map((s) => ({ ...s }));
+    // Don't emit — caller is the file loader, not a real state change.
   }
   getDiagnostics(): DiagnosticsSnapshot {
     const recent = this.fetches.slice().reverse(); // newest first
@@ -275,7 +324,10 @@ export class Store {
       calibrationHumidity: null,
       programDailyId: 1,
       programWeeklyId: 1,
-      floor: "",
+      // Pick up the persisted floor label so a SPA-edited assignment
+      // applies the moment the room is created by the live poller —
+      // not just on the next polling tick.
+      floor: this.floorAssignments[zone] ?? "",
       lock: false,
       autoStart: true,
       windowDetection: true,

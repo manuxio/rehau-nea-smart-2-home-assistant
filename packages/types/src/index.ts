@@ -193,6 +193,45 @@ export interface Topology {
   dehumidifiers: number;
 }
 
+// ─── User-editable persistent state ─────────────────────────────────────
+// Lives in /data/state.json (HA addon persistent dir) so floors + scenes
+// survive addon restarts. Bridge loads on boot, SPA edits via REST.
+
+/**
+ * Map of zone (REHAU device's zero-based zone index) → floor label
+ * (free-form, e.g. "Piano Terra"). An empty/missing label means
+ * "unassigned" — the Dashboard sorts those rooms last.
+ */
+export type FloorAssignments = Record<number, string>;
+
+/** Catalogue of icon names the Scene editor offers (subset of Glyph names). */
+export const SCENE_ICONS = [
+  "sun", "moon", "flame", "snow", "drop",
+  "calendar", "clock", "home", "bell", "wrench",
+  "sliders", "alert",
+] as const;
+export type SceneIcon = (typeof SCENE_ICONS)[number];
+
+export interface Scene {
+  /** Stable id, slug-ish. Server-generated on create. */
+  id: string;
+  /** User-given name (UI label). */
+  name: string;
+  /** Icon shown on the Dashboard tile. One of `SCENE_ICONS`. */
+  icon: SceneIcon;
+  /**
+   * The action the scene runs. For v1 we only support "apply this room
+   * mode to every room". Per-room overrides + system mode changes can
+   * extend this discriminated union later without breaking older
+   * persisted scenes.
+   */
+  action:
+    | { type: "applyRoomMode"; mode: RoomMode };
+}
+
+/** Body for POST /api/v1/scenes. */
+export type SceneCreate = Omit<Scene, "id">;
+
 export interface RoomCalibration {
   /** Device-side zero-based zone index. */
   zone: number;

@@ -13,6 +13,7 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { canWrite, useConnection } from "../../lib/connection";
+import { FloorsEditor, ScenesEditor } from "./FloorsAndScenes";
 import { labelEnergyLevel, labelSystemMode, staleSec } from "../../lib/labels";
 import { usePrefs } from "../../lib/prefs";
 import {
@@ -273,6 +274,12 @@ export function System() {
       <Card style={{ margin: "0 16px" }}>
         <KV label={t("system.winter")} value={`${sys.seasonStart} → ${sys.seasonEnd}`} />
       </Card>
+
+      <SectionHead title={t("system.floors.title")} />
+      <FloorsEditor />
+
+      <SectionHead title={t("system.scenes.title")} />
+      <ScenesEditor />
 
       <SectionHead title={t("system.app")} />
       <Card style={{ margin: "0 16px" }}>

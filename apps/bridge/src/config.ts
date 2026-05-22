@@ -70,8 +70,14 @@ const envSchema = z.object({
   EXPOSE_IO: z.coerce.boolean().default(true),
   EXPOSE_CALIBRATION: z.coerce.boolean().default(false),
 
-  // ui-only mapping
+  // ui-only mapping. Legacy: when /data/state.json doesn't yet have
+  // floors set by the user, ROOM_FLOORS env var is used as the seed.
+  // SPA edits override this and persist to STATE_FILE.
   ROOM_FLOORS: roomFloorsSchema,
+
+  // Persistent state file path (HA addon volume). Holds user-editable
+  // floors + scenes. /data is the supervisor-mounted persistent dir.
+  STATE_FILE: z.string().default("/data/state.json"),
 
   // logging
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),

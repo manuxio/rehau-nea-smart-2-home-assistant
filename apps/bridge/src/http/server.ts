@@ -15,10 +15,12 @@ import type { Config } from "../config.js";
 import type { Logger } from "../observability/log.js";
 import { registerAuth, registerAuthRoutes } from "./auth.js";
 import { registerOpenApi } from "./openapi.js";
+import { registerFloorsRoutes } from "./routes/floors.js";
 import { registerInstallerRoutes } from "./routes/installer.js";
 import { registerMessagesRoutes } from "./routes/messages.js";
 import { registerProgramsRoutes } from "./routes/programs.js";
 import { registerRoomsRoutes } from "./routes/rooms.js";
+import { registerScenesRoutes } from "./routes/scenes.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import type { DeviceSource } from "../device/source.js";
 
@@ -133,6 +135,8 @@ export const buildServer = async ({
   registerMessagesRoutes(app, { store, source });
   registerProgramsRoutes(app, { store, commander });
   registerInstallerRoutes(app, { config, source, store });
+  registerFloorsRoutes(app, { store });
+  registerScenesRoutes(app, { store, commander });
 
   // ─── SPA (built React) ─────────────────────────────────────
   if (spaDir && existsSync(spaDir)) {

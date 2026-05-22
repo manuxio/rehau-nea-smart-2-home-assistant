@@ -64,8 +64,13 @@ var envSchema = z.object({
   POLL_CALIBRATION_S: z.coerce.number().int().nonnegative().default(180),
   EXPOSE_IO: z.coerce.boolean().default(true),
   EXPOSE_CALIBRATION: z.coerce.boolean().default(false),
-  // ui-only mapping
+  // ui-only mapping. Legacy: when /data/state.json doesn't yet have
+  // floors set by the user, ROOM_FLOORS env var is used as the seed.
+  // SPA edits override this and persist to STATE_FILE.
   ROOM_FLOORS: roomFloorsSchema,
+  // Persistent state file path (HA addon volume). Holds user-editable
+  // floors + scenes. /data is the supervisor-mounted persistent dir.
+  STATE_FILE: z.string().default("/data/state.json"),
   // logging
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   LOG_FORMAT: z.enum(["json", "pretty"]).default("json")
@@ -255,6 +260,44 @@ var Commander = class {
     await this.a.source.setWeeklyProgram(id, days);
     return this.refreshWeeklyProgram(id);
   }
+};
+
+// src/core/persistent-state.ts
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
+import { dirname } from "path";
+var FILE_VERSION = 1;
+var emptyPersistentState = () => ({
+  version: FILE_VERSION,
+  floors: {},
+  scenes: []
+});
+var loadPersistentState = (path, warn) => {
+  if (!existsSync(path)) return emptyPersistentState();
+  try {
+    const raw = readFileSync(path, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== FILE_VERSION) {
+      warn(`state-file version mismatch (got ${String(parsed?.version)}, expected ${FILE_VERSION}); starting empty`);
+      return emptyPersistentState();
+    }
+    return {
+      version: FILE_VERSION,
+      floors: typeof parsed.floors === "object" && parsed.floors ? parsed.floors : {},
+      scenes: Array.isArray(parsed.scenes) ? parsed.scenes : [],
+      ...parsed
+      // preserve unknown keys (future-version metadata)
+    };
+  } catch (err) {
+    warn("state-file unreadable; starting empty", err);
+    return emptyPersistentState();
+  }
+};
+var savePersistentState = (path, state) => {
+  const dir = dirname(path);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  const tmp = `${path}.tmp`;
+  writeFileSync(tmp, JSON.stringify(state, null, 2) + "\n", "utf8");
+  renameSync(tmp, path);
 };
 
 // src/core/poller.ts
@@ -764,6 +807,12 @@ var Store = class {
     reason: null
   };
   fetches = [];
+  // ─── User-editable persistent state ─────────────────────────
+  // Populated from /data/state.json on boot (see main.ts) and re-saved
+  // whenever the SPA edits it via REST. The Store fires `persistent.changed`
+  // on any change; main.ts subscribes and writes the file.
+  floorAssignments = {};
+  scenes = [];
   events = new EventEmitter();
   /**
    * @param opts.seed When `true`, populate every collection from the mock
@@ -805,6 +854,40 @@ var Store = class {
   }
   getConnection() {
     return { ...this.connection };
+  }
+  // ─── User-editable persistent state ─────────────────────────
+  getFloorAssignments() {
+    return { ...this.floorAssignments };
+  }
+  setFloorAssignments(next) {
+    const cleaned = {};
+    for (const [zone, label] of Object.entries(next)) {
+      const trimmed = (label ?? "").trim();
+      if (trimmed) cleaned[Number(zone)] = trimmed;
+    }
+    if (JSON.stringify(cleaned) === JSON.stringify(this.floorAssignments)) return;
+    this.floorAssignments = cleaned;
+    for (const r of this.rooms.values()) {
+      const floor = this.floorAssignments[r.zone] ?? "";
+      if (r.floor !== floor) this.patchRoom(r.id, { floor });
+    }
+    this.events.emit("persistent.changed");
+  }
+  getScenes() {
+    return this.scenes.map((s) => ({ ...s }));
+  }
+  setScenes(next) {
+    this.scenes = next.map((s) => ({ ...s }));
+    this.events.emit("persistent.changed");
+  }
+  /**
+   * Replace the persistent-state slices in one call — used by main.ts
+   * after reading the file at boot, so we only fire the persisted event
+   * once and the file doesn't get rewritten in response to its own load.
+   */
+  loadPersistent(state) {
+    this.floorAssignments = { ...state.floors };
+    this.scenes = state.scenes.map((s) => ({ ...s }));
   }
   getDiagnostics() {
     const recent = this.fetches.slice().reverse();
@@ -946,7 +1029,10 @@ var Store = class {
       calibrationHumidity: null,
       programDailyId: 1,
       programWeeklyId: 1,
-      floor: "",
+      // Pick up the persisted floor label so a SPA-edited assignment
+      // applies the moment the room is created by the live poller —
+      // not just on the next polling tick.
+      floor: this.floorAssignments[zone] ?? "",
       lock: false,
       autoStart: true,
       windowDetection: true,
@@ -2170,7 +2256,7 @@ var MockDeviceSource = class {
 };
 
 // src/http/server.ts
-import { existsSync } from "fs";
+import { existsSync as existsSync2 } from "fs";
 import { resolve } from "path";
 import fastifyCors from "@fastify/cors";
 import fastifyRateLimit from "@fastify/rate-limit";
@@ -2306,8 +2392,8 @@ var registerOpenApi = async (app) => {
   });
 };
 
-// src/http/routes/installer.ts
-import { z as z4 } from "zod";
+// src/http/routes/floors.ts
+import "zod";
 
 // src/http/schemas.ts
 import { z as z3 } from "zod";
@@ -2547,8 +2633,69 @@ var installerSettingsPatchSchema = z3.object({
     })
   )
 });
+var floorAssignmentsSchema = z3.record(z3.string(), z3.string()).describe(
+  "Map of zone (string-keyed) \u2192 user-given floor label. Empty string = unassigned."
+);
+var sceneIconSchema = z3.enum([
+  "sun",
+  "moon",
+  "flame",
+  "snow",
+  "drop",
+  "calendar",
+  "clock",
+  "home",
+  "bell",
+  "wrench",
+  "sliders",
+  "alert"
+]);
+var sceneActionSchema = z3.discriminatedUnion("type", [
+  z3.object({ type: z3.literal("applyRoomMode"), mode: roomModeSchema })
+]);
+var sceneSchema = z3.object({
+  id: z3.string(),
+  name: z3.string().min(1),
+  icon: sceneIconSchema,
+  action: sceneActionSchema
+});
+var sceneCreateSchema = sceneSchema.omit({ id: true });
+
+// src/http/routes/floors.ts
+var registerFloorsRoutes = (app, { store }) => {
+  app.get("/api/v1/floors", {
+    schema: {
+      tags: ["floors"],
+      response: { 200: floorAssignmentsSchema },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async () => {
+    const a = store.getFloorAssignments();
+    return Object.fromEntries(Object.entries(a).map(([k, v]) => [String(k), v]));
+  });
+  app.put("/api/v1/floors", {
+    schema: {
+      tags: ["floors"],
+      body: floorAssignmentsSchema,
+      response: { 200: floorAssignmentsSchema },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async (req) => {
+    const body = req.body;
+    const numericKeyed = {};
+    for (const [k, v] of Object.entries(body)) {
+      const n = Number(k);
+      if (!Number.isInteger(n)) continue;
+      numericKeyed[n] = v;
+    }
+    store.setFloorAssignments(numericKeyed);
+    const a = store.getFloorAssignments();
+    return Object.fromEntries(Object.entries(a).map(([k, v]) => [String(k), v]));
+  });
+};
 
 // src/http/routes/installer.ts
+import { z as z5 } from "zod";
 var nowIso2 = () => (/* @__PURE__ */ new Date()).toISOString();
 var registerInstallerRoutes = (app, { config, source, store }) => {
   const guard = async () => {
@@ -2646,7 +2793,7 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
   app.get("/api/v1/installer/settings/:group", {
     schema: {
       tags: ["installer"],
-      params: z4.object({ group: installerSettingsGroupSchema }),
+      params: z5.object({ group: installerSettingsGroupSchema }),
       response: { 200: installerSettingsSchema, 503: errorSchema },
       security: [{ bearerAuth: [] }]
     }
@@ -2660,7 +2807,7 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
   app.put("/api/v1/installer/settings/:group", {
     schema: {
       tags: ["installer"],
-      params: z4.object({ group: installerSettingsGroupSchema }),
+      params: z5.object({ group: installerSettingsGroupSchema }),
       body: installerSettingsPatchSchema,
       response: { 200: installerSettingsSchema, 503: errorSchema },
       security: [{ bearerAuth: [] }]
@@ -2676,13 +2823,13 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
 };
 
 // src/http/routes/messages.ts
-import { z as z5 } from "zod";
+import { z as z6 } from "zod";
 var registerMessagesRoutes = (app, { store, source }) => {
   app.get("/api/v1/messages", {
     schema: {
       tags: ["messages"],
-      querystring: z5.object({ activeOnly: z5.coerce.boolean().optional() }),
-      response: { 200: z5.array(messageSchema) },
+      querystring: z6.object({ activeOnly: z6.coerce.boolean().optional() }),
+      response: { 200: z6.array(messageSchema) },
       security: [{ bearerAuth: [] }]
     }
   }, async (req) => {
@@ -2693,7 +2840,7 @@ var registerMessagesRoutes = (app, { store, source }) => {
   app.post("/api/v1/messages/clear", {
     schema: {
       tags: ["messages"],
-      response: { 200: z5.object({ ok: z5.literal(true) }) },
+      response: { 200: z6.object({ ok: z6.literal(true) }) },
       security: [{ bearerAuth: [] }]
     }
   }, async () => {
@@ -2704,20 +2851,20 @@ var registerMessagesRoutes = (app, { store, source }) => {
 };
 
 // src/http/routes/programs.ts
-import { z as z6 } from "zod";
+import { z as z7 } from "zod";
 var registerProgramsRoutes = (app, { store, commander }) => {
   app.get("/api/v1/programs/daily", {
     schema: {
       tags: ["programs"],
-      response: { 200: z6.array(dailyProgramSchema) },
+      response: { 200: z7.array(dailyProgramSchema) },
       security: [{ bearerAuth: [] }]
     }
   }, async () => store.listDailyPrograms());
   app.get("/api/v1/programs/daily/:n", {
     schema: {
       tags: ["programs"],
-      params: z6.object({ n: z6.coerce.number().int().min(1).max(10) }),
-      querystring: z6.object({ fresh: z6.coerce.boolean().optional() }),
+      params: z7.object({ n: z7.coerce.number().int().min(1).max(10) }),
+      querystring: z7.object({ fresh: z7.coerce.boolean().optional() }),
       response: { 200: dailyProgramSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
     }
@@ -2734,7 +2881,7 @@ var registerProgramsRoutes = (app, { store, commander }) => {
   app.put("/api/v1/programs/daily/:n", {
     schema: {
       tags: ["programs"],
-      params: z6.object({ n: z6.coerce.number().int().min(1).max(10) }),
+      params: z7.object({ n: z7.coerce.number().int().min(1).max(10) }),
       body: dailyProgramWriteSchema,
       response: { 200: dailyProgramSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
@@ -2750,15 +2897,15 @@ var registerProgramsRoutes = (app, { store, commander }) => {
   app.get("/api/v1/programs/weekly", {
     schema: {
       tags: ["programs"],
-      response: { 200: z6.array(weeklyProgramSchema) },
+      response: { 200: z7.array(weeklyProgramSchema) },
       security: [{ bearerAuth: [] }]
     }
   }, async () => store.listWeeklyPrograms());
   app.get("/api/v1/programs/weekly/:n", {
     schema: {
       tags: ["programs"],
-      params: z6.object({ n: z6.coerce.number().int().min(1).max(5) }),
-      querystring: z6.object({ fresh: z6.coerce.boolean().optional() }),
+      params: z7.object({ n: z7.coerce.number().int().min(1).max(5) }),
+      querystring: z7.object({ fresh: z7.coerce.boolean().optional() }),
       response: { 200: weeklyProgramSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
     }
@@ -2775,7 +2922,7 @@ var registerProgramsRoutes = (app, { store, commander }) => {
   app.put("/api/v1/programs/weekly/:n", {
     schema: {
       tags: ["programs"],
-      params: z6.object({ n: z6.coerce.number().int().min(1).max(5) }),
+      params: z7.object({ n: z7.coerce.number().int().min(1).max(5) }),
       body: weeklyProgramWriteSchema,
       response: { 200: weeklyProgramSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
@@ -2799,10 +2946,10 @@ var registerProgramsRoutes = (app, { store, commander }) => {
   app.get("/api/v1/programs/daily/:n/intervals", {
     schema: {
       tags: ["programs"],
-      params: z6.object({ n: z6.coerce.number().int().min(1).max(10) }),
+      params: z7.object({ n: z7.coerce.number().int().min(1).max(10) }),
       response: {
-        200: z6.object({
-          intervals: z6.array(z6.object({ start: z6.string(), end: z6.string() }))
+        200: z7.object({
+          intervals: z7.array(z7.object({ start: z7.string(), end: z7.string() }))
         }),
         404: errorSchema
       },
@@ -2817,19 +2964,19 @@ var registerProgramsRoutes = (app, { store, commander }) => {
 };
 
 // src/http/routes/rooms.ts
-import { z as z7 } from "zod";
+import { z as z8 } from "zod";
 var registerRoomsRoutes = (app, { store, commander }) => {
   app.get("/api/v1/rooms", {
     schema: {
       tags: ["rooms"],
-      response: { 200: z7.array(roomSchema) },
+      response: { 200: z8.array(roomSchema) },
       security: [{ bearerAuth: [] }]
     }
   }, async () => store.listRooms());
   app.get("/api/v1/rooms/:id", {
     schema: {
       tags: ["rooms"],
-      params: z7.object({ id: z7.string() }),
+      params: z8.object({ id: z8.string() }),
       response: { 200: roomSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
     }
@@ -2842,7 +2989,7 @@ var registerRoomsRoutes = (app, { store, commander }) => {
   app.patch("/api/v1/rooms/:id", {
     schema: {
       tags: ["rooms"],
-      params: z7.object({ id: z7.string() }),
+      params: z8.object({ id: z8.string() }),
       body: roomPatchSchema,
       response: { 200: roomSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
@@ -2873,7 +3020,7 @@ var registerRoomsRoutes = (app, { store, commander }) => {
   app.put("/api/v1/rooms/:id/flags", {
     schema: {
       tags: ["rooms"],
-      params: z7.object({ id: z7.string() }),
+      params: z8.object({ id: z8.string() }),
       body: roomFlagsBodySchema,
       response: { 200: roomSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
@@ -2892,7 +3039,7 @@ var registerRoomsRoutes = (app, { store, commander }) => {
   app.put("/api/v1/rooms/:id/setpoint", {
     schema: {
       tags: ["rooms"],
-      params: z7.object({ id: z7.string() }),
+      params: z8.object({ id: z8.string() }),
       body: setpointBodySchema,
       response: { 200: roomSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
@@ -2907,7 +3054,7 @@ var registerRoomsRoutes = (app, { store, commander }) => {
   app.put("/api/v1/rooms/:id/light", {
     schema: {
       tags: ["rooms"],
-      params: z7.object({ id: z7.string() }),
+      params: z8.object({ id: z8.string() }),
       body: lightBodySchema,
       response: { 200: roomSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
@@ -2922,7 +3069,7 @@ var registerRoomsRoutes = (app, { store, commander }) => {
   app.put("/api/v1/rooms/:id/mode", {
     schema: {
       tags: ["rooms"],
-      params: z7.object({ id: z7.string() }),
+      params: z8.object({ id: z8.string() }),
       body: roomModeBodySchema,
       response: { 200: roomSchema, 404: errorSchema },
       security: [{ bearerAuth: [] }]
@@ -2933,6 +3080,83 @@ var registerRoomsRoutes = (app, { store, commander }) => {
     const room = await commander.setRoomMode(id, mode, setpoint);
     if (!room) return reply.code(404).send({ error: "not_found" });
     return room;
+  });
+};
+
+// src/http/routes/scenes.ts
+import { z as z9 } from "zod";
+var newId = (name) => {
+  const slug = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 20);
+  return `${slug || "scene"}-${Math.random().toString(36).slice(2, 8)}`;
+};
+var registerScenesRoutes = (app, { store, commander }) => {
+  app.get("/api/v1/scenes", {
+    schema: {
+      tags: ["scenes"],
+      response: { 200: z9.array(sceneSchema) },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async () => store.getScenes());
+  app.post("/api/v1/scenes", {
+    schema: {
+      tags: ["scenes"],
+      body: sceneCreateSchema,
+      response: { 200: sceneSchema },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async (req) => {
+    const body = req.body;
+    const scene = { id: newId(body.name), ...body };
+    store.setScenes([...store.getScenes(), scene]);
+    return scene;
+  });
+  app.put("/api/v1/scenes/:id", {
+    schema: {
+      tags: ["scenes"],
+      params: z9.object({ id: z9.string() }),
+      body: sceneCreateSchema,
+      response: { 200: sceneSchema, 404: errorSchema },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async (req, reply) => {
+    const { id } = req.params;
+    const body = req.body;
+    const list = store.getScenes();
+    if (!list.some((s) => s.id === id)) return reply.code(404).send({ error: "not_found", message: "scene not found" });
+    const next = { id, ...body };
+    store.setScenes(list.map((s) => s.id === id ? next : s));
+    return next;
+  });
+  app.delete("/api/v1/scenes/:id", {
+    schema: {
+      tags: ["scenes"],
+      params: z9.object({ id: z9.string() }),
+      response: { 200: z9.object({ ok: z9.literal(true) }) },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async (req) => {
+    const { id } = req.params;
+    store.setScenes(store.getScenes().filter((s) => s.id !== id));
+    return { ok: true };
+  });
+  app.post("/api/v1/scenes/:id/apply", {
+    schema: {
+      tags: ["scenes"],
+      params: z9.object({ id: z9.string() }),
+      response: { 200: z9.object({ ok: z9.literal(true) }), 404: errorSchema },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async (req, reply) => {
+    const { id } = req.params;
+    const scene = store.getScenes().find((s) => s.id === id);
+    if (!scene) return reply.code(404).send({ error: "not_found", message: "scene not found" });
+    if (scene.action.type === "applyRoomMode") {
+      const mode = scene.action.mode;
+      for (const r of store.listRooms()) {
+        void commander.setRoomMode(r.id, mode);
+      }
+    }
+    return { ok: true };
   });
 };
 
@@ -3037,7 +3261,9 @@ var buildServer = async ({
   registerMessagesRoutes(app, { store, source });
   registerProgramsRoutes(app, { store, commander });
   registerInstallerRoutes(app, { config, source, store });
-  if (spaDir && existsSync(spaDir)) {
+  registerFloorsRoutes(app, { store });
+  registerScenesRoutes(app, { store, commander });
+  if (spaDir && existsSync2(spaDir)) {
     await app.register(fastifyStatic, { root: resolve(spaDir), prefix: "/" });
     app.setNotFoundHandler(async (req, reply) => {
       if (req.url.startsWith("/api/") || req.url.startsWith("/docs") || req.url.startsWith("/openapi")) {
@@ -3797,6 +4023,23 @@ var main = async () => {
   }, "bridge starting");
   const store = new Store({ seed: config.DEVICE_MODE !== "live" });
   store.patchSystem({ installationName: config.INSTALLATION_NAME });
+  const persistentState = loadPersistentState(config.STATE_FILE, (msg, err) => {
+    logger.warn({ err, path: config.STATE_FILE }, msg);
+  });
+  const mergedFloors = { ...config.ROOM_FLOORS, ...persistentState.floors };
+  store.loadPersistent({ floors: mergedFloors, scenes: persistentState.scenes });
+  store.events.on("persistent.changed", () => {
+    try {
+      savePersistentState(config.STATE_FILE, {
+        ...persistentState,
+        version: 1,
+        floors: store.getFloorAssignments(),
+        scenes: store.getScenes()
+      });
+    } catch (err) {
+      logger.warn({ err, path: config.STATE_FILE }, "could not save state file");
+    }
+  });
   let source;
   if (config.DEVICE_MODE === "live") {
     const http = new DeviceClient({
