@@ -36,19 +36,30 @@ const deviceBlock = (ctx: DiscoveryContext) => ({
   sw_version: ctx.fwVersion,
 });
 
-// JINJA inline mappings — must be one-liners. Active-mode words
-// (`heat` vs `cool`) are baked in at discovery time based on the
-// system's current operating mode; the bridge republishes discovery
-// whenever the season flips (see capabilitySignature in bridge.ts).
-// That way HA's climate card only ever shows the dropdown choices
-// that actually do something for the current season.
+// JINJA inline mappings — must be one-liners. The active-season word
+// (`heat` vs `cool`) is baked in at discovery time from the system's
+// current operating mode; the bridge republishes discovery whenever
+// the season flips. That way HA's climate card only ever shows the
+// option that actually drives the device right now.
+//
+// `program` / `program_override` also map to the active-season word:
+// the climate widget represents "is this room currently calling for
+// hot/cold?", and a programmed room IS calling for it. Program vs
+// manual is exposed via `preset_modes` (the proper REHAU vocabulary
+// lives there: normal / reduced / program / program_override /
+// standby), so we don't need a separate `auto` mode that duplicates
+// half of what presets already do — and "auto" in HA conventionally
+// means "system picks heat-or-cool", which REHAU doesn't support
+// per-room anyway.
 const roomModeToHaJinja = (active: "heat" | "cool"): string =>
-  `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'auto','program_override':'auto'}.get(value_json.mode, 'off') }}`;
+  `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'${active}','program_override':'${active}'}.get(value_json.mode, 'off') }}`;
 
 const haModeToRoomJinja = (): string =>
-  // Both `heat` and `cool` map back to `normal` — the device decides
-  // heating vs cooling from the global operating mode, not per-room.
-  "{{ {'off':'standby','heat':'normal','cool':'normal','auto':'program'}.get(value, 'normal') }}";
+  // Both `heat` and `cool` map back to `normal` — REHAU picks heating
+  // vs cooling from the global operating mode, not per-room. To put a
+  // room on its weekly schedule, the user picks `program` from the
+  // preset dropdown.
+  "{{ {'off':'standby','heat':'normal','cool':'normal'}.get(value, 'normal') }}";
 
 const isSystemCooling = (s: SystemState): boolean =>
   s.operatingMode === "cooling_only" || s.operatingMode === "manual_cooling";
@@ -98,10 +109,12 @@ export const buildRoomClimate = (
     min_temp: cooling ? 15 : 5,
     max_temp: cooling ? 35 : 31,
     temp_step: 0.5,
-    // Per the project rule: heating season exposes Off/Heat/Auto,
-    // cooling season exposes Off/Cool/Auto. Discovery is republished
-    // on every season change so the dropdown stays in sync.
-    modes: cooling ? ["off", "cool", "auto"] : ["off", "heat", "auto"],
+    // Heating season → Off/Heat, cooling season → Off/Cool. No `auto`
+    // (see roomModeToHaJinja for the rationale — programs live in
+    // preset_modes, not as a fake HA mode that doesn't actually mean
+    // "pick the season" anyway). Discovery is republished on season
+    // flip so the dropdown stays in sync.
+    modes: cooling ? ["off", "cool"] : ["off", "heat"],
     mode_state_topic: ctx.topics.roomState(room.id),
     mode_state_template: roomModeToHaJinja(haActiveMode),
     mode_command_topic: ctx.topics.roomModeSet(room.id),

@@ -1,5 +1,31 @@
 # Changelog
 
+## 6.0.25 — 2026-05-22
+
+### Changed — drop `auto` from the HA climate dropdown
+
+The climate card now offers only:
+
+- Heating season: `Off · Heat`
+- Cooling season: `Off · Cool`
+
+`auto` was a leftover from v6.0.0 that mapped to REHAU's `program`
+mode. Two problems with it:
+
+- "Auto" in HA conventionally means "system picks heating-or-cooling",
+  which REHAU doesn't do per-room — the season is a global setting.
+- It duplicated functionality already exposed cleanly through the
+  `preset_modes` dropdown (which carries the proper REHAU vocabulary:
+  `normal` / `reduced` / `program` / `program_override` / `standby`).
+
+To put a room on its weekly schedule from HA, pick `program` from the
+preset dropdown. The climate dial still drives the manual setpoint
+the same way. No functionality lost.
+
+`program` and `program_override` now render in the climate widget as
+the active season's mode (heat or cool) — the room IS calling for
+heat/cool when on its schedule, so that's the honest state.
+
 ## 6.0.24 — 2026-05-22
 
 ### Changed — HA climate modes match the current season

@@ -3434,11 +3434,13 @@ var deviceBlock = (ctx) => ({
   model: "Nea Smart 2.0",
   sw_version: ctx.fwVersion
 });
-var roomModeToHaJinja = (active) => `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'auto','program_override':'auto'}.get(value_json.mode, 'off') }}`;
+var roomModeToHaJinja = (active) => `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'${active}','program_override':'${active}'}.get(value_json.mode, 'off') }}`;
 var haModeToRoomJinja = () => (
-  // Both `heat` and `cool` map back to `normal` — the device decides
-  // heating vs cooling from the global operating mode, not per-room.
-  "{{ {'off':'standby','heat':'normal','cool':'normal','auto':'program'}.get(value, 'normal') }}"
+  // Both `heat` and `cool` map back to `normal` — REHAU picks heating
+  // vs cooling from the global operating mode, not per-room. To put a
+  // room on its weekly schedule, the user picks `program` from the
+  // preset dropdown.
+  "{{ {'off':'standby','heat':'normal','cool':'normal'}.get(value, 'normal') }}"
 );
 var isSystemCooling = (s) => s.operatingMode === "cooling_only" || s.operatingMode === "manual_cooling";
 var FAN_SPEED_STATE_JINJA = "{% if value_json.fanRunning %}{{ ['Spento','Bassa','Media','Alta','Massima'][value_json.fan|int] }}{% else %}Spento{% endif %}";
@@ -3470,10 +3472,12 @@ var buildRoomClimate = (ctx, room, system) => {
       min_temp: cooling ? 15 : 5,
       max_temp: cooling ? 35 : 31,
       temp_step: 0.5,
-      // Per the project rule: heating season exposes Off/Heat/Auto,
-      // cooling season exposes Off/Cool/Auto. Discovery is republished
-      // on every season change so the dropdown stays in sync.
-      modes: cooling ? ["off", "cool", "auto"] : ["off", "heat", "auto"],
+      // Heating season → Off/Heat, cooling season → Off/Cool. No `auto`
+      // (see roomModeToHaJinja for the rationale — programs live in
+      // preset_modes, not as a fake HA mode that doesn't actually mean
+      // "pick the season" anyway). Discovery is republished on season
+      // flip so the dropdown stays in sync.
+      modes: cooling ? ["off", "cool"] : ["off", "heat"],
       mode_state_topic: ctx.topics.roomState(room.id),
       mode_state_template: roomModeToHaJinja(haActiveMode),
       mode_command_topic: ctx.topics.roomModeSet(room.id),
