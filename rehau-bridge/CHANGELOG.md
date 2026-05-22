@@ -1,5 +1,12 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.14
+
+- **More scene icons.** Added 8 line-style SVG glyphs to the picker
+  covering the most common scene patterns: power (off / all-off),
+  leaf (eco / save money), bed (sleep), coffee (morning), briefcase
+  (work / away), plane (vacation), film (cinema), gift (party).
+
 ## 6.0.13
 
 ### Added

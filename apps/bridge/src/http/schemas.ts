@@ -282,6 +282,8 @@ export const sceneIconSchema = z.enum([
   "sun", "moon", "flame", "snow", "drop",
   "calendar", "clock", "home", "bell", "wrench",
   "sliders", "alert",
+  "power", "leaf", "bed", "coffee",
+  "briefcase", "plane", "film", "gift",
 ]);
 
 export const sceneActionSchema = z.discriminatedUnion("type", [

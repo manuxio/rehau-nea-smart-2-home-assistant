@@ -63,6 +63,23 @@ export const Glyph = ({
     case "logout":        return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 8l4 4-4 4M20 12H10"/></svg>;
     case "eye":           return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>;
     case "eye-off":       return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a16.4 16.4 0 0 1-3.4 4.3M6.6 6.7A16.4 16.4 0 0 0 2 12s3.5 7 10 7a10.4 10.4 0 0 0 5.4-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>;
+    // ─── Scene-friendly additions ────────────────────────────────────
+    // Power symbol (standby line + arc). Used as "off" / "all-off" tile.
+    case "power":         return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round"><path d="M12 3v9"/><path d="M6.5 7.5a8 8 0 1 0 11 0"/></svg>;
+    // Leaf for eco / save-money scenes.
+    case "leaf":          return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4c0 9-6 15-15 16-1-9 5-15 15-16z"/><path d="M5 20c3-5 7-9 13-13"/></svg>;
+    // Bed: stronger "sleep / standby" semantics than the abstract moon.
+    case "bed":           return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18V8M21 18v-4a3 3 0 0 0-3-3H11v4"/><path d="M3 14h18"/><path d="M3 18v3M21 18v3"/><circle cx="7" cy="11" r="1.5"/></svg>;
+    // Coffee mug — morning scenes.
+    case "coffee":        return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9h13v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9z"/><path d="M17 11h2.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></svg>;
+    // Briefcase — "work" or "away at work".
+    case "briefcase":     return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>;
+    // Plane — vacation / extended-away.
+    case "plane":         return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12l-8-2-5 5H6l2-5-5-2v-1l6 1 5-5h2l-2 5 7 1z"/></svg>;
+    // Film strip — movie / cinema scene.
+    case "film":          return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h3M3 15h3M18 9h3M18 15h3M8 4v16M16 4v16"/></svg>;
+    // Gift box — party / guests scene.
+    case "gift":          return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="8" width="18" height="13" rx="1"/><path d="M2 8h20v4H2z"/><path d="M12 8v13"/><path d="M12 8s-1-5-4-5-1 5 4 5zM12 8s1-5 4-5 1 5-4 5z"/></svg>;
     default: return null;
   }
 };

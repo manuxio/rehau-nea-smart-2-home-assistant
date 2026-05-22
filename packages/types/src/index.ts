@@ -206,9 +206,14 @@ export type FloorAssignments = Record<number, string>;
 
 /** Catalogue of icon names the Scene editor offers (subset of Glyph names). */
 export const SCENE_ICONS = [
+  // Existing — first because users have already chosen them.
   "sun", "moon", "flame", "snow", "drop",
   "calendar", "clock", "home", "bell", "wrench",
   "sliders", "alert",
+  // New common scene patterns: power-off, eco/save-money, sleep,
+  // morning routine, work / away, vacation, movie night, party.
+  "power", "leaf", "bed", "coffee",
+  "briefcase", "plane", "film", "gift",
 ] as const;
 export type SceneIcon = (typeof SCENE_ICONS)[number];
 

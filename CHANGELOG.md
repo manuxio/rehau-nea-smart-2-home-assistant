@@ -1,5 +1,11 @@
 # Changelog
 
+## 6.0.14 — 2026-05-22
+
+- **More scene icons** in the editor: power, leaf, bed, coffee,
+  briefcase, plane, film, gift — covering off / eco / sleep /
+  morning / work / vacation / cinema / party.
+
 ## 6.0.13 — 2026-05-22
 
 - **Per-room mode in scenes.** Scene editor gains a Scope toggle —

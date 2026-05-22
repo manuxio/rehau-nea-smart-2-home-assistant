@@ -2648,7 +2648,15 @@ var sceneIconSchema = z3.enum([
   "bell",
   "wrench",
   "sliders",
-  "alert"
+  "alert",
+  "power",
+  "leaf",
+  "bed",
+  "coffee",
+  "briefcase",
+  "plane",
+  "film",
+  "gift"
 ]);
 var sceneActionSchema = z3.discriminatedUnion("type", [
   z3.object({ type: z3.literal("applyRoomMode"), mode: roomModeSchema }),
