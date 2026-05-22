@@ -1,5 +1,13 @@
 # Changelog
 
+## 6.0.15 — 2026-05-22
+
+- "Text size (testing)" → "Text size" — the slider is staying.
+- "API documentation" → "API".
+- Fix the API link under HA ingress (was 404). Linked to `./docs/`
+  with a trailing slash so fastify-swagger-ui doesn't 301-redirect
+  to an absolute `/docs/` (which ingress doesn't rewrite).
+
 ## 6.0.14 — 2026-05-22
 
 - **More scene icons** in the editor: power, leaf, bed, coffee,

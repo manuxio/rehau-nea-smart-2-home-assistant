@@ -398,7 +398,13 @@ export function System() {
       <SectionHead title={t("system.docs")} />
       <Card style={{ margin: "0 16px" }}>
         <a
-          href={new URL("./docs", document.baseURI).toString()}
+          // Trailing slash matters under HA ingress. Without it, fastify-
+          // swagger-ui 301-redirects /docs → /docs/ with an absolute
+          // Location header, which the browser resolves against the host
+          // root (not the ingress prefix) and 404s. Hitting /docs/
+          // directly skips the redirect and lets the HTML's relative
+          // asset paths resolve through ingress correctly.
+          href={new URL("./docs/", document.baseURI).toString()}
           target="_blank"
           rel="noreferrer noopener"
           style={{

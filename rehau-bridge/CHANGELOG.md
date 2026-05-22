@@ -1,5 +1,18 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.15
+
+- Rename Settings: "Dim. testo (prova)" / "Text size (testing)" →
+  just "Dim. testo" / "Text size". The slider has been around long
+  enough to drop the "(testing)" hedge.
+- Rename "Documentazione API" / "API documentation" → "API".
+- Fix the API link under HA ingress. The link pointed at `./docs`
+  with no trailing slash; fastify-swagger-ui then 301-redirected to
+  the absolute `/docs/`, which the browser resolved against the host
+  root (skipping the ingress prefix) and 404'd. Linking to `./docs/`
+  directly skips the redirect and lets the Swagger UI's relative
+  asset paths resolve through ingress correctly.
+
 ## 6.0.14
 
 - **More scene icons.** Added 8 line-style SVG glyphs to the picker
