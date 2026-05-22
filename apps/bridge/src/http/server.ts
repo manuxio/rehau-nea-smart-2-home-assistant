@@ -139,13 +139,36 @@ export const buildServer = async ({
   registerScenesRoutes(app, { store, commander });
 
   // ─── SPA (built React) ─────────────────────────────────────
+  // Cache strategy:
+  //   - index.html / *.html → no-cache, must-revalidate. The HTML
+  //     references vite's content-hashed asset filenames; if the
+  //     browser caches the HTML across an addon update, it keeps
+  //     pointing at a deleted JS bundle and the user sees the old
+  //     UI until they hard-refresh. no-cache forces a revalidate
+  //     on every load while still allowing 304s.
+  //   - assets/* → vite already content-hashes these (e.g.
+  //     index-CtJ_6omw.js). Safe to cache for a long time; a new
+  //     build gets a new filename so the HTML pulls a fresh asset.
   if (spaDir && existsSync(spaDir)) {
-    await app.register(fastifyStatic, { root: resolve(spaDir), prefix: "/" });
+    await app.register(fastifyStatic, {
+      root: resolve(spaDir),
+      prefix: "/",
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache, must-revalidate");
+        } else if (/\/assets\//.test(filePath)) {
+          // Content-hashed — long-lived. immutable hints the client
+          // it can skip even the conditional GET.
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    });
     // SPA fallback for non-/api/* paths (TanStack/router pretty URLs).
     app.setNotFoundHandler(async (req, reply) => {
       if (req.url.startsWith("/api/") || req.url.startsWith("/docs") || req.url.startsWith("/openapi")) {
         return reply.code(404).send({ error: "not_found" });
       }
+      reply.header("Cache-Control", "no-cache, must-revalidate");
       return reply.sendFile("index.html");
     });
   }

@@ -3301,11 +3301,22 @@ var buildServer = async ({
   registerFloorsRoutes(app, { store });
   registerScenesRoutes(app, { store, commander });
   if (spaDir && existsSync2(spaDir)) {
-    await app.register(fastifyStatic, { root: resolve(spaDir), prefix: "/" });
+    await app.register(fastifyStatic, {
+      root: resolve(spaDir),
+      prefix: "/",
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache, must-revalidate");
+        } else if (/\/assets\//.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      }
+    });
     app.setNotFoundHandler(async (req, reply) => {
       if (req.url.startsWith("/api/") || req.url.startsWith("/docs") || req.url.startsWith("/openapi")) {
         return reply.code(404).send({ error: "not_found" });
       }
+      reply.header("Cache-Control", "no-cache, must-revalidate");
       return reply.sendFile("index.html");
     });
   }
