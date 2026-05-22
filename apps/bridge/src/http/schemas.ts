@@ -286,11 +286,23 @@ export const sceneIconSchema = z.enum([
   "briefcase", "plane", "film", "gift",
 ]);
 
+// `setpoint` / `setpoints` are optional add-ons for the "set mode + write
+// the matching slot's temperature" feature. Only meaningful when the mode
+// is `normal` or `reduced` — see SCENE_SETPOINT_MODES in @rehau/types.
+// Legacy scenes (saved before this field existed) parse fine because
+// the field is optional.
+const setpointTempSchema = z.number().min(5).max(35);
+
 export const sceneActionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("applyRoomMode"), mode: roomModeSchema }),
+  z.object({
+    type: z.literal("applyRoomMode"),
+    mode: roomModeSchema,
+    setpoint: setpointTempSchema.optional(),
+  }),
   z.object({
     type: z.literal("perRoom"),
     rooms: z.record(z.string(), roomModeSchema),
+    setpoints: z.record(z.string(), setpointTempSchema).optional(),
   }),
 ]);
 

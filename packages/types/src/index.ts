@@ -238,9 +238,22 @@ export interface Scene {
    * changes can extend this union further later.
    */
   action:
-    | { type: "applyRoomMode"; mode: RoomMode }
-    | { type: "perRoom"; rooms: Record<string, RoomMode> };
+    | { type: "applyRoomMode"; mode: RoomMode; setpoint?: number | undefined }
+    | {
+        type: "perRoom";
+        rooms: Record<string, RoomMode>;
+        setpoints?: Record<string, number> | undefined;
+      };
 }
+
+/**
+ * Modes for which a Scene can also write a setpoint. `standby` and
+ * `program` don't take a numeric target — standby has its own slot the
+ * device manages, and `program` defers to the room's weekly programme.
+ */
+export const SCENE_SETPOINT_MODES: readonly RoomMode[] = ["normal", "reduced"];
+export const sceneModeWantsSetpoint = (m: RoomMode): boolean =>
+  SCENE_SETPOINT_MODES.includes(m);
 
 /** Body for POST /api/v1/scenes. */
 export type SceneCreate = Omit<Scene, "id">;

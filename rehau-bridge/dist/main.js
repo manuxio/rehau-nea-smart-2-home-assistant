@@ -2399,6 +2399,8 @@ import "zod";
 import { z as z3 } from "zod";
 
 // ../../packages/types/src/index.ts
+var SCENE_SETPOINT_MODES = ["normal", "reduced"];
+var sceneModeWantsSetpoint = (m) => SCENE_SETPOINT_MODES.includes(m);
 var SETPOINT_HEAT_MIN = 5;
 var SETPOINT_HEAT_MAX = 31;
 var SETPOINT_STEP = 0.5;
@@ -2658,11 +2660,17 @@ var sceneIconSchema = z3.enum([
   "film",
   "gift"
 ]);
+var setpointTempSchema = z3.number().min(5).max(35);
 var sceneActionSchema = z3.discriminatedUnion("type", [
-  z3.object({ type: z3.literal("applyRoomMode"), mode: roomModeSchema }),
+  z3.object({
+    type: z3.literal("applyRoomMode"),
+    mode: roomModeSchema,
+    setpoint: setpointTempSchema.optional()
+  }),
   z3.object({
     type: z3.literal("perRoom"),
-    rooms: z3.record(z3.string(), roomModeSchema)
+    rooms: z3.record(z3.string(), roomModeSchema),
+    setpoints: z3.record(z3.string(), setpointTempSchema).optional()
   })
 ]);
 var sceneSchema = z3.object({
@@ -3183,14 +3191,17 @@ var registerScenesRoutes = (app, { store, commander }) => {
     const scene = store.getScenes().find((s) => s.id === id);
     if (!scene) return reply.code(404).send({ error: "not_found", message: "scene not found" });
     if (scene.action.type === "applyRoomMode") {
-      const mode = scene.action.mode;
+      const { mode, setpoint } = scene.action;
+      const sp = sceneModeWantsSetpoint(mode) ? setpoint : void 0;
       for (const r of store.listRooms()) {
-        void commander.setRoomMode(r.id, mode);
+        void commander.setRoomMode(r.id, mode, sp);
       }
     } else if (scene.action.type === "perRoom") {
+      const setpoints = scene.action.setpoints ?? {};
       for (const [roomId, mode] of Object.entries(scene.action.rooms)) {
         if (!store.getRoom(roomId)) continue;
-        void commander.setRoomMode(roomId, mode);
+        const sp = sceneModeWantsSetpoint(mode) ? setpoints[roomId] : void 0;
+        void commander.setRoomMode(roomId, mode, sp);
       }
     }
     return { ok: true };

@@ -1,5 +1,17 @@
 # Changelog
 
+## 6.0.21 — 2026-05-22
+
+- **Scenes can now write a setpoint along with the mode.** When the
+  scene's mode is `normal` or `reduced` (the two slots REHAU lets us
+  target), the editor shows a Stepper next to the mode chooser; on
+  apply, that temperature lands in the matching per-mode slot for
+  every targeted room. `standby` and `program` don't take a setpoint
+  — standby has its own device-managed slot and `program` defers to
+  the weekly schedule, so writing a temperature there would clobber
+  the wrong field. Both Global and Per-room scenes support it; legacy
+  scenes (no setpoint) keep working unchanged.
+
 ## 6.0.20 — 2026-05-22
 
 - **Installer tab icons now actually visible.** The tabs are laid out

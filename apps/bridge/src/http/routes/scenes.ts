@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { Scene } from "@rehau/types";
+import { sceneModeWantsSetpoint, type Scene } from "@rehau/types";
 import type { Commander } from "../../core/commander.js";
 import type { Store } from "../../core/store.js";
 import { errorSchema, sceneCreateSchema, sceneSchema } from "../schemas.js";
@@ -109,19 +109,26 @@ export const registerScenesRoutes = (
     const scene = store.getScenes().find((s) => s.id === id);
     if (!scene) return reply.code(404).send({ error: "not_found", message: "scene not found" });
     if (scene.action.type === "applyRoomMode") {
-      const mode = scene.action.mode;
+      const { mode, setpoint } = scene.action;
+      // Only forward the setpoint when the mode actually owns one
+      // (`normal` / `reduced`). For `standby` / `program` the device
+      // either uses its own slot or defers to the weekly schedule —
+      // passing a temp would write into the wrong place.
+      const sp = sceneModeWantsSetpoint(mode) ? setpoint : undefined;
       for (const r of store.listRooms()) {
         // Fire-and-forget — each call queues into DeviceClient's chain
         // and updates the store optimistically in turn.
-        void commander.setRoomMode(r.id, mode);
+        void commander.setRoomMode(r.id, mode, sp);
       }
     } else if (scene.action.type === "perRoom") {
       // Only touch rooms the scene explicitly names. Rooms missing from
       // the map (e.g. a new room added after the scene was authored)
       // are intentionally left alone — same "skip" semantics.
+      const setpoints = scene.action.setpoints ?? {};
       for (const [roomId, mode] of Object.entries(scene.action.rooms)) {
         if (!store.getRoom(roomId)) continue;
-        void commander.setRoomMode(roomId, mode);
+        const sp = sceneModeWantsSetpoint(mode) ? setpoints[roomId] : undefined;
+        void commander.setRoomMode(roomId, mode, sp);
       }
     }
     return { ok: true as const };

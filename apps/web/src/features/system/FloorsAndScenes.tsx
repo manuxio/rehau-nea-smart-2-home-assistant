@@ -13,11 +13,17 @@ import {
   type SceneCreate,
   type SceneIcon,
   SCENE_ICONS,
+  sceneModeWantsSetpoint,
 } from "@rehau/types";
-import { Card, Glyph, SectionHead, btnStyle } from "../../components/ui";
+import { Card, Glyph, SectionHead, Stepper, btnStyle } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 
 const ROOM_MODES: RoomMode[] = ["standby", "normal", "reduced", "program"];
+
+// Reasonable default when the user picks a setpoint-bearing mode for
+// the first time. Inside REHAU's accepted range; the Stepper still
+// enforces 5..35.
+const DEFAULT_SCENE_SETPOINT = 21;
 
 // ─── Floors editor ─────────────────────────────────────────────────────
 
@@ -163,9 +169,15 @@ interface SceneFormState {
   kind: "global" | "perRoom";
   // Used when kind === "global".
   globalMode: RoomMode;
+  // Only meaningful when globalMode is normal/reduced. Kept across
+  // mode toggles so flipping normal↔reduced doesn't lose the value.
+  globalSetpoint: number;
   // Used when kind === "perRoom". Keyed by room id; "skip" rooms get
   // serialised as missing entries in the persisted scene.
   perRoom: Record<string, RoomModeOrSkip>;
+  // Parallel per-room setpoints; only the entries whose mode is
+  // normal/reduced get serialised on save.
+  perRoomSetpoints: Record<string, number>;
 }
 
 const emptySceneForm = (): SceneFormState => ({
@@ -174,7 +186,9 @@ const emptySceneForm = (): SceneFormState => ({
   icon: "sun",
   kind: "global",
   globalMode: "normal",
+  globalSetpoint: DEFAULT_SCENE_SETPOINT,
   perRoom: {},
+  perRoomSetpoints: {},
 });
 
 const sceneToForm = (s: Scene): SceneFormState => {
@@ -185,7 +199,9 @@ const sceneToForm = (s: Scene): SceneFormState => {
       icon: s.icon,
       kind: "global",
       globalMode: s.action.mode,
+      globalSetpoint: s.action.setpoint ?? DEFAULT_SCENE_SETPOINT,
       perRoom: {},
+      perRoomSetpoints: {},
     };
   }
   // perRoom — fill the map verbatim. Any room not present is "skip".
@@ -195,28 +211,40 @@ const sceneToForm = (s: Scene): SceneFormState => {
     icon: s.icon,
     kind: "perRoom",
     globalMode: "normal",
+    globalSetpoint: DEFAULT_SCENE_SETPOINT,
     perRoom: { ...s.action.rooms },
+    perRoomSetpoints: { ...(s.action.setpoints ?? {}) },
   };
 };
 
 const formToPayload = (f: SceneFormState): SceneCreate => {
   if (f.kind === "global") {
+    const wantsSp = sceneModeWantsSetpoint(f.globalMode);
     return {
       name: f.name.trim(),
       icon: f.icon,
-      action: { type: "applyRoomMode", mode: f.globalMode },
+      action: wantsSp
+        ? { type: "applyRoomMode", mode: f.globalMode, setpoint: f.globalSetpoint }
+        : { type: "applyRoomMode", mode: f.globalMode },
     };
   }
   // Strip "skip" entries before sending — only rooms the user explicitly
   // assigned a mode to should make it into the persisted scene.
   const rooms: Record<string, RoomMode> = {};
+  const setpoints: Record<string, number> = {};
   for (const [roomId, mode] of Object.entries(f.perRoom)) {
-    if (mode !== "skip") rooms[roomId] = mode;
+    if (mode === "skip") continue;
+    rooms[roomId] = mode;
+    if (sceneModeWantsSetpoint(mode)) {
+      setpoints[roomId] = f.perRoomSetpoints[roomId] ?? DEFAULT_SCENE_SETPOINT;
+    }
   }
   return {
     name: f.name.trim(),
     icon: f.icon,
-    action: { type: "perRoom", rooms },
+    action: Object.keys(setpoints).length > 0
+      ? { type: "perRoom", rooms, setpoints }
+      : { type: "perRoom", rooms },
   };
 };
 
@@ -471,6 +499,15 @@ export function ScenesEditor() {
                   );
                 })}
               </div>
+              {sceneModeWantsSetpoint(form.globalMode) && (
+                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                  <Label>{t("system.scenes.setpoint")}</Label>
+                  <Stepper
+                    value={form.globalSetpoint}
+                    onChange={(v) => setForm({ ...form, globalSetpoint: v })}
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <div>
@@ -483,6 +520,7 @@ export function ScenesEditor() {
                   )
                   .map((r) => {
                     const cur = form.perRoom[r.id] ?? "skip";
+                    const wantsSp = cur !== "skip" && sceneModeWantsSetpoint(cur);
                     return (
                       <div
                         key={r.id}
@@ -491,6 +529,7 @@ export function ScenesEditor() {
                           alignItems: "center",
                           gap: 8,
                           padding: "4px 0",
+                          flexWrap: "wrap",
                         }}
                       >
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -548,6 +587,19 @@ export function ScenesEditor() {
                             </option>
                           ))}
                         </select>
+                        {wantsSp && (
+                          <div style={{ flexBasis: "100%", display: "flex", justifyContent: "flex-end" }}>
+                            <Stepper
+                              value={form.perRoomSetpoints[r.id] ?? DEFAULT_SCENE_SETPOINT}
+                              onChange={(v) =>
+                                setForm({
+                                  ...form,
+                                  perRoomSetpoints: { ...form.perRoomSetpoints, [r.id]: v },
+                                })
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
