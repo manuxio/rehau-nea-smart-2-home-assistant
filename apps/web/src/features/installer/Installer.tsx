@@ -179,25 +179,38 @@ export function Installer() {
         }
       >
         <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
-          {TAB_VALUES.map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setTab(v)}
-              style={{
-                ...btnStyle(tab === v ? "primary" : "ghost", "sm"),
-                padding: "8px 12px",
-                borderRadius: 999,
-                whiteSpace: "nowrap",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <Glyph name={TAB_ICONS[v]} size={14} />
-              {t(`installer.tabs.${v}`)}
-            </button>
-          ))}
+          {TAB_VALUES.map((v) => {
+            const isActive = tab === v;
+            return (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setTab(v)}
+                style={{
+                  ...btnStyle(isActive ? "primary" : "ghost", "sm"),
+                  padding: "8px 12px",
+                  borderRadius: 999,
+                  whiteSpace: "nowrap",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {/* Inactive tabs paint the icon in accent purple so it
+                    really pops next to the muted-grey label text;
+                    active tab gets the dark text color (inherited via
+                    `currentColor` default) so the icon stays readable
+                    on the purple pill. Size bumped to 16 since 14
+                    rendered nearly invisible at the previous palette. */}
+                <Glyph
+                  name={TAB_ICONS[v]}
+                  size={16}
+                  color={isActive ? undefined : "var(--accent)"}
+                />
+                {t(`installer.tabs.${v}`)}
+              </button>
+            );
+          })}
         </div>
       </AppHeader>
 

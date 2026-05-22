@@ -1,5 +1,23 @@
 # Changelog — REHAU Nea Smart 2 Bridge (local)
 
+## 6.0.18
+
+- **Installer tab icons more visible.** The icons added in 6.0.16
+  rendered at 14 px in `var(--muted)` (light grey-purple), which
+  blended into the label text and the dark bar. Now 16 px in
+  `var(--accent)` (purple) on inactive tabs, and inherited dark
+  text colour on the active pill so contrast works both ways.
+
+## 6.0.17
+
+- **Never-cache index.html.** Browsers used to keep the SPA HTML
+  across an addon update; the HTML referenced vite's content-hashed
+  asset filenames, which no longer existed on the server after the
+  update, so users saw the old UI until they hard-refreshed.
+  `*.html` now sets `Cache-Control: no-cache, must-revalidate` and
+  `/assets/*` (content-hashed) sets `public, max-age=31536000,
+  immutable`. Future updates land on next reload.
+
 ## 6.0.16
 
 ### Added

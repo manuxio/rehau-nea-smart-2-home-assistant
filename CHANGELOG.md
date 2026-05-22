@@ -1,5 +1,17 @@
 # Changelog
 
+## 6.0.18 — 2026-05-22
+
+- Installer tab icons now larger (16 px) and accent-coloured on
+  inactive tabs so they're visible next to the label. 14 px / muted
+  was too subtle.
+
+## 6.0.17 — 2026-05-22
+
+- Bridge sets `Cache-Control: no-cache, must-revalidate` on the SPA's
+  `index.html` and `immutable` on `/assets/*` so addon updates land
+  on the next reload instead of needing a hard refresh.
+
 ## 6.0.16 — 2026-05-22
 
 ### Added
