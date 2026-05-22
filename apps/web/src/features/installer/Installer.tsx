@@ -202,11 +202,16 @@ export function Installer() {
                     `currentColor` default) so the icon stays readable
                     on the purple pill. Size bumped to 16 since 14
                     rendered nearly invisible at the previous palette. */}
-                <Glyph
-                  name={TAB_ICONS[v]}
-                  size={16}
-                  color={isActive ? undefined : "var(--accent)"}
-                />
+                {/* Active tab inherits text color (dark on purple)
+                    via the Glyph default of currentColor; passing
+                    color={undefined} explicitly trips
+                    exactOptionalPropertyTypes, so omit the prop
+                    entirely on the active branch. */}
+                {isActive ? (
+                  <Glyph name={TAB_ICONS[v]} size={16} />
+                ) : (
+                  <Glyph name={TAB_ICONS[v]} size={16} color="var(--accent)" />
+                )}
                 {t(`installer.tabs.${v}`)}
               </button>
             );
