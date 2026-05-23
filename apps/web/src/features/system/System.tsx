@@ -291,6 +291,9 @@ export function System() {
       <SectionHead title={t("system.rehauState")} />
       <RehauState />
 
+      <SectionHead title={t("system.fingerprint.title")} />
+      <FingerprintCard />
+
       <SectionHead title={t("system.device")} />
       <Card style={{ margin: "0 16px" }}>
         <KV label={t("system.uniqueCode")} value={sys.uniqueCode.slice(0, 16) + "…"} />
@@ -631,6 +634,151 @@ function RehauState() {
 
 // ─── Settings primitives (mirror the ones that used to live in
 //     SettingsMenu — small enough that duplicating beats wiring an import) ──
+
+// ─── Installation fingerprint card ────────────────────────────────────
+//
+// One-tap "give me the device profile I need to triage your bug
+// report" affordance. Lazy fetch on first paint (TanStack Query),
+// renders a short human-readable summary plus two buttons:
+//
+//   - Copy JSON       → the raw payload, identical to what the bridge
+//                       logs at boot as INSTALLATION_FINGERPRINT.
+//   - Copy as Markdown → wraps the JSON in a ```json … ``` fence so a
+//                       user can paste it straight into a GitHub
+//                       issue and it renders properly.
+//
+// No secrets in the payload (no installer code, no JWT, no MQTT
+// password) — the server side filters those out of the builder.
+function FingerprintCard() {
+  const { api } = useAuth();
+  const { t } = useTranslation();
+  const fpQ = useQuery({
+    queryKey: ["fingerprint"],
+    queryFn: () => api.diagnostics.fingerprint(),
+    // Keep it fresh-ish but don't auto-refetch — the user will hit
+    // refresh when they want a new snapshot.
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  // Best-effort clipboard write. `navigator.clipboard.writeText` needs
+  // a secure context — works behind HA ingress (HTTPS-equivalent) and
+  // on localhost; falls back to a `<textarea>+execCommand` shim for
+  // older browsers / non-secure setups. We swallow errors and toast
+  // the result either way.
+  const copy = async (text: string, label: string) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      toast.success(t("system.fingerprint.copied", { what: label }));
+    } catch {
+      toast.error(t("system.fingerprint.copyFailed"));
+    }
+  };
+
+  if (fpQ.isPending) {
+    return (
+      <Card style={{ margin: "0 16px" }}>
+        <div
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: "0.6875rem",
+            color: "var(--dim)",
+            padding: 12,
+          }}
+        >
+          {t("common.loading")}
+        </div>
+      </Card>
+    );
+  }
+  if (fpQ.isError || !fpQ.data) {
+    return (
+      <Card style={{ margin: "0 16px" }}>
+        <div
+          style={{
+            fontFamily: "var(--mono)",
+            fontSize: "0.6875rem",
+            color: "var(--alert)",
+            padding: 12,
+          }}
+        >
+          {t("system.fingerprint.unavailable")}
+        </div>
+      </Card>
+    );
+  }
+
+  // The fingerprint payload is intentionally loose-typed at the API
+  // boundary (server returns it as a single object the client just
+  // copies verbatim). Pull out the few fields we show in the summary.
+  const fp = fpQ.data as Record<string, unknown>;
+  const fwMaster = (fp.fw as { master?: string } | undefined)?.master ?? "?";
+  const roomCount = (fp.roomCount as number | undefined) ?? 0;
+  const opMode = (fp.operatingMode as string | undefined) ?? "?";
+  const addonVersion = (fp.addonVersion as string | undefined) ?? "?";
+
+  const json = JSON.stringify(fp, null, 2);
+  const markdown = "```json\n" + json + "\n```";
+
+  return (
+    <Card style={{ margin: "0 16px" }}>
+      <div
+        style={{
+          fontFamily: "var(--mono)",
+          fontSize: "0.625rem",
+          color: "var(--muted)",
+          letterSpacing: 0.4,
+          padding: "6px 4px 10px",
+          lineHeight: 1.5,
+        }}
+      >
+        {t("system.fingerprint.help")}
+      </div>
+      <KV label={t("system.fingerprint.addon")} value={addonVersion} />
+      <Sep />
+      <KV label={t("system.fingerprint.fwMaster")} value={fwMaster} />
+      <Sep />
+      <KV label={t("system.fingerprint.opMode")} value={opMode} />
+      <Sep />
+      <KV label={t("system.fingerprint.rooms")} value={String(roomCount)} />
+      <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => copy(json, t("system.fingerprint.json"))}
+          style={btnStyle("primary", "sm")}
+        >
+          <Glyph name="check" size={14} /> {t("system.fingerprint.copyJson")}
+        </button>
+        <button
+          type="button"
+          onClick={() => copy(markdown, t("system.fingerprint.markdown"))}
+          style={btnStyle("secondary", "sm")}
+        >
+          {t("system.fingerprint.copyMarkdown")}
+        </button>
+        <button
+          type="button"
+          onClick={() => fpQ.refetch()}
+          style={btnStyle("ghost", "sm")}
+          disabled={fpQ.isFetching}
+        >
+          <Glyph name="refresh" size={14} /> {t("common.refresh")}
+        </button>
+      </div>
+    </Card>
+  );
+}
 
 function PrefRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (

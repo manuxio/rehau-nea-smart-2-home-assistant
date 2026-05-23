@@ -1,5 +1,51 @@
 # Changelog
 
+## 6.0.27 — 2026-05-23
+
+### Changed — fingerprint is now actually useful for debugging
+
+Two problems with the v6.0.26 fingerprint:
+
+- It fired on the first room.changed event, which produced half-baked
+  snapshots ("1 room, hasFan=false") when the user actually had four
+  rooms with fancoils — `pollAllRoomDetails` just hadn't finished yet.
+  Bug reports built on partial data are worse than no data.
+- It only carried the static room metadata. Missing the bits a
+  maintainer actually wants when triaging: is REHAU reachable, how
+  often have polls failed, what mode is each room in, what setpoints
+  is the bridge seeing.
+
+Fixes:
+
+- Emission now waits on `poller.kickoffComplete()` — a new awaitable
+  that resolves once dashboard / room list / all room details /
+  system info have all settled. Partial snapshots are gone.
+- Payload enriched with:
+  - `emittedAt`, `uptimeSeconds` (catch "fingerprint at 3s of uptime"
+    timing bugs)
+  - `nodeVersion`, `platform`
+  - `connection`: { state, consecutiveFailures, lastSuccessAt, reason }
+  - `fetches`: { total, success, failure, avgMsSuccess, p95MsSuccess }
+  - per-room `mode`, `temperature`, `setpointHeating`, `setpointCooling`
+- Builder factored into `apps/bridge/src/core/fingerprint.ts` so the
+  log-block and `GET /api/v1/diagnostics/fingerprint` can't drift.
+
+### Added — "Copy diagnostic snapshot" in the System tab
+
+New card under REHAU state. Renders the fingerprint summary inline
+(addon version, master FW, current operating mode, room count) plus
+three buttons:
+
+- **Copy JSON** — raw payload, byte-identical to the log block.
+- **Copy as Markdown** — wraps in `` ```json `` fences so it pastes
+  cleanly into GitHub issues.
+- **Refresh** — refetches without reloading the page.
+
+Best-effort clipboard write with a `<textarea>+execCommand` fallback
+for older browsers / non-secure contexts. End-to-end verified with
+Playwright before ship: card renders, JSON parses with the expected
+shape, Markdown is fence-wrapped, all four rooms show up.
+
 ## 6.0.26 — 2026-05-23
 
 ### Fixed — missing thermostat in HA when room name has punctuation

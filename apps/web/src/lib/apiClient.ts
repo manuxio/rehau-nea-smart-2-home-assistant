@@ -162,6 +162,15 @@ export class ApiClient {
      * cold start without waiting for the next scheduled tick.
      */
     refresh: (): Promise<{ ok: true }> => this.request("POST", "/api/v1/diagnostics/refresh"),
+    /**
+     * Single-shot installation profile (addon version, firmware, room
+     * ids, exposed-feature flags, connection state, recent-fetch
+     * aggregates). Shape mirrors the boot-time INSTALLATION_FINGERPRINT
+     * log block. Used by the System tab's "Copy diagnostic snapshot"
+     * button — paste it into a bug report and the maintainer doesn't
+     * have to ask three rounds of clarifying questions.
+     */
+    fingerprint: (): Promise<unknown> => this.request("GET", "/api/v1/diagnostics/fingerprint"),
   };
 
   programs = {

@@ -100,14 +100,34 @@ export class Poller {
     // System info used to run first; on a fresh boot it opened an
     // installer session before any user-visible data landed,
     // adding 2-3 s of latency in front of every other fetch.
-    void (async () => {
+    this.kickoffPromise = (async () => {
       await this.pollDashboard();
       await this.pollRoomList();
       await this.pollAllRoomDetails();
+      // pollSystemInfo BEFORE we resolve so consumers awaiting the
+      // kickoff (e.g. the installation-fingerprint logger) see FW
+      // versions populated. Messages can fire afterwards — alarms
+      // rarely change at boot and are not part of the fingerprint.
+      await this.pollSystemInfo();
       void this.pollMessages();
-      void this.pollSystemInfo();
     })();
   }
+
+  /**
+   * Resolves once the initial poll sequence (dashboard → room list →
+   * all room details → system info) has run. Used by the boot-time
+   * fingerprint emitter so it logs a *complete* installation snapshot
+   * instead of an "after the first room landed" partial one.
+   *
+   * Best-effort: if any of the underlying polls throw, `safe()` swallows
+   * the error and the kickoff still resolves — so even on a flaky REHAU
+   * we eventually emit the fingerprint with whatever we got.
+   */
+  kickoffComplete(): Promise<void> {
+    return this.kickoffPromise ?? Promise.resolve();
+  }
+
+  private kickoffPromise: Promise<void> | null = null;
 
   stop(): void {
     for (const t of this.timers) clearInterval(t);

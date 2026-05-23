@@ -279,6 +279,53 @@ var Commander = class {
   }
 };
 
+// src/core/fingerprint.ts
+var BRIDGE_VERSION = "0.1.0";
+var buildFingerprint = (store, config) => {
+  const sys = store.getSystem();
+  const rooms = store.listRooms();
+  const diag = store.getDiagnostics();
+  return {
+    emittedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    uptimeSeconds: Math.round(process.uptime()),
+    addonVersion: process.env.ADDON_VERSION ?? "dev",
+    bridgeVersion: BRIDGE_VERSION,
+    nodeVersion: process.version,
+    platform: `${process.platform}/${process.arch}`,
+    deviceMode: config.DEVICE_MODE,
+    deviceUrl: config.DEVICE_URL,
+    installationName: config.INSTALLATION_NAME,
+    uniqueCode: sys.uniqueCode || null,
+    fw: sys.fw,
+    operatingMode: sys.operatingMode,
+    energyLevel: sys.energyLevel,
+    installerAccess: Boolean(config.DEVICE_INSTALLER_CODE),
+    mqtt: config.MQTT_URL ? "enabled" : "disabled",
+    exposeIo: config.EXPOSE_IO,
+    exposeCalibration: config.EXPOSE_CALIBRATION,
+    connection: {
+      state: diag.connection.state,
+      consecutiveFailures: diag.connection.consecutiveFailures,
+      lastSuccessAt: diag.connection.lastSuccessAt,
+      reason: diag.connection.reason
+    },
+    fetches: diag.aggregates,
+    roomCount: rooms.length,
+    rooms: rooms.map((r) => ({
+      zone: r.zone,
+      name: r.name,
+      id: r.id,
+      hasFan: r.hasFan,
+      hasFlap: r.hasFlap,
+      hasLight: r.hasLight,
+      mode: r.mode,
+      temperature: r.temperature,
+      setpointHeating: r.setpointHeating,
+      setpointCooling: r.setpointCooling
+    }))
+  };
+};
+
 // src/core/persistent-state.ts
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { dirname } from "path";
@@ -365,14 +412,28 @@ var Poller = class {
       );
       setTimeout(() => void this.pollCalibration(), 8e3);
     }
-    void (async () => {
+    this.kickoffPromise = (async () => {
       await this.pollDashboard();
       await this.pollRoomList();
       await this.pollAllRoomDetails();
+      await this.pollSystemInfo();
       void this.pollMessages();
-      void this.pollSystemInfo();
     })();
   }
+  /**
+   * Resolves once the initial poll sequence (dashboard → room list →
+   * all room details → system info) has run. Used by the boot-time
+   * fingerprint emitter so it logs a *complete* installation snapshot
+   * instead of an "after the first room landed" partial one.
+   *
+   * Best-effort: if any of the underlying polls throw, `safe()` swallows
+   * the error and the kickoff still resolves — so even on a flaky REHAU
+   * we eventually emit the fingerprint with whatever we got.
+   */
+  kickoffComplete() {
+    return this.kickoffPromise ?? Promise.resolve();
+  }
+  kickoffPromise = null;
   stop() {
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
@@ -3324,34 +3385,7 @@ var buildServer = async ({
     ...store.getDiagnostics(),
     versions: { bridge: "0.1.0", addon: addonVersion }
   }));
-  app.get("/api/v1/diagnostics/fingerprint", async () => {
-    const sys = store.getSystem();
-    const rooms = store.listRooms();
-    return {
-      addonVersion,
-      bridgeVersion: "0.1.0",
-      deviceMode: config.DEVICE_MODE,
-      deviceUrl: config.DEVICE_URL,
-      installationName: config.INSTALLATION_NAME,
-      uniqueCode: sys.uniqueCode || null,
-      fw: sys.fw,
-      operatingMode: sys.operatingMode,
-      energyLevel: sys.energyLevel,
-      installerAccess: Boolean(config.DEVICE_INSTALLER_CODE),
-      mqtt: config.MQTT_URL ? "enabled" : "disabled",
-      exposeIo: config.EXPOSE_IO,
-      exposeCalibration: config.EXPOSE_CALIBRATION,
-      roomCount: rooms.length,
-      rooms: rooms.map((r) => ({
-        zone: r.zone,
-        name: r.name,
-        id: r.id,
-        hasFan: r.hasFan,
-        hasFlap: r.hasFlap,
-        hasLight: r.hasLight
-      }))
-    };
-  });
+  app.get("/api/v1/diagnostics/fingerprint", async () => buildFingerprint(store, config));
   app.post("/api/v1/diagnostics/refresh", async () => {
     await poller.refreshAll();
     return { ok: true };
@@ -4193,42 +4227,10 @@ var main = async () => {
   }
   const poller = new Poller({ config, source, store, logger });
   const commander = new Commander({ source, store, poller });
-  let fingerprintEmitted = false;
-  const emitFingerprintIfReady = () => {
-    if (fingerprintEmitted) return;
-    const sys = store.getSystem();
-    const rooms = store.listRooms();
-    if (!sys.fw.master || rooms.length === 0) return;
-    fingerprintEmitted = true;
-    logger.info(
-      {
-        addonVersion: process.env.ADDON_VERSION ?? "dev",
-        deviceMode: config.DEVICE_MODE,
-        deviceUrl: config.DEVICE_URL,
-        installationName: config.INSTALLATION_NAME,
-        uniqueCode: sys.uniqueCode || "(unknown)",
-        fw: sys.fw,
-        operatingMode: sys.operatingMode,
-        energyLevel: sys.energyLevel,
-        installerAccess: Boolean(config.DEVICE_INSTALLER_CODE),
-        mqtt: config.MQTT_URL ? "enabled" : "disabled",
-        exposeIo: config.EXPOSE_IO,
-        exposeCalibration: config.EXPOSE_CALIBRATION,
-        roomCount: rooms.length,
-        rooms: rooms.map((r) => ({
-          zone: r.zone,
-          name: r.name,
-          id: r.id,
-          hasFan: r.hasFan,
-          hasFlap: r.hasFlap,
-          hasLight: r.hasLight
-        }))
-      },
-      "INSTALLATION_FINGERPRINT"
-    );
-  };
-  store.events.on("system.changed", emitFingerprintIfReady);
-  store.events.on("room.changed", emitFingerprintIfReady);
+  void (async () => {
+    await poller.kickoffComplete();
+    logger.info(buildFingerprint(store, config), "INSTALLATION_FINGERPRINT");
+  })();
   const spaDir = resolve2(import.meta.dirname, "..", "web");
   const app = await buildServer({ config, logger, store, commander, source, poller, spaDir });
   poller.start();

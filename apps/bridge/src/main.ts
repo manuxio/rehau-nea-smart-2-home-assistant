@@ -8,6 +8,7 @@ dotenv.config({ path: resolve(import.meta.dirname, "../../../.env") });
 
 import { loadConfig } from "./config.js";
 import { Commander } from "./core/commander.js";
+import { buildFingerprint } from "./core/fingerprint.js";
 import {
   loadPersistentState,
   savePersistentState,
@@ -92,49 +93,18 @@ const main = async (): Promise<void> => {
   const commander = new Commander({ source, store, poller });
 
   // ─── Installation fingerprint ──────────────────────────────────────
-  // Emit a single grep-friendly log block once the boot polls have
-  // populated firmware AND rooms. This gives every future bug report
-  // a free first attachment: the user pastes the block and we already
-  // know the FW build, the room ids (after sanitisation), whether
-  // installer access is configured, etc. Without this every "missing
-  // thermostat" report starts with three round-trips of clarifying
-  // questions.
-  let fingerprintEmitted = false;
-  const emitFingerprintIfReady = (): void => {
-    if (fingerprintEmitted) return;
-    const sys = store.getSystem();
-    const rooms = store.listRooms();
-    if (!sys.fw.master || rooms.length === 0) return;
-    fingerprintEmitted = true;
-    logger.info(
-      {
-        addonVersion: process.env.ADDON_VERSION ?? "dev",
-        deviceMode: config.DEVICE_MODE,
-        deviceUrl: config.DEVICE_URL,
-        installationName: config.INSTALLATION_NAME,
-        uniqueCode: sys.uniqueCode || "(unknown)",
-        fw: sys.fw,
-        operatingMode: sys.operatingMode,
-        energyLevel: sys.energyLevel,
-        installerAccess: Boolean(config.DEVICE_INSTALLER_CODE),
-        mqtt: config.MQTT_URL ? "enabled" : "disabled",
-        exposeIo: config.EXPOSE_IO,
-        exposeCalibration: config.EXPOSE_CALIBRATION,
-        roomCount: rooms.length,
-        rooms: rooms.map((r) => ({
-          zone: r.zone,
-          name: r.name,
-          id: r.id,
-          hasFan: r.hasFan,
-          hasFlap: r.hasFlap,
-          hasLight: r.hasLight,
-        })),
-      },
-      "INSTALLATION_FINGERPRINT",
-    );
-  };
-  store.events.on("system.changed", emitFingerprintIfReady);
-  store.events.on("room.changed", emitFingerprintIfReady);
+  // Emit a single grep-friendly log block AFTER the kickoff poll
+  // sequence has completed — dashboard, room list, all room details,
+  // system info. Earlier versions fired this on the first room.changed
+  // event, which produced a half-baked snapshot ("1 room, hasFan=false")
+  // when the user actually had four rooms with full capabilities, just
+  // not polled yet. The fingerprint is supposed to be the FIRST thing a
+  // user pastes into a bug report — a partial snapshot would actively
+  // mislead.
+  void (async () => {
+    await poller.kickoffComplete();
+    logger.info(buildFingerprint(store, config), "INSTALLATION_FINGERPRINT");
+  })();
 
   // SPA dir: in the production container the React build is copied next to
   // dist; in dev it's under apps/web/dist. Either way we resolve relative
