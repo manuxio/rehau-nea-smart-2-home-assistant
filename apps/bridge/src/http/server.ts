@@ -114,6 +114,43 @@ export const buildServer = async ({
   }));
 
   /**
+   * Installation fingerprint — same shape as the boot-time log block.
+   * Lets the user copy-paste their device profile into a bug report
+   * without needing to dig through addon logs. Intentionally redacts
+   * nothing it isn't already logging at info level: device URL,
+   * firmware build, room names + sanitised ids, exposed-feature flags.
+   * No secrets (no installer code, no bcrypt hash, no JWT).
+   */
+  app.get("/api/v1/diagnostics/fingerprint", async () => {
+    const sys = store.getSystem();
+    const rooms = store.listRooms();
+    return {
+      addonVersion,
+      bridgeVersion: "0.1.0",
+      deviceMode: config.DEVICE_MODE,
+      deviceUrl: config.DEVICE_URL,
+      installationName: config.INSTALLATION_NAME,
+      uniqueCode: sys.uniqueCode || null,
+      fw: sys.fw,
+      operatingMode: sys.operatingMode,
+      energyLevel: sys.energyLevel,
+      installerAccess: Boolean(config.DEVICE_INSTALLER_CODE),
+      mqtt: config.MQTT_URL ? "enabled" : "disabled",
+      exposeIo: config.EXPOSE_IO,
+      exposeCalibration: config.EXPOSE_CALIBRATION,
+      roomCount: rooms.length,
+      rooms: rooms.map((r) => ({
+        zone: r.zone,
+        name: r.name,
+        id: r.id,
+        hasFan: r.hasFan,
+        hasFlap: r.hasFlap,
+        hasLight: r.hasLight,
+      })),
+    };
+  });
+
+  /**
    * Force-refresh — the SPA's "Refresh now" button hits this to bypass
    * the schedule and pull every meaningful endpoint immediately
    * (dashboard, room list, room detail, messages, calibration if

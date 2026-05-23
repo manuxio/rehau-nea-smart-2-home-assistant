@@ -1,5 +1,50 @@
 # Changelog
 
+## 6.0.26 — 2026-05-23
+
+### Fixed — missing thermostat in HA when room name has punctuation
+
+Bug report #66 (smazzone): 7 rooms on the REHAU side, only 6 climate
+entities in Home Assistant. Root cause was the room-id slug in
+`ensureRoomForZone` only stripped whitespace, letting characters like
+`/`, `+`, `#`, `(`, `&`, accented letters etc. through. Two problems
+downstream:
+
+- MQTT topic gets split on a stray `/` into extra levels.
+- Home Assistant's MQTT discovery spec restricts `unique_id` to
+  `[a-zA-Z0-9_-]`. Anything outside is silently dropped — no climate
+  entity ever appears for that room. The bridge / SPA / API still
+  show it because the room is in the store; only HA misses it.
+
+Slug now normalises NFD (strips accents), maps everything outside
+`[a-z0-9]` to `-`, collapses runs of dashes, and trims. Room
+`Bagno/Lavanderia` → id `r-bagno-lavanderia-z3` instead of the
+previous `r-bagno/lavanderia-z3`. Plain ASCII names are unchanged.
+
+**Heads-up for affected users:** if you currently have a room with
+punctuation in its name, its HA `entity_id` will rename on this
+upgrade — automations referencing the old id need to be updated.
+Users not affected (no punctuation / accents in names) see no
+change.
+
+Added `roomIdFromName` to `apps/bridge/src/core/store.ts` with a unit
+test pinning the behaviour for `/`, `+`, `#`, parens, ampersands,
+accented letters, leading/trailing punctuation, and empty input.
+
+### Added — installation fingerprint
+
+Bridge now logs an `INSTALLATION_FINGERPRINT` block once on boot, the
+moment the first system + room polls have landed. Single grep-friendly
+JSON line with: addon + bridge version, device URL, firmware build,
+operating mode, energy level, installer-access flag, MQTT enable
+flag, expose-io / expose-calibration flags, and the per-room
+`{zone, name, id, hasFan, hasFlap, hasLight}` list.
+
+Also exposed at `GET /api/v1/diagnostics/fingerprint` with the same
+shape, so users can paste it straight into a bug report without
+digging through addon logs. No secrets in the payload — no installer
+code, no bcrypt hash, no JWT.
+
 ## 6.0.25 — 2026-05-22
 
 ### Changed — drop `auto` from the HA climate dropdown

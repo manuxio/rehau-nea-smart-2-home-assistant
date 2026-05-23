@@ -301,7 +301,7 @@ export class Store {
     // so users never see a phantom `+0.0 °C` calibration before the
     // installer page has been fetched.
     const room: Room = {
-      id: `r-${name.toLowerCase().replace(/\s+/g, "-")}-z${zone}`,
+      id: roomIdFromName(name, zone),
       zone,
       name,
       temperature: null,
@@ -337,6 +337,41 @@ export class Store {
     return room;
   }
 }
+
+/**
+ * Build a stable, MQTT-and-HA-safe room id from the user-entered room name
+ * and the device zone.
+ *
+ * Why the strict sanitisation: the id ends up in two places that are
+ * fussier than they look about characters.
+ *
+ *   1. MQTT topics. `+` and `#` are reserved (wildcards), and embedding
+ *      `/` in the id splits the topic into extra levels — the broker
+ *      tolerates that on publish but HA's discovery scanner sees the
+ *      wrong shape.
+ *
+ *   2. Home Assistant `unique_id`. The HA MQTT discovery spec restricts
+ *      `unique_id` to `[a-zA-Z0-9_-]`. Anything outside that range
+ *      (accented letters, parentheses, slashes…) causes HA to silently
+ *      DROP the discovery message — state still publishes, no climate
+ *      entity ever appears. Symptom that motivated this code: user with
+ *      a REHAU zone called e.g. "Bagno/Lavanderia" sees N rooms in the
+ *      bridge / SPA but only N-1 climate entities in HA.
+ *
+ * We normalise NFD to peel accents off (`Salòn` → `Salon`), then map
+ * everything outside `[a-z0-9]` to `-`, then collapse runs of dashes
+ * and trim. Empty result falls back to "room" so we always emit a
+ * non-empty slug.
+ */
+export const roomIdFromName = (name: string, zone: number): string => {
+  const slug = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `r-${slug || "room"}-z${zone}`;
+};
 
 const shallowChanged = <T extends object>(a: T, b: T): boolean => {
   for (const k of Object.keys(b) as (keyof T)[]) {
