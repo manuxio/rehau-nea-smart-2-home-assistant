@@ -128,6 +128,7 @@ const main = async (): Promise<void> => {
   // mislead.
   void (async () => {
     await poller.kickoffComplete();
+    logger.info("boot complete — bridge ready, runtime polls scheduled");
     logger.info(buildFingerprint(store, config, ops), "INSTALLATION_FINGERPRINT");
   })();
 
@@ -156,8 +157,9 @@ const main = async (): Promise<void> => {
       ops: { emit: (k, s, d) => ops.emit(k as never, s, d) },
     });
     void poller.kickoffComplete().then(async () => {
+      logger.info({ url: config.MQTT_URL }, "boot complete — connecting MQTT");
       await mqttBridge!.start();
-      ops.emit("mqtt.connect", "");
+      ops.emit("mqtt.connect", `connected to ${config.MQTT_URL}`);
     });
   } else {
     logger.info("MQTT_URL not set — MQTT bridge disabled");

@@ -158,7 +158,10 @@ export class DeviceClient {
     try {
       const text = await once();
       const ms = Date.now() - t0;
-      logger.info(
+      // Per-request success is debug-level — the priority sequence /
+      // runtime tick already emits an INFO `op.fetch` line per call
+      // with the high-level label. Two info lines per fetch was noise.
+      logger.debug(
         { method, path, ms, reqBytes, resBytes: text.length },
         `device ${method} ${path} → 200 in ${ms}ms`,
       );
@@ -181,7 +184,7 @@ export class DeviceClient {
         try {
           const text = await once();
           const ms = Date.now() - t0;
-          logger.info(
+          logger.debug(
             { method, path, ms, reqBytes, resBytes: text.length, retried: true },
             `device ${method} ${path} → 200 in ${ms}ms (after retry)`,
           );

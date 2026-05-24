@@ -47,14 +47,19 @@ export class OpLog {
 
   constructor(private readonly opts: OpLogOptions) {}
 
-  /** Push an entry, emit the matching INFO log line. */
+  /** Push an entry, emit the matching INFO log line. The summary is
+   *  used as pino's primary message so the addon log is humanly
+   *  skimmable ("dashboard ok 434 ms" — not "op.fetch" with the summary
+   *  buried in a sub-field). Falls back to `op.<kind>` for ops without a
+   *  meaningful summary. */
   emit(kind: OpKind, summary: string, detail?: Record<string, unknown>): void {
     const entry: OpEntry = detail === undefined
       ? { ts: new Date().toISOString(), kind, summary }
       : { ts: new Date().toISOString(), kind, summary, detail };
     this.entries.push(entry);
     if (this.entries.length > this.opts.size) this.entries.shift();
-    this.opts.logger.info({ op: kind, summary, ...(detail ?? {}) }, `op.${kind}`);
+    const msg = summary || `op.${kind}`;
+    this.opts.logger.info({ op: kind, ...(detail ?? {}) }, msg);
   }
 
   /** Newest-last snapshot, suitable for the fingerprint payload. */

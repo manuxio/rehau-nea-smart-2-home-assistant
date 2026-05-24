@@ -422,10 +422,20 @@ var Poller = class {
   }
   opts;
   timers = [];
-  kickoffPromise = null;
   kickoffDone = false;
   /** When true, runtime ticks skip themselves so the safety pass owns the device. */
   safetyBusy = false;
+  /**
+   * Pre-allocated awaitable so `kickoffComplete()` ALWAYS returns the
+   * real promise — even if a consumer calls it before `start()` runs.
+   * Previously kickoffPromise was assigned inside start(), which meant
+   * the fingerprint emitter and MQTT bridge raced ahead with empty data
+   * if they awaited too early.
+   */
+  kickoffResolve;
+  kickoffPromise = new Promise((r) => {
+    this.kickoffResolve = r;
+  });
   /**
    * Boot. Holds the installer session open (if available), then walks the
    * priority sequence once. Runtime timers are scheduled AFTER the kickoff
@@ -434,7 +444,7 @@ var Poller = class {
   start() {
     const { logger, source } = this.opts;
     logger.info({ source: source.kind }, "poller starting");
-    this.kickoffPromise = (async () => {
+    void (async () => {
       if (source.openInstallerSession) {
         try {
           await source.openInstallerSession();
@@ -445,11 +455,14 @@ var Poller = class {
       await this.runPrioritySequence("boot");
       this.kickoffDone = true;
       this.startRuntimeTimers();
+      this.kickoffResolve();
     })();
   }
-  /** Resolves once the initial boot kickoff has completed. */
+  /** Resolves once the initial boot kickoff has completed. Always safe
+   *  to await — the underlying promise is created eagerly in the
+   *  constructor. */
   kickoffComplete() {
-    return this.kickoffPromise ?? Promise.resolve();
+    return this.kickoffPromise;
   }
   /** True when boot is done and runtime timers are scheduled. */
   isReady() {
@@ -487,7 +500,7 @@ var Poller = class {
     const start = Date.now();
     const startKind = phase === "boot" ? "boot.start" : "safety.start";
     const endKind = phase === "boot" ? "boot.end" : "safety.end";
-    this.opts.ops.emit(startKind, "");
+    this.opts.ops.emit(startKind, `${phase} sequence starting`);
     let total = 0;
     let ok = 0;
     const step = async (label, fn) => {
@@ -496,6 +509,11 @@ var Poller = class {
     };
     await step("dashboard", () => this.pollDashboard());
     await step("room-list", () => this.pollRoomList());
+    if (this.opts.store.listRooms().length === 0) {
+      this.opts.logger.warn("room-list returned no rooms; retrying once after 2 s");
+      await new Promise((r) => setTimeout(r, 2e3));
+      await step("room-list (retry)", () => this.pollRoomList());
+    }
     for (const r of this.opts.store.listRooms()) {
       await step(`room-detail z=${r.zone}`, () => this.pollRoomDetail(r.zone));
     }
@@ -525,8 +543,12 @@ var Poller = class {
       }
     }
     const ms = Date.now() - start;
-    this.opts.ops.emit(endKind, `${ms} ms, ${ok}/${total} ok`, { ms, ok, total });
-    this.opts.logger.info({ phase, ms, ok, total }, "priority sequence done");
+    const secs = (ms / 1e3).toFixed(1);
+    this.opts.ops.emit(endKind, `${phase} sequence done in ${secs}s \u2014 ${ok}/${total} ok`, {
+      ms,
+      ok,
+      total
+    });
   }
   // ─── Runtime timers (scheduled after boot completes) ─────────
   startRuntimeTimers() {
@@ -1391,7 +1413,7 @@ var DeviceClient = class {
     try {
       const text = await once();
       const ms = Date.now() - t0;
-      logger.info(
+      logger.debug(
         { method, path, ms, reqBytes, resBytes: text.length },
         `device ${method} ${path} \u2192 200 in ${ms}ms`
       );
@@ -1410,7 +1432,7 @@ var DeviceClient = class {
         try {
           const text = await once();
           const ms2 = Date.now() - t0;
-          logger.info(
+          logger.debug(
             { method, path, ms: ms2, reqBytes, resBytes: text.length, retried: true },
             `device ${method} ${path} \u2192 200 in ${ms2}ms (after retry)`
           );
@@ -4402,12 +4424,17 @@ var OpLog = class {
   }
   opts;
   entries = [];
-  /** Push an entry, emit the matching INFO log line. */
+  /** Push an entry, emit the matching INFO log line. The summary is
+   *  used as pino's primary message so the addon log is humanly
+   *  skimmable ("dashboard ok 434 ms" — not "op.fetch" with the summary
+   *  buried in a sub-field). Falls back to `op.<kind>` for ops without a
+   *  meaningful summary. */
   emit(kind, summary, detail) {
     const entry = detail === void 0 ? { ts: (/* @__PURE__ */ new Date()).toISOString(), kind, summary } : { ts: (/* @__PURE__ */ new Date()).toISOString(), kind, summary, detail };
     this.entries.push(entry);
     if (this.entries.length > this.opts.size) this.entries.shift();
-    this.opts.logger.info({ op: kind, summary, ...detail ?? {} }, `op.${kind}`);
+    const msg = summary || `op.${kind}`;
+    this.opts.logger.info({ op: kind, ...detail ?? {} }, msg);
   }
   /** Newest-last snapshot, suitable for the fingerprint payload. */
   list() {
@@ -4488,6 +4515,7 @@ var main = async () => {
   const commander = new Commander({ source, store, poller });
   void (async () => {
     await poller.kickoffComplete();
+    logger.info("boot complete \u2014 bridge ready, runtime polls scheduled");
     logger.info(buildFingerprint(store, config, ops), "INSTALLATION_FINGERPRINT");
   })();
   const spaDir = resolve2(import.meta.dirname, "..", "web");
@@ -4503,8 +4531,9 @@ var main = async () => {
       ops: { emit: (k, s, d) => ops.emit(k, s, d) }
     });
     void poller.kickoffComplete().then(async () => {
+      logger.info({ url: config.MQTT_URL }, "boot complete \u2014 connecting MQTT");
       await mqttBridge.start();
-      ops.emit("mqtt.connect", "");
+      ops.emit("mqtt.connect", `connected to ${config.MQTT_URL}`);
     });
   } else {
     logger.info("MQTT_URL not set \u2014 MQTT bridge disabled");

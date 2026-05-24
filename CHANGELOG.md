@@ -1,5 +1,35 @@
 # Changelog
 
+## 6.1.1 — 2026-05-24
+
+Three fixes on top of 6.1.0 surfaced by reading the actual addon
+boot log:
+
+- **Fingerprint and MQTT raced ahead with empty data.** The Poller's
+  `kickoffPromise` was assigned inside `start()`, so any consumer that
+  awaited `kickoffComplete()` BEFORE `start()` ran got
+  `Promise.resolve()` immediately. The fingerprint emitted at 1 s of
+  uptime with `roomCount: 0, rooms: [], recentOps: []`, and MQTT
+  would have connected pre-boot too. `kickoffPromise` is now
+  pre-allocated in the constructor with a manual resolver and
+  fulfilled at the end of the kickoff — always a real awaitable.
+- **`/room-page.html` failing at boot left the store with zero rooms.**
+  The per-room detail / set-up loops iterate `store.listRooms()` and
+  silently skipped; with no rooms registered until the next 120 s
+  runtime tick, the SPA + MQTT saw nothing. The boot priority
+  sequence now retries `pollRoomList` once after a 2 s pause if the
+  store is still empty.
+- **Per-fetch INFO log was burying the headline.** Every fetch
+  produced both a verbose `device GET /path → 200 in Xms` INFO line
+  AND an `op.fetch` INFO line with the summary as a sub-field.
+  Two lines per fetch, hard to skim. The device-client per-request
+  success log is now demoted to debug (still INFO on failure), and
+  `op.fetch` uses the summary directly as pino's message
+  (`dashboard ok 434 ms` instead of `op.fetch` + buried fields).
+  `boot.start` / `boot.end` / `safety.*` also pass descriptive
+  summaries so the addon log narrates the priority sequence in
+  plain English.
+
 ## 6.1.0 — 2026-05-24
 
 Full implementation of `POLLING-PLAN.md` — the bridge's polling

@@ -84,10 +84,20 @@ const safe = async (
 
 export class Poller {
   private timers: NodeJS.Timeout[] = [];
-  private kickoffPromise: Promise<void> | null = null;
   private kickoffDone = false;
   /** When true, runtime ticks skip themselves so the safety pass owns the device. */
   private safetyBusy = false;
+  /**
+   * Pre-allocated awaitable so `kickoffComplete()` ALWAYS returns the
+   * real promise — even if a consumer calls it before `start()` runs.
+   * Previously kickoffPromise was assigned inside start(), which meant
+   * the fingerprint emitter and MQTT bridge raced ahead with empty data
+   * if they awaited too early.
+   */
+  private kickoffResolve!: () => void;
+  private readonly kickoffPromise: Promise<void> = new Promise((r) => {
+    this.kickoffResolve = r;
+  });
 
   constructor(private readonly opts: PollerOptions) {}
 
@@ -100,7 +110,7 @@ export class Poller {
     const { logger, source } = this.opts;
     logger.info({ source: source.kind }, "poller starting");
 
-    this.kickoffPromise = (async () => {
+    void (async () => {
       if (source.openInstallerSession) {
         try { await source.openInstallerSession(); }
         catch (err) { logger.warn({ err }, "installer session open failed at boot"); }
@@ -108,12 +118,15 @@ export class Poller {
       await this.runPrioritySequence("boot");
       this.kickoffDone = true;
       this.startRuntimeTimers();
+      this.kickoffResolve();
     })();
   }
 
-  /** Resolves once the initial boot kickoff has completed. */
+  /** Resolves once the initial boot kickoff has completed. Always safe
+   *  to await — the underlying promise is created eagerly in the
+   *  constructor. */
   kickoffComplete(): Promise<void> {
-    return this.kickoffPromise ?? Promise.resolve();
+    return this.kickoffPromise;
   }
 
   /** True when boot is done and runtime timers are scheduled. */
@@ -151,7 +164,7 @@ export class Poller {
     const start = Date.now();
     const startKind = phase === "boot" ? "boot.start" : "safety.start";
     const endKind = phase === "boot" ? "boot.end" : "safety.end";
-    this.opts.ops.emit(startKind, "");
+    this.opts.ops.emit(startKind, `${phase} sequence starting`);
 
     let total = 0;
     let ok = 0;
@@ -162,8 +175,17 @@ export class Poller {
 
     // prio 1: dashboard (outdoor + op mode + energy)
     await step("dashboard", () => this.pollDashboard());
-    // prio 2: room list (creates rooms in store)
+    // prio 2: room list (creates rooms in store). On boot, retry ONCE
+    // if it fails — otherwise the per-room loops below see an empty
+    // store and quietly skip, leaving the bridge with no room data
+    // until the 120 s runtime tick. A single REHAU stall at boot
+    // shouldn't cost us a coherent first snapshot.
     await step("room-list", () => this.pollRoomList());
+    if (this.opts.store.listRooms().length === 0) {
+      this.opts.logger.warn("room-list returned no rooms; retrying once after 2 s");
+      await new Promise((r) => setTimeout(r, 2_000));
+      await step("room-list (retry)", () => this.pollRoomList());
+    }
     // prio 5: per-room detail for every room created above
     for (const r of this.opts.store.listRooms()) {
       await step(`room-detail z=${r.zone}`, () => this.pollRoomDetail(r.zone));
@@ -198,8 +220,10 @@ export class Poller {
     }
 
     const ms = Date.now() - start;
-    this.opts.ops.emit(endKind, `${ms} ms, ${ok}/${total} ok`, { ms, ok, total });
-    this.opts.logger.info({ phase, ms, ok, total }, "priority sequence done");
+    const secs = (ms / 1000).toFixed(1);
+    this.opts.ops.emit(endKind, `${phase} sequence done in ${secs}s — ${ok}/${total} ok`, {
+      ms, ok, total,
+    });
   }
 
   // ─── Runtime timers (scheduled after boot completes) ─────────
