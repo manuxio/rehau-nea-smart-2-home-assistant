@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.1.2 — 2026-05-24
+
+- **Drop the `[uptime] parser returned 0 0 0` diagnostic dump.** It
+  was a debug helper added back when the parser was Italian-locked
+  and silently returning all-zeros (fixed in v6.0.x). With the
+  locale-agnostic parser in place, REHAU genuinely reports
+  `0 Year(s) 0 Day(s) 0 Hour(s)` when the controller has just booted
+  — the warning is a false positive and was spamming the addon log
+  with an HTML snippet that wasn't actionable.
+
 ## 6.1.1 — 2026-05-24
 
 Three fixes on top of 6.1.0 surfaced by reading the actual addon

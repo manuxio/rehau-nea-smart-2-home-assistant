@@ -2267,16 +2267,7 @@ var LiveDeviceSource = class {
   }
   async fetchUptime() {
     const s = this.requireInstaller();
-    return s.run(async () => {
-      const html = await this.http.get("/installer-system-statistics.html");
-      const out = parseUptime(html);
-      if (out.years === 0 && out.days === 0 && out.hours === 0) {
-        console.warn(
-          "[uptime] parser returned 0 0 0 \u2014 sample of /installer-system-statistics.html:\n" + html.replace(/<script[\s\S]*?<\/script>/gi, "").slice(0, 1500)
-        );
-      }
-      return out;
-    });
+    return s.run(async () => parseUptime(await this.http.get("/installer-system-statistics.html")));
   }
   async fetchTopology() {
     const s = this.requireInstaller();

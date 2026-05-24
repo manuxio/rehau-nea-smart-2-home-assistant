@@ -371,21 +371,7 @@ export class LiveDeviceSource implements DeviceSource {
 
   async fetchUptime(): Promise<UptimeState> {
     const s = this.requireInstaller();
-    return s.run(async () => {
-      const html = await this.http.get("/installer-system-statistics.html");
-      const out = parseUptime(html);
-      // Diagnostic: when the parser returns 0/0/0, dump a sample of the
-      // body to the addon logs so we can capture the actual REHAU page
-      // shape (e.g. a language we haven't covered yet, or a firmware
-      // that changed the layout) and update the parser.
-      if (out.years === 0 && out.days === 0 && out.hours === 0) {
-        console.warn(
-          "[uptime] parser returned 0 0 0 — sample of /installer-system-statistics.html:\n" +
-            html.replace(/<script[\s\S]*?<\/script>/gi, "").slice(0, 1500),
-        );
-      }
-      return out;
-    });
+    return s.run(async () => parseUptime(await this.http.get("/installer-system-statistics.html")));
   }
 
   async fetchTopology(): Promise<Topology> {
