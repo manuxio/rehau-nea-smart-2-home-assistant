@@ -37,11 +37,14 @@ export function Programs() {
   // Active program detail — fetched fresh from device on first selection.
   const dailyQ = useQuery({
     queryKey: ["program", "daily", selectedDaily],
-    queryFn: () => api.programs.getDaily(selectedDaily, true),
+    // No `fresh: true` — boot warms the program cache and the
+    // write→refresh contract keeps it current. See POLLING-PLAN.md
+    // → "SPA cache discipline".
+    queryFn: () => api.programs.getDaily(selectedDaily),
   });
   const weeklyQ = useQuery({
     queryKey: ["program", "weekly", selectedWeekly],
-    queryFn: () => api.programs.getWeekly(selectedWeekly, true),
+    queryFn: () => api.programs.getWeekly(selectedWeekly),
   });
 
   const saveDaily = useMutation({

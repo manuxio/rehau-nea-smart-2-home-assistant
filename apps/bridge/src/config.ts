@@ -55,20 +55,34 @@ const envSchema = z.object({
   MQTT_HA_DISCOVERY: z.coerce.boolean().default(true),
   MQTT_HA_DISCOVERY_PREFIX: z.string().default("homeassistant"),
 
-  // polling (seconds)
-  POLL_DASHBOARD_S: z.coerce.number().int().positive().default(30),
-  POLL_ROOMS_S: z.coerce.number().int().positive().default(15),
-  POLL_ROOM_DETAIL_S: z.coerce.number().int().positive().default(60),
+  // polling (seconds) — see POLLING-PLAN.md for the model.
+  POLL_DASHBOARD_S: z.coerce.number().int().positive().default(120),
+  POLL_ROOMS_S: z.coerce.number().int().positive().default(120),
+  // Per-room scheduled cycle — every clamp(SLOT*N, MIN, MAX) seconds a
+  // cycle starts and fetches ALL rooms back-to-back (NOT round-robin).
+  POLL_ROOM_DETAIL_SLOT_S: z.coerce.number().int().positive().default(5),
+  POLL_ROOM_DETAIL_MIN_S: z.coerce.number().int().positive().default(10),
+  POLL_ROOM_DETAIL_MAX_S: z.coerce.number().int().positive().default(30),
   POLL_MESSAGES_S: z.coerce.number().int().positive().default(300),
   POLL_IO_S: z.coerce.number().int().positive().default(10),
-  // Calibration auto-poll cadence. Calibration lives behind an installer
-  // session (full open/close per fetch), so we keep it slow by default.
-  // 0 disables the auto-poll entirely; the force-refresh button in the
-  // SPA (POST /api/v1/installer/refresh) and the existing Installer-tab
-  // GET still trigger one-shot fetches on demand.
-  POLL_CALIBRATION_S: z.coerce.number().int().nonnegative().default(180),
+  // /user-config-installer.html — outdoor offset + season window safety
+  // net (faster than the 30-min safety re-sync; bucket B).
+  POLL_SYSTEM_INFO_S: z.coerce.number().int().positive().default(600),
+  // Safety re-sync: walks every URL with a boot priority once. Catches
+  // out-of-band edits to bucket B. 0 disables the auto timer; the
+  // manual `POST /api/v1/diagnostics/refresh` trigger still works.
+  SAFETY_RESYNC_S: z.coerce.number().int().nonnegative().default(1800),
+  // Operations log ring-buffer size — surfaced through the diagnostic
+  // snapshot (SPA's "Copy as Markdown" affordance + the fingerprint
+  // endpoint).
+  OP_LOG_SIZE: z.coerce.number().int().positive().default(50),
   EXPOSE_IO: z.coerce.boolean().default(true),
   EXPOSE_CALIBRATION: z.coerce.boolean().default(false),
+
+  // SPA visibility — hide the Installer tab from the SPA without
+  // touching the bridge. Polls continue, /api/v1/installer/* still
+  // serves, MQTT entities still publish. Pure UI hide.
+  SPA_INSTALLER_TAB: z.coerce.boolean().default(true),
 
   // ui-only mapping. Legacy: when /data/state.json doesn't yet have
   // floors set by the user, ROOM_FLOORS env var is used as the seed.

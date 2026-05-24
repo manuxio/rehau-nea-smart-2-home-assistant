@@ -728,8 +728,15 @@ function FingerprintCard() {
   const opMode = (fp.operatingMode as string | undefined) ?? "?";
   const addonVersion = (fp.addonVersion as string | undefined) ?? "?";
 
-  const json = JSON.stringify(fp, null, 2);
-  const markdown = "```json\n" + json + "\n```";
+  const opsMd = typeof fp.recentOpsMarkdown === "string" ? fp.recentOpsMarkdown : "";
+  const opsCount = Array.isArray(fp.recentOps) ? fp.recentOps.length : 0;
+  // Strip the markdown-only field from the JSON copy so the JSON payload
+  // stays clean; markdown form keeps the ops block appended after the
+  // fenced JSON for GitHub-friendly pasting.
+  const fpCore = { ...fp } as Record<string, unknown>;
+  delete fpCore.recentOpsMarkdown;
+  const json = JSON.stringify(fpCore, null, 2);
+  const markdown = ["```json", json, "```", "", opsMd].join("\n");
 
   return (
     <Card style={{ margin: "0 16px" }}>
@@ -752,6 +759,8 @@ function FingerprintCard() {
       <KV label={t("system.fingerprint.opMode")} value={opMode} />
       <Sep />
       <KV label={t("system.fingerprint.rooms")} value={String(roomCount)} />
+      <Sep />
+      <KV label={t("system.fingerprint.ops")} value={String(opsCount)} />
       <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
         <button
           type="button"

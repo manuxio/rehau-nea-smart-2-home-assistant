@@ -50,20 +50,33 @@ var envSchema = z.object({
   MQTT_BASE_TOPIC: z.string().default("rehau"),
   MQTT_HA_DISCOVERY: z.coerce.boolean().default(true),
   MQTT_HA_DISCOVERY_PREFIX: z.string().default("homeassistant"),
-  // polling (seconds)
-  POLL_DASHBOARD_S: z.coerce.number().int().positive().default(30),
-  POLL_ROOMS_S: z.coerce.number().int().positive().default(15),
-  POLL_ROOM_DETAIL_S: z.coerce.number().int().positive().default(60),
+  // polling (seconds) — see POLLING-PLAN.md for the model.
+  POLL_DASHBOARD_S: z.coerce.number().int().positive().default(120),
+  POLL_ROOMS_S: z.coerce.number().int().positive().default(120),
+  // Per-room scheduled cycle — every clamp(SLOT*N, MIN, MAX) seconds a
+  // cycle starts and fetches ALL rooms back-to-back (NOT round-robin).
+  POLL_ROOM_DETAIL_SLOT_S: z.coerce.number().int().positive().default(5),
+  POLL_ROOM_DETAIL_MIN_S: z.coerce.number().int().positive().default(10),
+  POLL_ROOM_DETAIL_MAX_S: z.coerce.number().int().positive().default(30),
   POLL_MESSAGES_S: z.coerce.number().int().positive().default(300),
   POLL_IO_S: z.coerce.number().int().positive().default(10),
-  // Calibration auto-poll cadence. Calibration lives behind an installer
-  // session (full open/close per fetch), so we keep it slow by default.
-  // 0 disables the auto-poll entirely; the force-refresh button in the
-  // SPA (POST /api/v1/installer/refresh) and the existing Installer-tab
-  // GET still trigger one-shot fetches on demand.
-  POLL_CALIBRATION_S: z.coerce.number().int().nonnegative().default(180),
+  // /user-config-installer.html — outdoor offset + season window safety
+  // net (faster than the 30-min safety re-sync; bucket B).
+  POLL_SYSTEM_INFO_S: z.coerce.number().int().positive().default(600),
+  // Safety re-sync: walks every URL with a boot priority once. Catches
+  // out-of-band edits to bucket B. 0 disables the auto timer; the
+  // manual `POST /api/v1/diagnostics/refresh` trigger still works.
+  SAFETY_RESYNC_S: z.coerce.number().int().nonnegative().default(1800),
+  // Operations log ring-buffer size — surfaced through the diagnostic
+  // snapshot (SPA's "Copy as Markdown" affordance + the fingerprint
+  // endpoint).
+  OP_LOG_SIZE: z.coerce.number().int().positive().default(50),
   EXPOSE_IO: z.coerce.boolean().default(true),
   EXPOSE_CALIBRATION: z.coerce.boolean().default(false),
+  // SPA visibility — hide the Installer tab from the SPA without
+  // touching the bridge. Polls continue, /api/v1/installer/* still
+  // serves, MQTT entities still publish. Pure UI hide.
+  SPA_INSTALLER_TAB: z.coerce.boolean().default(true),
   // ui-only mapping. Legacy: when /data/state.json doesn't yet have
   // floors set by the user, ROOM_FLOORS env var is used as the seed.
   // SPA edits override this and persist to STATE_FILE.
@@ -281,10 +294,11 @@ var Commander = class {
 
 // src/core/fingerprint.ts
 var BRIDGE_VERSION = "0.1.0";
-var buildFingerprint = (store, config) => {
+var buildFingerprint = (store, config, ops) => {
   const sys = store.getSystem();
   const rooms = store.listRooms();
   const diag = store.getDiagnostics();
+  const opsList = ops?.list() ?? [];
   return {
     emittedAt: (/* @__PURE__ */ new Date()).toISOString(),
     uptimeSeconds: Math.round(process.uptime()),
@@ -322,7 +336,9 @@ var buildFingerprint = (store, config) => {
       temperature: r.temperature,
       setpointHeating: r.setpointHeating,
       setpointCooling: r.setpointCooling
-    }))
+    })),
+    recentOpsMarkdown: ops?.toMarkdown() ?? "",
+    recentOps: opsList.map((e) => ({ ts: e.ts, kind: e.kind, summary: e.summary }))
   };
 };
 
@@ -365,6 +381,13 @@ var savePersistentState = (path, state) => {
 };
 
 // src/core/poller.ts
+var SECOND = 1e3;
+var INSTALLER_SETTINGS_GROUPS = [
+  "heatcool",
+  "devices",
+  "functions",
+  "pid"
+];
 var activeSetpoint = (d) => {
   switch (d.mode) {
     case "normal":
@@ -378,14 +401,19 @@ var activeSetpoint = (d) => {
       return d.setpointHeatingNormal;
   }
 };
-var SECOND = 1e3;
+var clampFan = (n) => {
+  const c = Math.max(0, Math.min(4, Math.round(n)));
+  return c;
+};
 var safe = async (logger, store, label, fn) => {
   try {
     await fn();
     store.setReachable(true);
+    return true;
   } catch (err) {
     logger.warn({ err, label }, "poll failed");
     store.setReachable(false);
+    return false;
   }
 };
 var Poller = class {
@@ -394,49 +422,167 @@ var Poller = class {
   }
   opts;
   timers = [];
-  rrIndex = 0;
+  kickoffPromise = null;
+  kickoffDone = false;
+  /** When true, runtime ticks skip themselves so the safety pass owns the device. */
+  safetyBusy = false;
+  /**
+   * Boot. Holds the installer session open (if available), then walks the
+   * priority sequence once. Runtime timers are scheduled AFTER the kickoff
+   * resolves — every URL is fetched at least once before any interval fires.
+   */
   start() {
-    const { config: c, logger } = this.opts;
-    logger.info({ source: this.opts.source.kind }, "poller starting");
-    this.timers.push(setInterval(() => void this.pollDashboard(), c.POLL_DASHBOARD_S * SECOND));
-    this.timers.push(setInterval(() => void this.pollRoomList(), c.POLL_ROOMS_S * SECOND));
-    this.timers.push(setInterval(() => void this.pollRoomDetailRR(), c.POLL_ROOM_DETAIL_S * SECOND));
-    this.timers.push(setInterval(() => void this.pollMessages(), c.POLL_MESSAGES_S * SECOND));
-    if (c.EXPOSE_IO && this.opts.source.hasInstaller) {
-      this.timers.push(setInterval(() => void this.pollIO(), c.POLL_IO_S * SECOND));
-      void this.pollIO();
-    }
-    if (c.POLL_CALIBRATION_S > 0 && this.opts.source.hasInstaller) {
-      this.timers.push(
-        setInterval(() => void this.pollCalibration(), c.POLL_CALIBRATION_S * SECOND)
-      );
-      setTimeout(() => void this.pollCalibration(), 8e3);
-    }
+    const { logger, source } = this.opts;
+    logger.info({ source: source.kind }, "poller starting");
     this.kickoffPromise = (async () => {
-      await this.pollDashboard();
-      await this.pollRoomList();
-      await this.pollAllRoomDetails();
-      await this.pollSystemInfo();
-      void this.pollMessages();
+      if (source.openInstallerSession) {
+        try {
+          await source.openInstallerSession();
+        } catch (err) {
+          logger.warn({ err }, "installer session open failed at boot");
+        }
+      }
+      await this.runPrioritySequence("boot");
+      this.kickoffDone = true;
+      this.startRuntimeTimers();
     })();
   }
-  /**
-   * Resolves once the initial poll sequence (dashboard → room list →
-   * all room details → system info) has run. Used by the boot-time
-   * fingerprint emitter so it logs a *complete* installation snapshot
-   * instead of an "after the first room landed" partial one.
-   *
-   * Best-effort: if any of the underlying polls throw, `safe()` swallows
-   * the error and the kickoff still resolves — so even on a flaky REHAU
-   * we eventually emit the fingerprint with whatever we got.
-   */
+  /** Resolves once the initial boot kickoff has completed. */
   kickoffComplete() {
     return this.kickoffPromise ?? Promise.resolve();
   }
-  kickoffPromise = null;
+  /** True when boot is done and runtime timers are scheduled. */
+  isReady() {
+    return this.kickoffDone;
+  }
   stop() {
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
+  }
+  /**
+   * Wrap a single REHAU-facing operation: safe-catch any failure (so an
+   * unhandled rejection from an undici timeout never kills the process)
+   * AND emit an `op.fetch` entry into the operations log. Used by both
+   * the boot/safety priority walk AND every runtime tick — every REHAU
+   * round-trip ends up in the 50-entry diagnostic snapshot.
+   */
+  async tick(label, fn) {
+    const t0 = Date.now();
+    const success = await safe(this.opts.logger, this.opts.store, label, fn);
+    const ms = Date.now() - t0;
+    this.opts.ops.emit("fetch", `${label}  ${success ? "ok" : "err"}  ${ms} ms`, {
+      label,
+      ms,
+      ok: success
+    });
+    return success;
+  }
+  // ─── Priority sequence (shared by boot + safety) ──────────────
+  /**
+   * The single source of truth for "what does the bridge fetch when it
+   * needs a complete picture of the appliance". Walks one URL at a time
+   * through the device-client single-flight chain.
+   */
+  async runPrioritySequence(phase) {
+    const start = Date.now();
+    const startKind = phase === "boot" ? "boot.start" : "safety.start";
+    const endKind = phase === "boot" ? "boot.end" : "safety.end";
+    this.opts.ops.emit(startKind, "");
+    let total = 0;
+    let ok = 0;
+    const step = async (label, fn) => {
+      total++;
+      if (await this.tick(label, fn)) ok++;
+    };
+    await step("dashboard", () => this.pollDashboard());
+    await step("room-list", () => this.pollRoomList());
+    for (const r of this.opts.store.listRooms()) {
+      await step(`room-detail z=${r.zone}`, () => this.pollRoomDetail(r.zone));
+    }
+    if (this.canInstaller() && this.opts.config.EXPOSE_IO) {
+      await step("io", () => this.pollIO());
+    }
+    await step("system-info", () => this.pollSystemInfo());
+    await step("messages", () => this.pollMessages());
+    if (this.canInstaller()) {
+      await step("calibration", () => this.pollCalibration());
+    }
+    for (const r of this.opts.store.listRooms()) {
+      await step(`room-setup z=${r.zone}`, () => this.pollRoomSetup(r.zone));
+    }
+    for (let id = 1; id <= 10; id++) {
+      await step(`daily-program ${id}`, () => this.pollDailyProgram(id));
+    }
+    for (let id = 1; id <= 5; id++) {
+      await step(`weekly-program ${id}`, () => this.pollWeeklyProgram(id));
+    }
+    if (this.canInstaller()) {
+      await step("uptime", () => this.pollUptime());
+      await step("topology", () => this.pollTopology());
+      await step("heat-curve", () => this.pollHeatCurve());
+      for (const g of INSTALLER_SETTINGS_GROUPS) {
+        await step(`settings ${g}`, () => this.pollSettings(g));
+      }
+    }
+    const ms = Date.now() - start;
+    this.opts.ops.emit(endKind, `${ms} ms, ${ok}/${total} ok`, { ms, ok, total });
+    this.opts.logger.info({ phase, ms, ok, total }, "priority sequence done");
+  }
+  // ─── Runtime timers (scheduled after boot completes) ─────────
+  startRuntimeTimers() {
+    const c = this.opts.config;
+    const gated = (label, fn) => () => {
+      if (this.safetyBusy) return;
+      void this.tick(label, fn);
+    };
+    this.timers.push(setInterval(gated("dashboard", () => this.pollDashboard()), c.POLL_DASHBOARD_S * SECOND));
+    this.timers.push(setInterval(gated("room-list", () => this.pollRoomList()), c.POLL_ROOMS_S * SECOND));
+    this.timers.push(setInterval(gated("messages", () => this.pollMessages()), c.POLL_MESSAGES_S * SECOND));
+    this.timers.push(setInterval(gated("system-info", () => this.pollSystemInfo()), c.POLL_SYSTEM_INFO_S * SECOND));
+    if (this.canInstaller() && c.EXPOSE_IO) {
+      this.timers.push(setInterval(gated("io", () => this.pollIO()), c.POLL_IO_S * SECOND));
+    }
+    this.scheduleNextRoomCycle();
+    if (c.SAFETY_RESYNC_S > 0) {
+      this.timers.push(setInterval(() => void this.safetyResync(), c.SAFETY_RESYNC_S * SECOND));
+    }
+  }
+  scheduleNextRoomCycle() {
+    const ms = this.roomCyclePeriodMs();
+    const t = setTimeout(async () => {
+      if (!this.safetyBusy) await this.runRoomCycle();
+      this.scheduleNextRoomCycle();
+    }, ms);
+    this.timers.push(t);
+  }
+  roomCyclePeriodMs() {
+    const c = this.opts.config;
+    const n = Math.max(1, this.opts.store.listRooms().length);
+    const target = c.POLL_ROOM_DETAIL_SLOT_S * n;
+    const clamped = Math.min(c.POLL_ROOM_DETAIL_MAX_S, Math.max(c.POLL_ROOM_DETAIL_MIN_S, target));
+    return clamped * SECOND;
+  }
+  /** Fetch every room sequentially through the single-flight chain. */
+  async runRoomCycle() {
+    for (const r of this.opts.store.listRooms()) {
+      await this.tick(`room-detail z=${r.zone}`, () => this.pollRoomDetail(r.zone));
+    }
+  }
+  // ─── Safety re-sync ──────────────────────────────────────────
+  /**
+   * Re-walks the priority sequence. Re-entrant safe — back-to-back calls
+   * are coalesced. Runtime ticks hold off via `safetyBusy` for the
+   * duration so the snapshot is coherent.
+   */
+  async safetyResync() {
+    if (this.safetyBusy) return;
+    if (!this.kickoffDone) return;
+    this.safetyBusy = true;
+    try {
+      await this.runPrioritySequence("safety");
+    } finally {
+      this.safetyBusy = false;
+    }
   }
   // ─── one-shot helpers used after writes ──────────────────────
   refreshDashboard() {
@@ -448,163 +594,130 @@ var Poller = class {
   refreshRoom(zone) {
     return this.pollRoomDetail(zone);
   }
-  refreshCalibration() {
-    return this.pollCalibration();
-  }
-  /**
-   * Force-refresh hook used by the SPA's "Refresh" button — kicks off
-   * every cheap poll in parallel plus the expensive calibration one if
-   * the bridge has installer access. Returns when all of them have
-   * settled so the SPA can show progress feedback.
-   */
-  async refreshAll() {
-    const tasks = [
-      this.pollSystemInfo(),
-      this.pollDashboard(),
-      this.pollRoomList(),
-      this.pollAllRoomDetails(),
-      this.pollMessages()
-    ];
-    if (this.opts.source.hasInstaller) tasks.push(this.pollCalibration());
-    await Promise.allSettled(tasks);
-  }
-  // ─── poll bodies ────────────────────────────────────────────
-  pollSystemInfo() {
-    const { source, store, logger } = this.opts;
-    return safe(logger, store, "system-info", async () => {
-      const info = await source.fetchSystemInfo();
-      store.patchSystem({
-        uniqueCode: info.uniqueCode,
-        fw: info.fw,
-        seasonStart: info.seasonStart,
-        seasonEnd: info.seasonEnd,
-        outdoorOffset: info.outdoorOffset
-      });
-    });
-  }
-  pollDashboard() {
-    const { source, store, logger } = this.opts;
-    return safe(logger, store, "dashboard", async () => {
-      const d = await source.fetchDashboard();
-      store.patchSystem({
-        outdoorTemp: d.outdoorTemp,
-        operatingMode: d.operatingMode,
-        energyLevel: d.energyLevel,
-        reachable: true
-      });
-    });
-  }
-  pollRoomList() {
-    const { source, store, logger } = this.opts;
-    return safe(logger, store, "room-list", async () => {
-      const list = await source.fetchRoomList();
-      for (const r of list) {
-        const room = store.ensureRoomForZone(r.zone, r.name);
-        store.patchRoom(room.id, { name: r.name, temperature: r.temperature, zone: r.zone });
-      }
-    });
-  }
-  pollRoomDetailRR() {
-    const rooms = this.opts.store.listRooms();
-    if (rooms.length === 0) return Promise.resolve();
-    const room = rooms[this.rrIndex % rooms.length];
-    this.rrIndex++;
-    return this.pollRoomDetail(room.zone);
-  }
-  pollRoomDetail(zone) {
-    const { source, store, logger } = this.opts;
-    return safe(logger, store, `room-detail-${zone}`, async () => {
-      const d = await source.fetchRoomDetail(zone);
-      const room = store.ensureRoomForZone(d.zone, d.name);
-      const sysMode = store.getSystem().operatingMode;
-      const isCooling = sysMode === "cooling_only" || sysMode === "manual_cooling";
-      const active = activeSetpoint(d);
-      store.patchRoom(room.id, {
-        name: d.name,
-        temperature: d.temperature,
-        humidity: d.humidity,
-        setpointHeating: isCooling ? null : active,
-        setpointCooling: isCooling ? active : null,
-        setpointNormal: d.setpointHeatingNormal,
-        setpointReduced: d.setpointHeatingReduced,
-        setpointStandby: d.setpointStandby,
-        mode: d.mode,
-        fan: clampFan(d.fan),
-        flap: d.flap === 1 ? 1 : 0,
-        light: d.light,
-        hasLight: d.hasLight,
-        hasFan: d.hasFan,
-        hasFlap: d.hasFlap,
-        fanRunning: d.fanRunning,
-        programDailyId: room.programDailyId,
-        programWeeklyId: room.programWeeklyId,
-        programOverride: d.mode === "program_override"
-      });
-    });
-  }
-  /** Reads the room-set-up.html page for the flags (lock / auto / SWOW). */
   refreshRoomSetup(zone) {
     return this.pollRoomSetup(zone);
   }
-  pollRoomSetup(zone) {
-    const { source, store, logger } = this.opts;
-    return safe(logger, store, `room-setup-${zone}`, async () => {
-      const s = await source.fetchRoomSetup(zone);
-      const room = store.ensureRoomForZone(s.zone, s.name);
-      store.patchRoom(room.id, {
-        name: s.name,
-        lock: s.flags.lock,
-        autoStart: s.flags.auto,
-        windowDetection: s.flags.swow
-      });
+  refreshCalibration() {
+    return this.pollCalibration();
+  }
+  refreshAll() {
+    return this.safetyResync();
+  }
+  // ─── poll bodies ────────────────────────────────────────────
+  canInstaller() {
+    return this.opts.source.hasInstaller;
+  }
+  async pollSystemInfo() {
+    const info = await this.opts.source.fetchSystemInfo();
+    this.opts.store.patchSystem({
+      uniqueCode: info.uniqueCode,
+      fw: info.fw,
+      seasonStart: info.seasonStart,
+      seasonEnd: info.seasonEnd,
+      outdoorOffset: info.outdoorOffset
     });
   }
-  async pollAllRoomDetails() {
-    await new Promise((r) => setTimeout(r, 300));
-    for (const r of this.opts.store.listRooms()) {
-      await this.pollRoomDetail(r.zone);
-      await this.pollRoomSetup(r.zone);
+  async pollDashboard() {
+    const d = await this.opts.source.fetchDashboard();
+    this.opts.store.patchSystem({
+      outdoorTemp: d.outdoorTemp,
+      operatingMode: d.operatingMode,
+      energyLevel: d.energyLevel,
+      reachable: true
+    });
+  }
+  async pollRoomList() {
+    const list = await this.opts.source.fetchRoomList();
+    for (const r of list) {
+      const room = this.opts.store.ensureRoomForZone(r.zone, r.name);
+      this.opts.store.patchRoom(room.id, { name: r.name, temperature: r.temperature, zone: r.zone });
     }
   }
-  pollMessages() {
-    const { source, store, logger } = this.opts;
-    return safe(logger, store, "messages", async () => {
-      const list = await source.fetchMessages();
-      store.setMessages(list);
+  async pollRoomDetail(zone) {
+    const d = await this.opts.source.fetchRoomDetail(zone);
+    const room = this.opts.store.ensureRoomForZone(d.zone, d.name);
+    const sysMode = this.opts.store.getSystem().operatingMode;
+    const isCooling = sysMode === "cooling_only" || sysMode === "manual_cooling";
+    const active = activeSetpoint(d);
+    this.opts.store.patchRoom(room.id, {
+      name: d.name,
+      temperature: d.temperature,
+      humidity: d.humidity,
+      setpointHeating: isCooling ? null : active,
+      setpointCooling: isCooling ? active : null,
+      setpointNormal: d.setpointHeatingNormal,
+      setpointReduced: d.setpointHeatingReduced,
+      setpointStandby: d.setpointStandby,
+      mode: d.mode,
+      fan: clampFan(d.fan),
+      flap: d.flap === 1 ? 1 : 0,
+      light: d.light,
+      hasLight: d.hasLight,
+      hasFan: d.hasFan,
+      hasFlap: d.hasFlap,
+      fanRunning: d.fanRunning,
+      programDailyId: room.programDailyId,
+      programWeeklyId: room.programWeeklyId,
+      programOverride: d.mode === "program_override"
     });
   }
-  pollIO() {
-    const { source, store, logger } = this.opts;
-    return safe(logger, store, "io", async () => {
-      const io = await source.fetchIO();
-      store.setIO(io);
+  async pollRoomSetup(zone) {
+    const s = await this.opts.source.fetchRoomSetup(zone);
+    const room = this.opts.store.ensureRoomForZone(s.zone, s.name);
+    this.opts.store.patchRoom(room.id, {
+      name: s.name,
+      lock: s.flags.lock,
+      autoStart: s.flags.auto,
+      windowDetection: s.flags.swow
     });
   }
-  /**
-   * Fetch calibration (outdoor + per-room offsets) and mirror it into the
-   * matching Room entries so RoomDetail's "Calibration (read-only)" card
-   * has values without the SPA needing to hit the installer endpoint.
-   * Each call opens + closes an installer session, so this is the most
-   * expensive poll — hence the long default interval.
-   */
-  pollCalibration() {
-    const { source, store, logger } = this.opts;
-    return safe(logger, store, "calibration", async () => {
-      const snap = await source.fetchCalibration();
-      for (const c of snap.rooms) {
-        const room = store.getRoomByZone(c.zone);
-        if (!room) continue;
-        store.patchRoom(room.id, {
-          calibrationTemp: c.tempOffset,
-          calibrationHumidity: c.humidityOffset
-        });
-      }
+  async pollMessages() {
+    const list = await this.opts.source.fetchMessages();
+    this.opts.store.setMessages(list);
+  }
+  async pollIO() {
+    const io = await this.opts.source.fetchIO();
+    this.opts.store.setIO(io);
+  }
+  async pollCalibration() {
+    const snap = await this.opts.source.fetchCalibration();
+    this.opts.store.setCalibration({ ...snap, meta: { lastUpdatedAt: (/* @__PURE__ */ new Date()).toISOString() } });
+    for (const c of snap.rooms) {
+      const room = this.opts.store.getRoomByZone(c.zone);
+      if (!room) continue;
+      this.opts.store.patchRoom(room.id, {
+        calibrationTemp: c.tempOffset,
+        calibrationHumidity: c.humidityOffset
+      });
+    }
+  }
+  async pollDailyProgram(id) {
+    const p = await this.opts.source.fetchDailyProgram(id);
+    this.opts.store.upsertDailyProgram({ id: p.id, name: "", bits: p.bits });
+  }
+  async pollWeeklyProgram(id) {
+    const w = await this.opts.source.fetchWeeklyProgram(id);
+    this.opts.store.upsertWeeklyProgram({ id: w.id, name: "", days: w.days });
+  }
+  async pollUptime() {
+    const u = await this.opts.source.fetchUptime();
+    this.opts.store.setUptime(u);
+  }
+  async pollTopology() {
+    const t = await this.opts.source.fetchTopology();
+    this.opts.store.setTopology(t);
+  }
+  async pollHeatCurve() {
+    const c = await this.opts.source.fetchHeatCurve();
+    this.opts.store.setHeatCurve({ ...c, meta: { lastUpdatedAt: (/* @__PURE__ */ new Date()).toISOString() } });
+  }
+  async pollSettings(group) {
+    const snap = await this.opts.source.fetchSettings(group);
+    this.opts.store.setInstallerSettings({
+      ...snap,
+      meta: { lastUpdatedAt: (/* @__PURE__ */ new Date()).toISOString() }
     });
   }
-};
-var clampFan = (n) => {
-  const c = Math.max(0, Math.min(4, Math.round(n)));
-  return c;
 };
 
 // src/core/store.ts
@@ -895,6 +1008,15 @@ var Store = class {
   // on any change; main.ts subscribes and writes the file.
   floorAssignments = {};
   scenes = [];
+  // ─── Installer-tier caches ──────────────────────────────────
+  // Populated at boot (and on safety re-sync) by the Poller, so the
+  // SPA's first open of the Installer tabs finds them already warm.
+  // See POLLING-PLAN.md → "SPA cache discipline".
+  uptime = null;
+  topology = null;
+  heatCurve = null;
+  installerSettings = /* @__PURE__ */ new Map();
+  calibration = null;
   events = new EventEmitter();
   /**
    * @param opts.seed When `true`, populate every collection from the mock
@@ -1023,6 +1145,39 @@ var Store = class {
     if (next === prev) return;
     this.io = io;
     this.events.emit("io.changed", io);
+  }
+  // ─── Installer-tier caches (warmed at boot / safety) ─────────
+  // Cache-or-fetch semantics live in the route handlers; the Store
+  // just holds the latest snapshot per surface.
+  getUptime() {
+    return this.uptime;
+  }
+  setUptime(u) {
+    this.uptime = u;
+  }
+  getTopology() {
+    return this.topology;
+  }
+  setTopology(t) {
+    this.topology = t;
+  }
+  getHeatCurve() {
+    return this.heatCurve;
+  }
+  setHeatCurve(c) {
+    this.heatCurve = c;
+  }
+  getInstallerSettings(group) {
+    return this.installerSettings.get(group);
+  }
+  setInstallerSettings(snap) {
+    this.installerSettings.set(snap.group, snap);
+  }
+  getCalibration() {
+    return this.calibration;
+  }
+  setCalibration(c) {
+    this.calibration = c;
   }
   // ─── writes ───────────────────────────────────────────────
   /** Merge a partial room update; emits only when something actually changed. */
@@ -1290,46 +1445,41 @@ var InstallerSession = class {
     this.opts = opts;
   }
   opts;
-  busy = false;
-  waiters = [];
-  /** Acquire mutex → login → fn() → logout → release. */
-  async run(fn) {
-    await this.acquire();
-    try {
-      await this.login();
-      try {
-        return await fn();
-      } finally {
-        await this.logout().catch((err) => {
-          this.opts.logger.warn({ err }, "installer logout failed");
-        });
-      }
-    } finally {
-      this.release();
-    }
-  }
-  acquire() {
-    if (!this.busy) {
-      this.busy = true;
-      return Promise.resolve();
-    }
-    return new Promise((resolve3) => this.waiters.push(resolve3));
-  }
-  release() {
-    const next = this.waiters.shift();
-    if (next) {
-      next();
-    } else {
-      this.busy = false;
-    }
-  }
-  async login() {
-    this.opts.logger.debug("installer login");
+  opened = false;
+  /** Idempotent: POSTs `instPart=<code>` once if the session isn't already open. */
+  async open() {
+    if (this.opened) return;
+    this.opts.logger.info("installer login (session open)");
     await this.opts.http.postForm("/menu.html", { instPart: this.opts.code });
+    this.opened = true;
+    this.opts.onOp?.("installer.session.open", "");
   }
-  async logout() {
-    this.opts.logger.debug("installer logout");
-    await this.opts.http.get("/user-menu.html");
+  /** Idempotent: GETs `/user-menu.html` once if currently open. Best-effort. */
+  async close() {
+    if (!this.opened) return;
+    this.opened = false;
+    try {
+      this.opts.logger.info("installer logout (session close)");
+      await this.opts.http.get("/user-menu.html");
+      this.opts.onOp?.("installer.session.close", "");
+    } catch (err) {
+      this.opts.logger.warn({ err }, "installer logout failed (best-effort)");
+    }
+  }
+  /**
+   * Ensure the session is open, then invoke `fn`. No per-call logout.
+   *
+   * If the session was closed (shutdown race, device reboot we missed),
+   * `open()` runs first transparently. Callers do not need to know
+   * whether the session was already open.
+   */
+  async run(fn) {
+    await this.open();
+    return fn();
+  }
+  /** Diagnostic: true when the bridge believes it's logged in. */
+  isOpen() {
+    return this.opened;
   }
 };
 
@@ -1928,7 +2078,18 @@ var LiveDeviceSource = class {
   kind = "live";
   hasInstaller;
   async close() {
+    if (this.installer) {
+      try {
+        await this.installer.close();
+      } catch {
+      }
+    }
     await this.http.close();
+  }
+  /** Open the always-held installer session at boot. */
+  async openInstallerSession() {
+    if (!this.installer) return;
+    await this.installer.open();
   }
   fetchDashboard = async () => parseDashboard(await this.http.get("/"));
   fetchRoomList = async () => parseRoomList(await this.http.get("/room-page.html"));
@@ -2828,10 +2989,14 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
     }
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getCalibration();
+    if (cached) return cached;
     await guard();
     const snap = await source.fetchCalibration();
+    const full = { ...snap, meta: { lastUpdatedAt: nowIso2() } };
+    store.setCalibration(full);
     mirrorCalibration(snap);
-    return { ...snap, meta: { lastUpdatedAt: nowIso2() } };
+    return full;
   });
   app.put("/api/v1/installer/calibration", {
     schema: {
@@ -2848,8 +3013,10 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
     if (body.outdoor !== void 0) patch.outdoor = body.outdoor;
     if (body.rooms !== void 0) patch.rooms = body.rooms;
     const fresh = await source.setCalibration(patch);
+    const full = { ...fresh, meta: { lastUpdatedAt: nowIso2() } };
+    store.setCalibration(full);
     mirrorCalibration(fresh);
-    return { ...fresh, meta: { lastUpdatedAt: nowIso2() } };
+    return full;
   });
   app.get("/api/v1/installer/io", {
     schema: {
@@ -2859,8 +3026,12 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
     }
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getIO();
+    if (cached) return cached;
     await guard();
-    return source.fetchIO();
+    const snap = await source.fetchIO();
+    store.setIO(snap);
+    return snap;
   });
   app.get("/api/v1/installer/diagnostics/uptime", {
     schema: {
@@ -2870,8 +3041,12 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
     }
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getUptime();
+    if (cached) return cached;
     await guard();
-    return source.fetchUptime();
+    const snap = await source.fetchUptime();
+    store.setUptime(snap);
+    return snap;
   });
   app.get("/api/v1/installer/diagnostics/topology", {
     schema: {
@@ -2881,8 +3056,12 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
     }
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getTopology();
+    if (cached) return cached;
     await guard();
-    return source.fetchTopology();
+    const snap = await source.fetchTopology();
+    store.setTopology(snap);
+    return snap;
   });
   app.get("/api/v1/installer/curve", {
     schema: {
@@ -2892,9 +3071,13 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
     }
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getHeatCurve();
+    if (cached) return cached;
     await guard();
     const c = await source.fetchHeatCurve();
-    return { ...c, meta: { lastUpdatedAt: nowIso2() } };
+    const full = { ...c, meta: { lastUpdatedAt: nowIso2() } };
+    store.setHeatCurve(full);
+    return full;
   });
   app.get("/api/v1/installer/settings/:group", {
     schema: {
@@ -2905,10 +3088,14 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
     }
   }, async (req) => {
     req.requireRole("installer");
-    await guard();
     const { group } = req.params;
+    const cached = store.getInstallerSettings(group);
+    if (cached) return cached;
+    await guard();
     const snap = await source.fetchSettings(group);
-    return { ...snap, meta: { lastUpdatedAt: nowIso2() } };
+    const full = { ...snap, meta: { lastUpdatedAt: nowIso2() } };
+    store.setInstallerSettings(full);
+    return full;
   });
   app.put("/api/v1/installer/settings/:group", {
     schema: {
@@ -2924,7 +3111,9 @@ var registerInstallerRoutes = (app, { config, source, store }) => {
     const { group } = req.params;
     const body = req.body;
     const snap = await source.setSettings(group, body.fields);
-    return { ...snap, meta: { lastUpdatedAt: nowIso2() } };
+    const full = { ...snap, meta: { lastUpdatedAt: nowIso2() } };
+    store.setInstallerSettings(full);
+    return full;
   });
 };
 
@@ -3294,6 +3483,23 @@ var registerScenesRoutes = (app, { store, commander }) => {
   });
 };
 
+// src/http/routes/spa-config.ts
+import { z as z10 } from "zod";
+var spaConfigSchema = z10.object({
+  installerTab: z10.boolean()
+});
+var registerSpaConfigRoutes = (app, { config }) => {
+  app.get("/api/v1/spa-config", {
+    schema: {
+      tags: ["system"],
+      response: { 200: spaConfigSchema },
+      security: [{ bearerAuth: [] }]
+    }
+  }, async () => ({
+    installerTab: config.SPA_INSTALLER_TAB
+  }));
+};
+
 // src/http/routes/system.ts
 var registerSystemRoutes = (app, { store, commander }) => {
   app.get("/api/v1/system", {
@@ -3337,6 +3543,7 @@ var buildServer = async ({
   commander,
   source,
   poller,
+  ops,
   spaDir
 }) => {
   const app = Fastify({
@@ -3385,7 +3592,7 @@ var buildServer = async ({
     ...store.getDiagnostics(),
     versions: { bridge: "0.1.0", addon: addonVersion }
   }));
-  app.get("/api/v1/diagnostics/fingerprint", async () => buildFingerprint(store, config));
+  app.get("/api/v1/diagnostics/fingerprint", async () => buildFingerprint(store, config, ops));
   app.post("/api/v1/diagnostics/refresh", async () => {
     await poller.refreshAll();
     return { ok: true };
@@ -3393,6 +3600,7 @@ var buildServer = async ({
   registerAuthRoutes(app, config);
   registerRoomsRoutes(app, { store, commander });
   registerSystemRoutes(app, { store, commander });
+  registerSpaConfigRoutes(app, { config });
   registerMessagesRoutes(app, { store, source });
   registerProgramsRoutes(app, { store, commander });
   registerInstallerRoutes(app, { config, source, store });
@@ -4094,13 +4302,19 @@ var MqttBridge = class {
       fwVersion: `Master ${this.o.store.getSystem().fw.master}`,
       exposeCalibration: this.o.config.EXPOSE_CALIBRATION
     };
-    for (const m of buildAllDiscovery(ctx, this.o.store.listRooms(), this.o.store.getSystem(), this.o.store.getIO())) {
+    const messages = buildAllDiscovery(ctx, this.o.store.listRooms(), this.o.store.getSystem(), this.o.store.getIO());
+    for (const m of messages) {
       this.mqtt.publish(m.topic, m.payload, { retain: true });
     }
+    const reason = previous === null ? "initial" : "capabilities-changed";
     this.o.logger.info(
-      { count: this.o.store.listRooms().length, reason: previous === null ? "initial" : "capabilities-changed" },
+      { count: this.o.store.listRooms().length, reason },
       "ha discovery published"
     );
+    this.o.ops?.emit("mqtt.discovery.publish", `${reason}, ${messages.length} entities`, {
+      reason,
+      count: messages.length
+    });
   }
   publishRoom(r) {
     this.mqtt.publish(this.topics.roomState(r.id), r, { retain: true });
@@ -4181,11 +4395,50 @@ var createLogger = (cfg) => pino({
   } : {}
 });
 
+// src/observability/ops-log.ts
+var OpLog = class {
+  constructor(opts) {
+    this.opts = opts;
+  }
+  opts;
+  entries = [];
+  /** Push an entry, emit the matching INFO log line. */
+  emit(kind, summary, detail) {
+    const entry = detail === void 0 ? { ts: (/* @__PURE__ */ new Date()).toISOString(), kind, summary } : { ts: (/* @__PURE__ */ new Date()).toISOString(), kind, summary, detail };
+    this.entries.push(entry);
+    if (this.entries.length > this.opts.size) this.entries.shift();
+    this.opts.logger.info({ op: kind, summary, ...detail ?? {} }, `op.${kind}`);
+  }
+  /** Newest-last snapshot, suitable for the fingerprint payload. */
+  list() {
+    return this.entries.slice();
+  }
+  /** Render the buffer as a markdown bullet list ready to paste into a
+   *  GitHub issue. Format kept stable so a future support tool can parse
+   *  it: `- HH:MM:SS.mmm  kind  summary`. */
+  toMarkdown() {
+    if (this.entries.length === 0) return "_no operations recorded yet_";
+    const lines = ["### Recent operations (last " + this.entries.length + ")", ""];
+    for (const e of this.entries) {
+      const t = e.ts.slice(11, 23);
+      const summary = e.summary ? "  " + e.summary : "";
+      lines.push(`- \`${t}\`  **${e.kind}**${summary}`);
+    }
+    return lines.join("\n");
+  }
+};
+
 // src/main.ts
 dotenv.config({ path: resolve2(import.meta.dirname, "../../../.env") });
 var main = async () => {
   const config = loadConfig();
   const logger = createLogger(config);
+  process.on("unhandledRejection", (err) => {
+    logger.error({ err }, "unhandledRejection \u2014 swallowed (would otherwise exit)");
+  });
+  process.on("uncaughtException", (err) => {
+    logger.error({ err }, "uncaughtException \u2014 swallowed (would otherwise exit)");
+  });
   logger.info({
     deviceMode: config.DEVICE_MODE,
     deviceUrl: config.DEVICE_URL,
@@ -4211,6 +4464,7 @@ var main = async () => {
       logger.warn({ err, path: config.STATE_FILE }, "could not save state file");
     }
   });
+  const ops = new OpLog({ size: config.OP_LOG_SIZE, logger });
   let source;
   if (config.DEVICE_MODE === "live") {
     const http = new DeviceClient({
@@ -4220,24 +4474,38 @@ var main = async () => {
       logger,
       onTelemetry: (entry) => store.recordFetch(entry)
     });
-    const installer = config.DEVICE_INSTALLER_CODE ? new InstallerSession({ http, code: config.DEVICE_INSTALLER_CODE, logger }) : void 0;
+    const installer = config.DEVICE_INSTALLER_CODE ? new InstallerSession({
+      http,
+      code: config.DEVICE_INSTALLER_CODE,
+      logger,
+      onOp: (kind, summary) => ops.emit(kind, summary)
+    }) : void 0;
     source = new LiveDeviceSource(http, installer);
   } else {
     source = new MockDeviceSource();
   }
-  const poller = new Poller({ config, source, store, logger });
+  const poller = new Poller({ config, source, store, logger, ops });
   const commander = new Commander({ source, store, poller });
   void (async () => {
     await poller.kickoffComplete();
-    logger.info(buildFingerprint(store, config), "INSTALLATION_FINGERPRINT");
+    logger.info(buildFingerprint(store, config, ops), "INSTALLATION_FINGERPRINT");
   })();
   const spaDir = resolve2(import.meta.dirname, "..", "web");
-  const app = await buildServer({ config, logger, store, commander, source, poller, spaDir });
+  const app = await buildServer({ config, logger, store, commander, source, poller, spaDir, ops });
   poller.start();
   let mqttBridge = null;
   if (config.MQTT_URL) {
-    mqttBridge = new MqttBridge({ config, store, commander, logger });
-    await mqttBridge.start();
+    mqttBridge = new MqttBridge({
+      config,
+      store,
+      commander,
+      logger,
+      ops: { emit: (k, s, d) => ops.emit(k, s, d) }
+    });
+    void poller.kickoffComplete().then(async () => {
+      await mqttBridge.start();
+      ops.emit("mqtt.connect", "");
+    });
   } else {
     logger.info("MQTT_URL not set \u2014 MQTT bridge disabled");
   }

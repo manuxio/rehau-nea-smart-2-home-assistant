@@ -152,6 +152,13 @@ export class ApiClient {
       this.request("POST", `/api/v1/scenes/${encodeURIComponent(id)}/apply`),
   };
 
+  spaConfig = {
+    /** UI-only flags from the bridge (e.g. SPA_INSTALLER_TAB). The
+     *  bridge keeps polling / publishing regardless; these only toggle
+     *  what the SPA renders. */
+    get: (): Promise<{ installerTab: boolean }> => this.request("GET", "/api/v1/spa-config"),
+  };
+
   diagnostics = {
     /** Connection state + last-N fetches + aggregates (see TODO.md §"Server-error visibility"). */
     fetches: (): Promise<DiagnosticsSnapshot> => this.request("GET", "/api/v1/diagnostics/fetches"),

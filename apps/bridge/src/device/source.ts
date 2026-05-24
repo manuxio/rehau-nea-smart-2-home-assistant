@@ -73,6 +73,10 @@ import {
 export interface DeviceSource {
   readonly kind: "live" | "mock";
   readonly hasInstaller: boolean;
+  /** Open the always-held installer session, if available. No-op on mock /
+   *  when no installer code is configured. Called by the Poller at boot
+   *  before the priority sequence walks installer-gated pages. */
+  openInstallerSession?(): Promise<void>;
   fetchDashboard(): Promise<DashboardSnapshot>;
   fetchRoomList(): Promise<RoomListEntry[]>;
   fetchRoomDetail(zone: number): Promise<RoomDetailSnapshot>;
@@ -161,7 +165,18 @@ export class LiveDeviceSource implements DeviceSource {
   }
 
   async close(): Promise<void> {
+    // Best-effort: drop the always-held installer session so the device
+    // returns to user mode for any other LAN clients on the AP.
+    if (this.installer) {
+      try { await this.installer.close(); } catch { /* logged inside */ }
+    }
     await this.http.close();
+  }
+
+  /** Open the always-held installer session at boot. */
+  async openInstallerSession(): Promise<void> {
+    if (!this.installer) return;
+    await this.installer.open();
   }
 
   fetchDashboard = async (): Promise<DashboardSnapshot> =>

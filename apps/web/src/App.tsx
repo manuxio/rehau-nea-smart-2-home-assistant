@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { BANNER_RESERVED_PX, ConnectionBanner } from "./components/ConnectionBanner";
 import { TabBar } from "./components/ui";
@@ -17,16 +17,30 @@ import { useHashRoute, type Tab } from "./lib/useHashRoute";
 
 export default function App() {
   const { t } = useTranslation();
-  const { session } = useAuth();
+  const { session, api } = useAuth();
   const qc = useQueryClient();
   const [route, navigate] = useHashRoute();
 
+  // SPA-visibility flags from the bridge. Independent of `session.role`:
+  // when the addon owner sets SPA_INSTALLER_TAB=false, the tab disappears
+  // even for installer-role sessions. Polls / MQTT / REST continue
+  // server-side. See POLLING-PLAN.md → "SPA visibility flags".
+  const spaConfigQ = useQuery({
+    queryKey: ["spa-config"],
+    queryFn: () => api.spaConfig.get(),
+    // Read once per SPA mount; bridge config requires a restart anyway.
+    staleTime: Infinity,
+    enabled: !!session,
+  });
+  const installerTabVisible = spaConfigQ.data?.installerTab ?? true;
+
   // Bounce the installer route if the current session can't see it.
   useEffect(() => {
-    if (route.tab === "installer" && session && session.role !== "installer") {
-      navigate({ tab: "home" });
+    if (route.tab === "installer" && session) {
+      const blocked = session.role !== "installer" || !installerTabVisible;
+      if (blocked) navigate({ tab: "home" });
     }
-  }, [route.tab, session, navigate]);
+  }, [route.tab, session, installerTabVisible, navigate]);
 
   // Keep the document title in sync — nice for tab grouping in the browser.
   useEffect(() => {
@@ -94,7 +108,8 @@ export default function App() {
     { value: "programs" as const, label: t("tabs.programs"), icon: "clock" },
   ];
   const installerTab = { value: "installer" as const, label: t("tabs.installer"), icon: "wrench" };
-  const tabs = session.role === "installer" ? [...baseTabs, installerTab] : baseTabs;
+  const showInstaller = session.role === "installer" && installerTabVisible;
+  const tabs = showInstaller ? [...baseTabs, installerTab] : baseTabs;
 
   return (
     <div
@@ -167,8 +182,12 @@ export default function App() {
           <Messages />
         ) : route.tab === "programs" ? (
           <Programs />
-        ) : (
+        ) : showInstaller ? (
           <Installer />
+        ) : (
+          // Defensive: hash-routed to /installer but the tab is off.
+          // The useEffect above will bounce us to /home on the next tick.
+          <Dashboard onOpenRoom={(id) => navigate({ roomId: id })} />
         )}
       </div>
 

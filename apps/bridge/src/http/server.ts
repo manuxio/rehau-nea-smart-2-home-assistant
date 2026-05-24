@@ -22,8 +22,10 @@ import { registerMessagesRoutes } from "./routes/messages.js";
 import { registerProgramsRoutes } from "./routes/programs.js";
 import { registerRoomsRoutes } from "./routes/rooms.js";
 import { registerScenesRoutes } from "./routes/scenes.js";
+import { registerSpaConfigRoutes } from "./routes/spa-config.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import type { DeviceSource } from "../device/source.js";
+import type { OpLog } from "../observability/ops-log.js";
 
 export interface BuildServerArgs {
   config: Config;
@@ -32,6 +34,7 @@ export interface BuildServerArgs {
   commander: Commander;
   source: DeviceSource;
   poller: Poller;
+  ops: OpLog;
   /** When set, Fastify serves the built SPA from this directory at `/`. */
   spaDir?: string | undefined;
 }
@@ -43,6 +46,7 @@ export const buildServer = async ({
   commander,
   source,
   poller,
+  ops,
   spaDir,
 }: BuildServerArgs) => {
   // Configure Fastify with its own pino options (logger generic must remain
@@ -121,7 +125,7 @@ export const buildServer = async ({
    * secrets in the payload (no installer code, no bcrypt hash, no
    * JWT, no MQTT password).
    */
-  app.get("/api/v1/diagnostics/fingerprint", async () => buildFingerprint(store, config));
+  app.get("/api/v1/diagnostics/fingerprint", async () => buildFingerprint(store, config, ops));
 
   /**
    * Force-refresh — the SPA's "Refresh now" button hits this to bypass
@@ -142,6 +146,7 @@ export const buildServer = async ({
   registerAuthRoutes(app, config);
   registerRoomsRoutes(app, { store, commander });
   registerSystemRoutes(app, { store, commander });
+  registerSpaConfigRoutes(app, { config });
   registerMessagesRoutes(app, { store, source });
   registerProgramsRoutes(app, { store, commander });
   registerInstallerRoutes(app, { config, source, store });

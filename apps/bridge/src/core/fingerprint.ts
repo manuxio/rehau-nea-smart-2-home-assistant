@@ -16,6 +16,7 @@
 // addon's log output at info level, so they're already shareable; the
 // caller (SPA or user) can redact further if they want.
 import type { Config } from "../config.js";
+import type { OpLog } from "../observability/ops-log.js";
 import type { Store } from "./store.js";
 
 export interface FingerprintRoom {
@@ -74,14 +75,25 @@ export interface InstallationFingerprint {
   };
   roomCount: number;
   rooms: FingerprintRoom[];
+  /** Last ~50 bridge operations rendered as a markdown bullet list,
+   *  ready to paste into a GitHub issue. Empty string when no ops have
+   *  been recorded (e.g., very early boot). */
+  recentOpsMarkdown: string;
+  /** Same data, but structured for programmatic consumers. */
+  recentOps: Array<{ ts: string; kind: string; summary: string }>;
 }
 
 export const BRIDGE_VERSION = "0.1.0";
 
-export const buildFingerprint = (store: Store, config: Config): InstallationFingerprint => {
+export const buildFingerprint = (
+  store: Store,
+  config: Config,
+  ops?: OpLog,
+): InstallationFingerprint => {
   const sys = store.getSystem();
   const rooms = store.listRooms();
   const diag = store.getDiagnostics();
+  const opsList = ops?.list() ?? [];
   return {
     emittedAt: new Date().toISOString(),
     uptimeSeconds: Math.round(process.uptime()),
@@ -120,5 +132,7 @@ export const buildFingerprint = (store: Store, config: Config): InstallationFing
       setpointHeating: r.setpointHeating,
       setpointCooling: r.setpointCooling,
     })),
+    recentOpsMarkdown: ops?.toMarkdown() ?? "",
+    recentOps: opsList.map((e) => ({ ts: e.ts, kind: e.kind, summary: e.summary })),
   };
 };

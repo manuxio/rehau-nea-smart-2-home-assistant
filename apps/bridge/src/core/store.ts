@@ -3,15 +3,21 @@ import type {
   AlarmMessage,
   BridgeConnection,
   BridgeConnectionState,
+  CalibrationState,
   DailyProgram,
   DiagnosticsSnapshot,
   FetchTelemetryEntry,
   FloorAssignments,
+  HeatCurveState,
+  InstallerSettingsGroup,
+  InstallerSettingsSnapshot,
   IOSnapshot,
   Room,
   RoomMode,
   Scene,
   SystemState,
+  Topology,
+  UptimeState,
   WeeklyProgram,
 } from "@rehau/types";
 import {
@@ -75,6 +81,15 @@ export class Store {
   // on any change; main.ts subscribes and writes the file.
   private floorAssignments: FloorAssignments = {};
   private scenes: Scene[] = [];
+  // ─── Installer-tier caches ──────────────────────────────────
+  // Populated at boot (and on safety re-sync) by the Poller, so the
+  // SPA's first open of the Installer tabs finds them already warm.
+  // See POLLING-PLAN.md → "SPA cache discipline".
+  private uptime: UptimeState | null = null;
+  private topology: Topology | null = null;
+  private heatCurve: HeatCurveState | null = null;
+  private installerSettings = new Map<InstallerSettingsGroup, InstallerSettingsSnapshot>();
+  private calibration: CalibrationState | null = null;
   readonly events = new EventEmitter() as TypedEmitter<Events>;
 
   /**
@@ -207,6 +222,28 @@ export class Store {
     this.io = io;
     this.events.emit("io.changed", io);
   }
+
+  // ─── Installer-tier caches (warmed at boot / safety) ─────────
+  // Cache-or-fetch semantics live in the route handlers; the Store
+  // just holds the latest snapshot per surface.
+  getUptime(): UptimeState | null { return this.uptime; }
+  setUptime(u: UptimeState): void { this.uptime = u; }
+
+  getTopology(): Topology | null { return this.topology; }
+  setTopology(t: Topology): void { this.topology = t; }
+
+  getHeatCurve(): HeatCurveState | null { return this.heatCurve; }
+  setHeatCurve(c: HeatCurveState): void { this.heatCurve = c; }
+
+  getInstallerSettings(group: InstallerSettingsGroup): InstallerSettingsSnapshot | undefined {
+    return this.installerSettings.get(group);
+  }
+  setInstallerSettings(snap: InstallerSettingsSnapshot): void {
+    this.installerSettings.set(snap.group, snap);
+  }
+
+  getCalibration(): CalibrationState | null { return this.calibration; }
+  setCalibration(c: CalibrationState): void { this.calibration = c; }
 
   // ─── writes ───────────────────────────────────────────────
   /** Merge a partial room update; emits only when something actually changed. */

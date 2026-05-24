@@ -18,6 +18,10 @@ export interface MqttBridgeOptions {
   store: Store;
   commander: Commander;
   logger: Logger;
+  /** Optional ops sink — emit mqtt.connect / mqtt.disconnect /
+   *  mqtt.discovery.publish so the diagnostic snapshot covers MQTT
+   *  too. Optional so tests don't have to construct one. */
+  ops?: { emit: (kind: string, summary: string, detail?: Record<string, unknown>) => void };
 }
 
 const ENERGY = new Set(["normal", "reduced", "standby", "auto", "vacation"] as const);
@@ -154,13 +158,18 @@ export class MqttBridge {
       fwVersion: `Master ${this.o.store.getSystem().fw.master}`,
       exposeCalibration: this.o.config.EXPOSE_CALIBRATION,
     };
-    for (const m of buildAllDiscovery(ctx, this.o.store.listRooms(), this.o.store.getSystem(), this.o.store.getIO())) {
+    const messages = buildAllDiscovery(ctx, this.o.store.listRooms(), this.o.store.getSystem(), this.o.store.getIO());
+    for (const m of messages) {
       this.mqtt.publish(m.topic, m.payload as object, { retain: true });
     }
+    const reason = previous === null ? "initial" : "capabilities-changed";
     this.o.logger.info(
-      { count: this.o.store.listRooms().length, reason: previous === null ? "initial" : "capabilities-changed" },
+      { count: this.o.store.listRooms().length, reason },
       "ha discovery published",
     );
+    this.o.ops?.emit("mqtt.discovery.publish", `${reason}, ${messages.length} entities`, {
+      reason, count: messages.length,
+    });
   }
 
   private publishRoom(r: Room): void {

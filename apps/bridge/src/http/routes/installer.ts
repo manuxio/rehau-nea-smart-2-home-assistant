@@ -59,6 +59,9 @@ export const registerInstallerRoutes = (
   };
 
   // ─── calibrazione ────────────────────────────────────────
+  // Cache-first per POLLING-PLAN.md "SPA cache discipline" — boot warms
+  // the cache, write paths invalidate. SPA reads never trigger a REHAU
+  // round-trip on the happy path.
   app.get("/api/v1/installer/calibration", {
     schema: {
       tags: ["installer"],
@@ -67,10 +70,14 @@ export const registerInstallerRoutes = (
     },
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getCalibration();
+    if (cached) return cached;
     await guard();
     const snap = await source.fetchCalibration();
+    const full = { ...snap, meta: { lastUpdatedAt: nowIso() } };
+    store.setCalibration(full);
     mirrorCalibration(snap);
-    return { ...snap, meta: { lastUpdatedAt: nowIso() } };
+    return full;
   });
 
   app.put("/api/v1/installer/calibration", {
@@ -90,8 +97,10 @@ export const registerInstallerRoutes = (
     if (body.outdoor !== undefined) patch.outdoor = body.outdoor;
     if (body.rooms !== undefined) patch.rooms = body.rooms;
     const fresh = await source.setCalibration(patch);
+    const full = { ...fresh, meta: { lastUpdatedAt: nowIso() } };
+    store.setCalibration(full);
     mirrorCalibration(fresh);
-    return { ...fresh, meta: { lastUpdatedAt: nowIso() } };
+    return full;
   });
 
   // ─── I/O live ────────────────────────────────────────────
@@ -103,8 +112,12 @@ export const registerInstallerRoutes = (
     },
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getIO();
+    if (cached) return cached;
     await guard();
-    return source.fetchIO();
+    const snap = await source.fetchIO();
+    store.setIO(snap);
+    return snap;
   });
 
   // ─── diagnostica ─────────────────────────────────────────
@@ -116,8 +129,12 @@ export const registerInstallerRoutes = (
     },
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getUptime();
+    if (cached) return cached;
     await guard();
-    return source.fetchUptime();
+    const snap = await source.fetchUptime();
+    store.setUptime(snap);
+    return snap;
   });
 
   app.get("/api/v1/installer/diagnostics/topology", {
@@ -128,8 +145,12 @@ export const registerInstallerRoutes = (
     },
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getTopology();
+    if (cached) return cached;
     await guard();
-    return source.fetchTopology();
+    const snap = await source.fetchTopology();
+    store.setTopology(snap);
+    return snap;
   });
 
   // ─── curva di carico (vista compatta SVG-friendly) ───────
@@ -141,9 +162,13 @@ export const registerInstallerRoutes = (
     },
   }, async (req) => {
     req.requireRole("installer");
+    const cached = store.getHeatCurve();
+    if (cached) return cached;
     await guard();
     const c = await source.fetchHeatCurve();
-    return { ...c, meta: { lastUpdatedAt: nowIso() } };
+    const full = { ...c, meta: { lastUpdatedAt: nowIso() } };
+    store.setHeatCurve(full);
+    return full;
   });
 
   // ─── settings (any group) — generic read + write ─────────
@@ -156,10 +181,14 @@ export const registerInstallerRoutes = (
     },
   }, async (req) => {
     req.requireRole("installer");
-    await guard();
     const { group } = req.params as { group: z.infer<typeof installerSettingsGroupSchema> };
+    const cached = store.getInstallerSettings(group);
+    if (cached) return cached;
+    await guard();
     const snap = await source.fetchSettings(group);
-    return { ...snap, meta: { lastUpdatedAt: nowIso() } };
+    const full = { ...snap, meta: { lastUpdatedAt: nowIso() } };
+    store.setInstallerSettings(full);
+    return full;
   });
 
   app.put("/api/v1/installer/settings/:group", {
@@ -176,6 +205,8 @@ export const registerInstallerRoutes = (
     const { group } = req.params as { group: z.infer<typeof installerSettingsGroupSchema> };
     const body = req.body as z.infer<typeof installerSettingsPatchSchema>;
     const snap = await source.setSettings(group, body.fields);
-    return { ...snap, meta: { lastUpdatedAt: nowIso() } };
+    const full = { ...snap, meta: { lastUpdatedAt: nowIso() } };
+    store.setInstallerSettings(full);
+    return full;
   });
 };

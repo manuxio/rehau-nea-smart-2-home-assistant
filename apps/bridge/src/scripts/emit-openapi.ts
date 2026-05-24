@@ -11,6 +11,7 @@ import { Poller } from "../core/poller.js";
 import { Store } from "../core/store.js";
 import { MockDeviceSource } from "../device/source.js";
 import { createLogger } from "../observability/log.js";
+import { OpLog } from "../observability/ops-log.js";
 import { buildServer } from "../http/server.js";
 
 const main = async (): Promise<void> => {
@@ -23,9 +24,10 @@ const main = async (): Promise<void> => {
   const logger = createLogger({ ...config, LOG_LEVEL: "warn" });
   const source = new MockDeviceSource();
   const store = new Store();
-  const poller = new Poller({ config, source, store, logger });
+  const ops = new OpLog({ size: config.OP_LOG_SIZE, logger });
+  const poller = new Poller({ config, source, store, logger, ops });
   const commander = new Commander({ source, store, poller });
-  const app = await buildServer({ config, logger, store, commander, source, poller });
+  const app = await buildServer({ config, logger, store, commander, source, poller, ops });
   await app.ready();
 
   // Will use @fastify/swagger once registered:

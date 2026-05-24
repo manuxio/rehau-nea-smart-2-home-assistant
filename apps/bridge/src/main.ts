@@ -26,10 +26,24 @@ import {
 import { buildServer } from "./http/server.js";
 import { MqttBridge } from "./mqtt/bridge.js";
 import { createLogger } from "./observability/log.js";
+import { OpLog } from "./observability/ops-log.js";
 
 const main = async (): Promise<void> => {
   const config = loadConfig();
   const logger = createLogger(config);
+
+  // Belt + braces — any uncaught promise rejection inside a runtime
+  // poll, undici timeout, MQTT-disconnect handler, etc. used to crash
+  // the addon entirely (Node defaults to terminating on
+  // unhandledRejection). The Poller now wraps everything in tick()
+  // which can't leak, but a stray throw elsewhere shouldn't take down
+  // the addon either.
+  process.on("unhandledRejection", (err) => {
+    logger.error({ err }, "unhandledRejection — swallowed (would otherwise exit)");
+  });
+  process.on("uncaughtException", (err) => {
+    logger.error({ err }, "uncaughtException — swallowed (would otherwise exit)");
+  });
 
   logger.info({
     deviceMode: config.DEVICE_MODE,
@@ -73,6 +87,12 @@ const main = async (): Promise<void> => {
     }
   });
 
+  // Operations log — 50-entry rolling ring buffer surfaced through the
+  // diagnostic snapshot. Wired into the InstallerSession + Poller +
+  // MQTT bridge so every meaningful side effect produces a parseable
+  // INFO line that the SPA can paste into bug reports verbatim.
+  const ops = new OpLog({ size: config.OP_LOG_SIZE, logger });
+
   let source: DeviceSource;
   if (config.DEVICE_MODE === "live") {
     const http = new DeviceClient({
@@ -83,13 +103,18 @@ const main = async (): Promise<void> => {
       onTelemetry: (entry) => store.recordFetch(entry),
     });
     const installer = config.DEVICE_INSTALLER_CODE
-      ? new InstallerSession({ http, code: config.DEVICE_INSTALLER_CODE, logger })
+      ? new InstallerSession({
+          http,
+          code: config.DEVICE_INSTALLER_CODE,
+          logger,
+          onOp: (kind, summary) => ops.emit(kind as never, summary),
+        })
       : undefined;
     source = new LiveDeviceSource(http, installer);
   } else {
     source = new MockDeviceSource();
   }
-  const poller = new Poller({ config, source, store, logger });
+  const poller = new Poller({ config, source, store, logger, ops });
   const commander = new Commander({ source, store, poller });
 
   // ─── Installation fingerprint ──────────────────────────────────────
@@ -103,7 +128,7 @@ const main = async (): Promise<void> => {
   // mislead.
   void (async () => {
     await poller.kickoffComplete();
-    logger.info(buildFingerprint(store, config), "INSTALLATION_FINGERPRINT");
+    logger.info(buildFingerprint(store, config, ops), "INSTALLATION_FINGERPRINT");
   })();
 
   // SPA dir: in the production container the React build is copied next to
@@ -111,13 +136,29 @@ const main = async (): Promise<void> => {
   // to the running script.
   const spaDir = resolve(import.meta.dirname, "..", "web");
 
-  const app = await buildServer({ config, logger, store, commander, source, poller, spaDir });
+  const app = await buildServer({ config, logger, store, commander, source, poller, spaDir, ops });
   poller.start();
 
+  // MQTT connection is DEFERRED until boot completes — see
+  // POLLING-PLAN.md → Phase ordering rule 2. HA shows the device
+  // as unavailable for the full boot duration; in exchange it
+  // never sees a half-baked installation with partial data.
   let mqttBridge: MqttBridge | null = null;
   if (config.MQTT_URL) {
-    mqttBridge = new MqttBridge({ config, store, commander, logger });
-    await mqttBridge.start();
+    // OpLog satisfies the MqttBridge `ops` shape; widen the signature
+    // intentionally so the bridge module doesn't need to know about
+    // OpKind specifically.
+    mqttBridge = new MqttBridge({
+      config,
+      store,
+      commander,
+      logger,
+      ops: { emit: (k, s, d) => ops.emit(k as never, s, d) },
+    });
+    void poller.kickoffComplete().then(async () => {
+      await mqttBridge!.start();
+      ops.emit("mqtt.connect", "");
+    });
   } else {
     logger.info("MQTT_URL not set — MQTT bridge disabled");
   }
