@@ -8,7 +8,9 @@ behind a sluggish cloud app, e-mail 2FA, and a support forum where issues go to 
 
 One ESP32. No cloud. No add-on. No account. No telemetry leaving your house.
 
-**➡️ [Download the latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)** — currently [`bridge-fw-v0.10.0`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.10.0).
+**➡️ [Download the latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)** — currently [`bridge-fw-v0.13.0`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.13.0).
+
+**🔧 [Firmware source code](https://github.com/manuxio/betterehau-bridge)** — ESP-IDF project, security audit, and build instructions.
 
 > ⚠️ **Under active testing.** The plain Olimex ESP32-POE has limited RAM, and running the
 > full scrape + MQTT + SPA + API stack pushes it close to the edge — long-run heap
@@ -29,20 +31,20 @@ One ESP32. No cloud. No add-on. No account. No telemetry leaving your house.
 
 **Admin GUI** — everything about the bridge in one local web app:
 
-![Admin dashboard](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.10.0/v0.10.0-admin-dashboard.jpeg)
+![Admin dashboard](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.13.0/v0.13.0-admin-dashboard.jpeg)
 
 **Resident climate app (SPA)** — served *directly from the board*, installable as a PWA on your phone:
 
-![Resident SPA](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.10.0/v0.10.0-resident-spa.jpeg)
-![SPA room detail](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.10.0/v0.10.0-spa-room.jpeg)
+![Resident SPA](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.13.0/v0.13.0-resident-spa.jpeg)
+![SPA room detail](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.13.0/v0.13.0-spa-room.jpeg)
 
 **Live REHAU status** — scraped straight from the base station, no cloud round-trip:
 
-![REHAU status](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.10.0/v0.10.0-rehau-status.jpeg)
+![REHAU status](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.13.0/v0.13.0-rehau-status.jpeg)
 
 **Direct MQTT / Home Assistant** — point it at your broker and you're done:
 
-![MQTT / Home Assistant](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.10.0/v0.10.0-mqtt-ha.jpeg)
+![MQTT / Home Assistant](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/download/bridge-fw-v0.13.0/v0.13.0-mqtt-ha.jpeg)
 
 ---
 
@@ -172,7 +174,9 @@ management under **`/api/...`**. 69 endpoints across 12 groups:
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/v1/auth/login` | Username / password login |
-| POST | `/api/v1/auth/ingress` | HA-ingress passwordless login |
+| POST | `/api/v1/auth/token` | OAuth2 password / refresh_token grant |
+| POST | `/api/v1/auth/refresh` | Exchange refresh token for new session |
+| POST | `/api/v1/auth/revoke-all` | Sign out all sessions (admin) |
 | GET | `/api/v1/auth/me` | Current identity |
 | GET / POST | `/api/v1/users` | List / create accounts |
 | PUT / DELETE | `/api/v1/users/{name}` | Update / delete account |
@@ -224,7 +228,7 @@ Full machine-readable contract: **`GET /openapi.json`** on any running board.
 
 Requires an **Olimex ESP32-POE** (the only supported board). Grab the
 [latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)
-([`bridge-fw-v0.10.0`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.10.0)).
+([`bridge-fw-v0.13.0`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.13.0)).
 
 ```bash
 pip install esptool
