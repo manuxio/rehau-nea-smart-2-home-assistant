@@ -12,6 +12,11 @@ clean web UI served via HA ingress.
 
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A//github.com/manuxio/rehau-nea-smart-2-home-assistant)
 
+> ⚡ **No Home Assistant? No add-on? No problem.** There's now a standalone
+> **firmware** for the Olimex ESP32-POE that becomes the whole integration on
+> its own — REST API, MQTT + HA Discovery, and a resident web app served
+> straight from the board, fully local. See **[`FIRMWARE.md`](FIRMWARE.md)**.
+
 > 📘 **First time here?** Read [`INSTALL.md`](INSTALL.md) — a step-by-step,
 > beginner-friendly walkthrough that covers switching the REHAU base
 > station into Access Point (Wi-Fi) mode, joining your Home Assistant host
