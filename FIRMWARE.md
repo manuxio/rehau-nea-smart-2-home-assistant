@@ -10,8 +10,6 @@ One ESP32. No cloud. No add-on. No account. No telemetry leaving your house.
 
 **➡️ [Download the latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)** — currently [`bridge-fw-v0.13.0`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.13.0).
 
-**🔧 [Firmware source code](https://github.com/manuxio/betterehau-bridge)** — ESP-IDF project, security audit, and build instructions.
-
 > ⚠️ **Under active testing.** The plain Olimex ESP32-POE has limited RAM, and running the
 > full scrape + MQTT + SPA + API stack pushes it close to the edge — long-run heap
 > stability is still being validated. If the headroom proves too tight, the project may
