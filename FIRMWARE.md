@@ -8,7 +8,7 @@ behind a sluggish cloud app, e-mail 2FA, and a support forum where issues go to 
 
 One ESP32. No cloud. No add-on. No account. No telemetry leaving your house.
 
-**➡️ [Download the latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)** — currently [`bridge-fw-v0.13.0`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.13.0).
+**➡️ [Download the latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)** — currently [`bridge-fw-v0.14.1`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.14.1).
 
 > ⚠️ **Under active testing.** The plain Olimex ESP32-POE has limited RAM, and running the
 > full scrape + MQTT + SPA + API stack pushes it close to the edge — long-run heap
@@ -226,19 +226,39 @@ Full machine-readable contract: **`GET /openapi.json`** on any running board.
 
 Requires an **Olimex ESP32-POE** (the only supported board). Grab the
 [latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)
-([`bridge-fw-v0.13.0`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.13.0)).
+([`bridge-fw-v0.14.1`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.14.1)).
+
+Each release ships **three binaries**:
+
+| File | Contents | Use case |
+|------|----------|----------|
+| `…-full.bin` | Bootloader + partition table + firmware + SPIFFS (admin GUI + SPA) | **First install** via USB |
+| `…-ota.bin` | Firmware only | **OTA update** — firmware |
+| `…-spiffs.bin` | Admin GUI + resident SPA + API docs | **OTA update** — web interface |
+
+### First install (USB cable, one time)
 
 ```bash
 pip install esptool
 
-# first install (USB cable, one time)
 esptool --chip esp32 -p COM5 -b 460800 erase_flash
 esptool --chip esp32 -p COM5 -b 460800 write_flash 0x0 betterehau-bridge-<version>-full.bin
 ```
 
 Then open `http://<board-ip>:81/`, create your `admin` account, point it at your REHAU
-base and your MQTT broker, and you're running. Every future update is a one-click OTA
-of `…-ota.bin` from the admin GUI — no more cable.
+base and your MQTT broker, and you're running.
+
+### OTA update (no cable)
+
+The firmware and the web interface (admin GUI + SPA) live on **separate flash
+partitions**. An OTA update requires two uploads — firmware first, then SPIFFS:
+
+1. Open the admin GUI → **Maintenance** → upload `…-ota.bin` under **Firmware update**.
+   The board reboots automatically (~15 s).
+2. After it's back, upload `…-spiffs.bin` under **Web interface update**.
+   Hard-refresh the browser (`Ctrl+Shift+R`) to pick up the new GUI.
+
+Both steps take under 30 seconds each.
 
 ---
 
