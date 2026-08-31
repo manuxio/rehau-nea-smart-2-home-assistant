@@ -370,9 +370,13 @@ export type InstallerSettingsGroup =
 export type InstallerSettingFieldValue = number | boolean;
 
 export interface InstallerSettingField {
-  /** Internal REHAU field name (e.g. "HA00", "MIX10"). Used as id by the UI. */
+  /**
+   * Internal REHAU field name (e.g. "HA00", "MIX10"). Used as id by the UI,
+   * which also localises it for display via `settings.fields.<name>` in
+   * apps/web/src/lib/i18n.ts — there is intentionally no `label` here so the
+   * server stays language-neutral.
+   */
   name: string;
-  label: string;
   kind: "number" | "boolean";
   /** Optional unit displayed next to the value (e.g. "°C", "K"). */
   unit?: string;
