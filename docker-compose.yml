@@ -20,6 +20,13 @@ services:
       MQTT_HA_DISCOVERY: ${MQTT_HA_DISCOVERY:-true}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (32+ random bytes)}
       API_USER: ${API_USER:-admin}
+      # Double every `$` when you put the hash in .env - Compose interpolates
+      # those values, and in `$2b$12$cGCY...` the `$cGCY` part is a valid
+      # variable name that expands to "", leaving a truncated hash and a login
+      # that answers invalid_credentials with the right password:
+      #   API_PASSWORD_HASH=$$2b$$12$$cGCYWq2/OfAoo...
+      # Check what actually reached the container with:
+      #   docker compose exec rehau-bridge printenv API_PASSWORD_HASH
       API_PASSWORD_HASH: ${API_PASSWORD_HASH:?run `npm run hashpw -- <pw>` to generate}
       ADMIN_ROLE: ${ADMIN_ROLE:-installer}
       EXPOSE_IO: ${EXPOSE_IO:-true}
