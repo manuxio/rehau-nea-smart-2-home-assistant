@@ -30,6 +30,12 @@ export const energyLevelSchema = z.enum(["normal", "reduced", "standby", "auto",
 
 export const fanLevelSchema = z.number().int().min(0).max(4);
 
+/**
+ * Daily program slot 1..10, or 0 while unknown. Range left unchecked like
+ * `programDailyId`, so an odd device value can't fail the whole room list.
+ */
+const roomProgramDaySchema = z.number().int();
+
 export const roomSchema = z.object({
   id: z.string(),
   zone: z.number().int(),
@@ -58,6 +64,15 @@ export const roomSchema = z.object({
   calibrationHumidity: z.number().nullable(),
   programDailyId: z.number().int(),
   programWeeklyId: z.number().int(),
+  programDays: z.tuple([
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+  ]),
   floor: z.string(),
   lock: z.boolean(),
   autoStart: z.boolean(),

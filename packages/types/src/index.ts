@@ -79,10 +79,18 @@ export interface Room {
   calibrationTemp: number | null;
   /** -25..+25 %, step 1. Installer-only write. `null` until first install fetch. */
   calibrationHumidity: number | null;
-  /** Daily program slot 1..10 currently assigned. */
+  /**
+   * Daily program slot 1..10 the room follows today, resolved by the bridge
+   * from `programWeeklyId` / `programDays`. `0` until both are known.
+   */
   programDailyId: number;
-  /** Weekly program slot 1..5 currently assigned. */
+  /** Weekly program slot 1..5 assigned in room-set-up.html (`PWeek`). `0` = none ("- - -") or not read yet. */
   programWeeklyId: number;
+  /**
+   * Mon..Sun daily program slots 1..10 (`PDay00`..`PDay06`). The device only
+   * uses them when `programWeeklyId` is `0`. All `0` until room-set-up.html is read.
+   */
+  programDays: [number, number, number, number, number, number, number];
   /** UI-only floor label, sourced from ROOM_FLOORS config. */
   floor: string;
   // ── room-set-up.html flags ─────────────────────────────────

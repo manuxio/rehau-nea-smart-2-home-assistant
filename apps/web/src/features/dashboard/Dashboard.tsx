@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { seedDailyPrograms } from "@rehau/types/mocks";
 import type { Room } from "@rehau/types";
 import {
   AppHeader,
@@ -29,6 +28,9 @@ const compareByFloorThenName = (a: Room, b: Room): number => {
   return a.name.localeCompare(b.name);
 };
 
+/** True when the room runs on its time program, so its program strip applies. */
+const followsProgram = (r: Room): boolean => r.mode === "program" || r.mode === "program_override";
+
 export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) {
   const { api } = useAuth();
   const { t } = useTranslation();
@@ -39,6 +41,16 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
   // empty (fresh install) the editor in the System tab tells the user how
   // to add some — the Dashboard simply doesn't render the section.
   const scenes = useQuery({ queryKey: ["scenes"], queryFn: () => api.scenes.list() });
+  // The device's daily programs, for each room's program strip. Same query
+  // key as the Programs tab, so saving a program there refreshes the strips.
+  // Only fetched when some strip will be drawn: the route reads any program
+  // missing from the cache straight from the device.
+  const needsPrograms = (rooms.data ?? []).some((r) => followsProgram(r) && r.programDailyId > 0);
+  const dailyPrograms = useQuery({
+    queryKey: ["programs", "daily"],
+    queryFn: () => api.programs.listDaily(),
+    enabled: needsPrograms,
+  });
 
   const applyScene = useMutation({
     mutationFn: (id: string) => api.scenes.apply(id),
@@ -140,9 +152,10 @@ export function Dashboard({ onOpenRoom }: { onOpenRoom: (id: string) => void }) 
           const headerLabel = r.floor || t("home.floorOther");
           // Program bits only make sense when the room is actually following a
           // schedule — hiding them otherwise reduces visual noise on the card.
-          const showProgram = r.mode === "program" || r.mode === "program_override";
-          const dp = showProgram
-            ? (seedDailyPrograms.find((d) => d.id === r.programDailyId) ?? seedDailyPrograms[0]!)
+          // `programDailyId` is today's program, resolved by the bridge; it's 0
+          // until the room's assignment is known, and then no strip is drawn.
+          const dp = followsProgram(r)
+            ? (dailyPrograms.data?.find((d) => d.id === r.programDailyId) ?? null)
             : null;
           return (
             <div key={r.id}>
