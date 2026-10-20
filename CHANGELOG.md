@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 6.1.3 — 2026-10-20
 
 - **Dashboard program strip shows the room's real program.** The strip
   was drawn from the mock `seedDailyPrograms` with `programDailyId`,

@@ -110,6 +110,8 @@ var slotForMode = (room, mode) => {
     case "program":
     case "program_override":
       return room.setpointNormal ?? room.setpointHeating;
+    case "party":
+      return null;
   }
 };
 var Commander = class {
@@ -380,6 +382,15 @@ var savePersistentState = (path, state) => {
   renameSync(tmp, path);
 };
 
+// src/core/programs.ts
+var sameProgramDays = (a, b) => a.every((slot, i) => slot === b[i]);
+var rehauWeekdayIndex = (date) => (date.getDay() + 6) % 7;
+var resolveDailyProgramId = (room, getWeeklyProgram, date) => {
+  const day = rehauWeekdayIndex(date);
+  if (room.programWeeklyId > 0) return getWeeklyProgram(room.programWeeklyId)?.days[day] ?? 0;
+  return room.programDays[day] ?? 0;
+};
+
 // src/core/poller.ts
 var SECOND = 1e3;
 var INSTALLER_SETTINGS_GROUPS = [
@@ -397,6 +408,8 @@ var activeSetpoint = (d) => {
     case "program":
     case "program_override":
       return d.programActive === 1 ? d.setpointHeatingReduced : d.setpointHeatingNormal;
+    case "party":
+      return d.setpoint;
     case "standby":
       return d.setpointHeatingNormal;
   }
@@ -419,6 +432,7 @@ var safe = async (logger, store, label, fn) => {
 var Poller = class {
   constructor(opts) {
     this.opts = opts;
+    opts.store.events.on("weekly.changed", () => this.resolveAllDailyPrograms());
   }
   opts;
   timers = [];
@@ -678,20 +692,38 @@ var Poller = class {
       hasFan: d.hasFan,
       hasFlap: d.hasFlap,
       fanRunning: d.fanRunning,
-      programDailyId: room.programDailyId,
-      programWeeklyId: room.programWeeklyId,
+      // Re-resolved on every detail poll so the day rolls over at midnight
+      // without waiting for the next room-set-up read.
+      programDailyId: this.todaysDailyProgram(room),
       programOverride: d.mode === "program_override"
     });
   }
   async pollRoomSetup(zone) {
     const s = await this.opts.source.fetchRoomSetup(zone);
     const room = this.opts.store.ensureRoomForZone(s.zone, s.name);
+    const assignment = {
+      programWeeklyId: s.weekly,
+      // Keep the stored array when nothing changed: patchRoom compares by
+      // reference, and a fresh copy would republish the room every resync.
+      programDays: sameProgramDays(room.programDays, s.daysProgram) ? room.programDays : [...s.daysProgram]
+    };
     this.opts.store.patchRoom(room.id, {
       name: s.name,
       lock: s.flags.lock,
       autoStart: s.flags.auto,
-      windowDetection: s.flags.swow
+      windowDetection: s.flags.swow,
+      ...assignment,
+      programDailyId: this.todaysDailyProgram(assignment)
     });
+  }
+  /** Today's daily program for a room, from its assignment and the cached weekly programs. */
+  todaysDailyProgram(assignment) {
+    return resolveDailyProgramId(assignment, (id) => this.opts.store.getWeeklyProgram(id), /* @__PURE__ */ new Date());
+  }
+  resolveAllDailyPrograms() {
+    for (const room of this.opts.store.listRooms()) {
+      this.opts.store.patchRoom(room.id, { programDailyId: this.todaysDailyProgram(room) });
+    }
   }
   async pollMessages() {
     const list = await this.opts.source.fetchMessages();
@@ -773,6 +805,7 @@ var seedRooms = [
     calibrationHumidity: 0,
     programDailyId: 1,
     programWeeklyId: 1,
+    programDays: [1, 1, 1, 1, 1, 2, 2],
     lock: false,
     autoStart: true,
     windowDetection: true,
@@ -803,6 +836,7 @@ var seedRooms = [
     calibrationHumidity: 0,
     programDailyId: 1,
     programWeeklyId: 1,
+    programDays: [1, 1, 1, 1, 1, 2, 2],
     lock: false,
     autoStart: true,
     windowDetection: true,
@@ -833,6 +867,7 @@ var seedRooms = [
     calibrationHumidity: 0,
     programDailyId: 1,
     programWeeklyId: 1,
+    programDays: [1, 1, 1, 1, 1, 2, 2],
     lock: false,
     autoStart: true,
     windowDetection: true,
@@ -863,6 +898,7 @@ var seedRooms = [
     calibrationHumidity: -1,
     programDailyId: 1,
     programWeeklyId: 1,
+    programDays: [1, 1, 1, 1, 1, 2, 2],
     lock: false,
     autoStart: true,
     windowDetection: true,
@@ -1286,8 +1322,9 @@ var Store = class {
       fanRunning: false,
       calibrationTemp: null,
       calibrationHumidity: null,
-      programDailyId: 1,
-      programWeeklyId: 1,
+      programDailyId: 0,
+      programWeeklyId: 0,
+      programDays: [0, 0, 0, 0, 0, 0, 0],
       // Pick up the persisted floor label so a SPA-edited assignment
       // applies the moment the room is created by the live poller —
       // not just on the next polling tick.
@@ -1529,7 +1566,7 @@ var deviceStateToRoomMode = (s) => {
       return "program_override";
     case 6:
     case 7:
-      return "program_override";
+      return "party";
     default:
       return "standby";
   }
@@ -1546,6 +1583,10 @@ var roomModeToDeviceMode = (m) => {
       return "program";
     case "program_override":
       return "programO";
+    // Only reached when re-submitting a party room's form (light/setpoint):
+    // the device's own script puts "party" in the hidden `mode` field then.
+    case "party":
+      return "party";
   }
 };
 var operatingModeFromDevice = (n) => {
@@ -2674,6 +2715,7 @@ var roomModeSchema = z3.enum([
   "program",
   "program_override"
 ]);
+var roomStateModeSchema = z3.enum([...roomModeSchema.options, "party"]);
 var systemModeSchema = z3.enum([
   "heating_only",
   "cooling_only",
@@ -2682,6 +2724,7 @@ var systemModeSchema = z3.enum([
 ]);
 var energyLevelSchema = z3.enum(["normal", "reduced", "standby", "auto", "vacation"]);
 var fanLevelSchema = z3.number().int().min(0).max(4);
+var roomProgramDaySchema = z3.number().int();
 var roomSchema = z3.object({
   id: z3.string(),
   zone: z3.number().int(),
@@ -2697,7 +2740,7 @@ var roomSchema = z3.object({
   setpointNormal: z3.number().nullable(),
   setpointReduced: z3.number().nullable(),
   setpointStandby: z3.number().nullable(),
-  mode: roomModeSchema,
+  mode: roomStateModeSchema,
   programOverride: z3.boolean(),
   hasFan: z3.boolean(),
   hasFlap: z3.boolean(),
@@ -2710,6 +2753,15 @@ var roomSchema = z3.object({
   calibrationHumidity: z3.number().nullable(),
   programDailyId: z3.number().int(),
   programWeeklyId: z3.number().int(),
+  programDays: z3.tuple([
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema,
+    roomProgramDaySchema
+  ]),
   floor: z3.string(),
   lock: z3.boolean(),
   autoStart: z3.boolean(),
@@ -3721,7 +3773,7 @@ var deviceBlock = (ctx) => ({
   model: "Nea Smart 2.0",
   sw_version: ctx.fwVersion
 });
-var roomModeToHaJinja = (active) => `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'${active}','program_override':'${active}'}.get(value_json.mode, 'off') }}`;
+var roomModeToHaJinja = (active) => `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'${active}','program_override':'${active}','party':'${active}'}.get(value_json.mode, 'off') }}`;
 var haModeToRoomJinja = () => (
   // Both `heat` and `cool` map back to `normal` — REHAU picks heating
   // vs cooling from the global operating mode, not per-room. To put a
@@ -3769,7 +3821,8 @@ var buildRoomClimate = (ctx, room, system) => {
       mode_state_template: roomModeToHaJinja(haActiveMode),
       mode_command_topic: ctx.topics.roomModeSet(room.id),
       mode_command_template: haModeToRoomJinja(),
-      preset_modes: ["normal", "reduced", "program", "program_override", "standby"],
+      // "party" is display-only: the bridge's roomMode handler drops it (not in ROOM_MODE).
+      preset_modes: ["normal", "reduced", "program", "program_override", "party", "standby"],
       preset_mode_state_topic: ctx.topics.roomState(room.id),
       preset_mode_value_template: "{{ value_json.mode }}",
       preset_mode_command_topic: ctx.topics.roomModeSet(room.id),
