@@ -6,7 +6,9 @@ export type RoomMode =
   | "normal"
   | "reduced"
   | "program"
-  | "program_override";
+  | "program_override"
+  /** Read-only: set on the base station itself, there is no web form to set it. */
+  | "party";
 
 export type SystemMode =
   | "heating_only"
@@ -453,4 +455,5 @@ export const ROOM_MODE_TO_HA_MODE: Record<RoomMode, "off" | "heat" | "cool" | "a
   reduced: "heat",
   program: "auto",
   program_override: "auto",
+  party: "heat",
 };

@@ -29,6 +29,9 @@ const slotForMode = (room: Room, mode: RoomMode): number | null => {
     case "program_override":
       // Program-mode RSH on the device starts from the normal slot.
       return room.setpointNormal ?? room.setpointHeating;
+    case "party":
+      // Not settable from the web UI; refuse rather than guess a slot.
+      return null;
   }
 };
 

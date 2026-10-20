@@ -24,6 +24,7 @@ export const MODE_COLOR: Record<string, string> = {
   reduced: "var(--cool)",
   program: "var(--accent)",
   program_override: "var(--heat)",
+  party: "var(--alert)",
 };
 
 // ─── Glyphs ───────────────────────────────────────────────────────────

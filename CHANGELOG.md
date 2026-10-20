@@ -13,6 +13,12 @@
   program is fetched or edited. The SPA draws it from the real daily
   programs, and draws nothing while it isn't known. Unread values are
   `0`, not `1`.
+- **Party mode is its own room mode.** REHAU `initialState` 6/7 is
+  "party" (per the device's own room page), not a program override. It
+  is read-only — the base station's web form offers no way to start it —
+  so the SPA shows a PARTY badge and banner without a program strip, HA
+  shows it as a `party` preset, and writes to a party room re-post
+  `mode=party` so toggling its light or setpoint no longer ends it.
 
 ## 6.1.2 — 2026-05-24
 

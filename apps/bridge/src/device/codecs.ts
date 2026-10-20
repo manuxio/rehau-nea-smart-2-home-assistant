@@ -12,7 +12,7 @@ export const quantizeSetpoint = (c: number): number => Math.round(c * 2) / 2;
  */
 export const setpointToDeviceForm = (
   c: number,
-  mode: "standby" | "normal" | "reduced" | "program" | "program_override",
+  mode: "standby" | "normal" | "reduced" | "program" | "program_override" | "party",
 ): { RSH: string; temp: string } => {
   // The UI uses the literal "a" for RSH when entering standby.
   if (mode === "standby") return { RSH: "a", temp: "0" };
@@ -26,7 +26,7 @@ export const setpointToDeviceForm = (
 /** REHAU `initialState` (0..7) → our `RoomMode`. */
 export const deviceStateToRoomMode = (
   s: number,
-): "normal" | "reduced" | "standby" | "program" | "program_override" => {
+): "normal" | "reduced" | "standby" | "program" | "program_override" | "party" => {
   switch (s) {
     case 0: return "normal";
     case 1: return "reduced";
@@ -37,15 +37,15 @@ export const deviceStateToRoomMode = (
     case 5: return "program_override";
     case 6:
     case 7:
-      // Party / forced — surfaced as override for now.
-      return "program_override";
+      // The device's own room-operating.html script labels both "party".
+      return "party";
     default: return "standby";
   }
 };
 
 /** Reverse of {@link deviceStateToRoomMode} for writes (POST `mode` field). */
 export const roomModeToDeviceMode = (
-  m: "normal" | "reduced" | "standby" | "program" | "program_override",
+  m: "normal" | "reduced" | "standby" | "program" | "program_override" | "party",
 ): string => {
   switch (m) {
     case "normal":          return "normal";
@@ -53,6 +53,9 @@ export const roomModeToDeviceMode = (
     case "standby":         return "standby";
     case "program":         return "program";
     case "program_override":return "programO";
+    // Only reached when re-submitting a party room's form (light/setpoint):
+    // the device's own script puts "party" in the hidden `mode` field then.
+    case "party":           return "party";
   }
 };
 

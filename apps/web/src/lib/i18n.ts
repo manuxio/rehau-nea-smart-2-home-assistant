@@ -190,6 +190,7 @@ const it = {
     reduced: "Ridotto",
     program: "Programma",
     program_override: "Programma (override)",
+    party: "Party",
   },
   messages: {
     title: "Messaggi",
@@ -266,6 +267,7 @@ const it = {
     updatedAgo: "aggiornato {{when}}",
     standbyNotice: "Stanza in standby — cambia modalità per regolare il setpoint",
     overrideActive: "Override programma attivo",
+    partyActive: "Modalità party attiva (impostata dalla centralina)",
     decreaseSetpoint: "Diminuisci setpoint",
     increaseSetpoint: "Aumenta setpoint",
     sectionMode: "Modalità",
@@ -587,6 +589,7 @@ const en: typeof it = {
     reduced: "Reduced",
     program: "Program",
     program_override: "Program (override)",
+    party: "Party",
   },
   messages: {
     title: "Messages",
@@ -663,6 +666,7 @@ const en: typeof it = {
     updatedAgo: "updated {{when}}",
     standbyNotice: "Room in standby — change mode to adjust the setpoint",
     overrideActive: "Program override active",
+    partyActive: "Party mode active (set on the base station)",
     decreaseSetpoint: "Decrease setpoint",
     increaseSetpoint: "Increase setpoint",
     sectionMode: "Mode",

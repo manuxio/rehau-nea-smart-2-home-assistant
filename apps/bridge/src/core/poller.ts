@@ -48,6 +48,7 @@ const activeSetpoint = (d: RoomDetailSnapshot): number => {
     case "program":
     case "program_override":
       return d.programActive === 1 ? d.setpointHeatingReduced : d.setpointHeatingNormal;
+    case "party": return d.setpoint;
     case "standby": return d.setpointHeatingNormal;
   }
 };

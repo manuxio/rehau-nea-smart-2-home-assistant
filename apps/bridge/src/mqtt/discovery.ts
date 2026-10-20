@@ -52,7 +52,7 @@ const deviceBlock = (ctx: DiscoveryContext) => ({
 // means "system picks heat-or-cool", which REHAU doesn't support
 // per-room anyway.
 const roomModeToHaJinja = (active: "heat" | "cool"): string =>
-  `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'${active}','program_override':'${active}'}.get(value_json.mode, 'off') }}`;
+  `{{ {'standby':'off','normal':'${active}','reduced':'${active}','program':'${active}','program_override':'${active}','party':'${active}'}.get(value_json.mode, 'off') }}`;
 
 const haModeToRoomJinja = (): string =>
   // Both `heat` and `cool` map back to `normal` — REHAU picks heating
@@ -119,7 +119,8 @@ export const buildRoomClimate = (
     mode_state_template: roomModeToHaJinja(haActiveMode),
     mode_command_topic: ctx.topics.roomModeSet(room.id),
     mode_command_template: haModeToRoomJinja(),
-    preset_modes: ["normal", "reduced", "program", "program_override", "standby"],
+    // "party" is display-only: the bridge's roomMode handler drops it (not in ROOM_MODE).
+    preset_modes: ["normal", "reduced", "program", "program_override", "party", "standby"],
     preset_mode_state_topic: ctx.topics.roomState(room.id),
     preset_mode_value_template: "{{ value_json.mode }}",
     preset_mode_command_topic: ctx.topics.roomModeSet(room.id),

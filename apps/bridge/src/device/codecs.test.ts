@@ -46,6 +46,8 @@ describe("mode encoding", () => {
     expect(deviceStateToRoomMode(3)).toBe("program");
     expect(deviceStateToRoomMode(4)).toBe("program");
     expect(deviceStateToRoomMode(5)).toBe("program_override");
+    expect(deviceStateToRoomMode(6)).toBe("party");
+    expect(deviceStateToRoomMode(7)).toBe("party");
   });
 
   it("encodes our mode → device form (programO for override)", () => {

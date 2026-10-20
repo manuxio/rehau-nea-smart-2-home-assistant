@@ -19,6 +19,9 @@ export const roomModeSchema = z.enum([
   "program_override",
 ]);
 
+/** Writable modes plus `party`, which is only ever read (set on the base station itself). */
+const roomStateModeSchema = z.enum([...roomModeSchema.options, "party"]);
+
 export const systemModeSchema = z.enum([
   "heating_only",
   "cooling_only",
@@ -51,7 +54,7 @@ export const roomSchema = z.object({
   setpointNormal: z.number().nullable(),
   setpointReduced: z.number().nullable(),
   setpointStandby: z.number().nullable(),
-  mode: roomModeSchema,
+  mode: roomStateModeSchema,
   programOverride: z.boolean(),
   hasFan: z.boolean(),
   hasFlap: z.boolean(),

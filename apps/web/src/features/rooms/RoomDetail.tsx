@@ -280,6 +280,9 @@ export function RoomDetail({ roomId, onBack }: { roomId: string; onBack: () => v
       {room.mode === "program_override" && (
         <Banner tone="info">{t("room.overrideActive")}</Banner>
       )}
+      {room.mode === "party" && (
+        <Banner tone="info">{t("room.partyActive")}</Banner>
+      )}
       {dialDisabled && (
         <Banner tone="info">{t("room.standbyNotice")}</Banner>
       )}
