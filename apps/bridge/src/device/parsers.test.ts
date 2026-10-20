@@ -7,6 +7,7 @@ import {
   parseMessages,
   parseRoomDetail,
   parseRoomList,
+  parseRoomSetup,
   parseSystemInfo,
   parseUptime,
   parseWeeklyProgram,
@@ -154,5 +155,32 @@ describe("parseSystemInfo", () => {
     expect(out.seasonStart).toBe("10-01");
     expect(out.seasonEnd).toBe("05-01");
     expect(out.outdoorOffset).toBe(0);
+  });
+});
+
+describe("parseRoomSetup — program assignment", () => {
+  // Same markup as fw 6.15 / web pages 0.25: `PWeek` option 0 is "- - -",
+  // and the seven `PDay0x` selects (inside #prg-day, shown by the device's
+  // checkOW() only when PWeek is 0) hold the daily program number minus one.
+  const options = (values: number[], selected: number, label = (v: number) => String(v)): string =>
+    values.map((v) => `<option value="${v}"${v === selected ? " selected " : ""}>${label(v)}</option>`).join("");
+  const roomSetup = (pweek: number, pdays: number[]): string => `
+    <form><input type="hidden" name="zone" value="3"><input id="RoomName" value="Studio">
+    <select name="PWeek" id="PWeek" onchange="checkOW(this)">${options([0, 1, 2, 3, 4, 5], pweek, (v) => (v === 0 ? " - - -" : String(v)))}</select>
+    <div id="prg-day">${pdays
+      .map((d, i) => `<select name="PDay0${i}" id="PDay0${i}">${options([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], d, (v) => String(v + 1))}</select>`)
+      .join("")}</div></form>`;
+
+  it("reads the weekly program and the 1-based per-day daily programs", () => {
+    const out = parseRoomSetup(roomSetup(2, [0, 0, 0, 0, 0, 6, 9]));
+    expect(out.zone).toBe(3);
+    expect(out.weekly).toBe(2);
+    expect(out.daysProgram).toEqual([1, 1, 1, 1, 1, 7, 10]);
+  });
+
+  it("reads '- - -' as weekly program 0", () => {
+    const out = parseRoomSetup(roomSetup(0, [2, 2, 2, 2, 2, 7, 8]));
+    expect(out.weekly).toBe(0);
+    expect(out.daysProgram).toEqual([3, 3, 3, 3, 3, 8, 9]);
   });
 });

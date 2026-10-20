@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Dashboard program strip shows the room's real program.** The strip
+  was drawn from the mock `seedDailyPrograms` with `programDailyId`,
+  which the bridge never filled (always `1`), so every room in Program
+  mode showed the same 06–09 / 17–23 schedule. The bridge now keeps
+  each room's assignment from `room-set-up.html` — `programWeeklyId`
+  (`PWeek`, `0` = "- - -") and the new `programDays` (`PDay00`..`PDay06`)
+  — and resolves `programDailyId` to today's daily program: on every
+  room-detail poll (so it rolls over at midnight) and whenever a weekly
+  program is fetched or edited. The SPA draws it from the real daily
+  programs, and draws nothing while it isn't known. Unread values are
+  `0`, not `1`.
+
 ## 6.1.2 — 2026-05-24
 
 - **Drop the `[uptime] parser returned 0 0 0` diagnostic dump.** It

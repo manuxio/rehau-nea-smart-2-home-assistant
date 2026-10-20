@@ -23,6 +23,7 @@ import type { RoomDetailSnapshot } from "../device/parsers.js";
 import type { Logger } from "../observability/log.js";
 import type { OpLog } from "../observability/ops-log.js";
 import type { InstallerSettingsGroup } from "@rehau/types";
+import { resolveDailyProgramId, sameProgramDays, type RoomProgramAssignment } from "./programs.js";
 import type { Store } from "./store.js";
 
 const SECOND = 1000;
@@ -99,7 +100,12 @@ export class Poller {
     this.kickoffResolve = r;
   });
 
-  constructor(private readonly opts: PollerOptions) {}
+  constructor(private readonly opts: PollerOptions) {
+    // Boot reads room-set-up before the weekly programs, and a weekly
+    // program can be edited later: re-resolve every room's daily program
+    // whenever one lands in the cache, instead of waiting for the next poll.
+    opts.store.events.on("weekly.changed", () => this.resolveAllDailyPrograms());
+  }
 
   /**
    * Boot. Holds the installer session open (if available), then walks the
@@ -361,8 +367,9 @@ export class Poller {
       hasFan: d.hasFan,
       hasFlap: d.hasFlap,
       fanRunning: d.fanRunning,
-      programDailyId: room.programDailyId,
-      programWeeklyId: room.programWeeklyId,
+      // Re-resolved on every detail poll so the day rolls over at midnight
+      // without waiting for the next room-set-up read.
+      programDailyId: this.todaysDailyProgram(room),
       programOverride: d.mode === "program_override",
     });
   }
@@ -370,12 +377,31 @@ export class Poller {
   private async pollRoomSetup(zone: number): Promise<void> {
     const s = await this.opts.source.fetchRoomSetup(zone);
     const room = this.opts.store.ensureRoomForZone(s.zone, s.name);
+    const assignment: RoomProgramAssignment = {
+      programWeeklyId: s.weekly,
+      // Keep the stored array when nothing changed: patchRoom compares by
+      // reference, and a fresh copy would republish the room every resync.
+      programDays: sameProgramDays(room.programDays, s.daysProgram) ? room.programDays : [...s.daysProgram],
+    };
     this.opts.store.patchRoom(room.id, {
       name: s.name,
       lock: s.flags.lock,
       autoStart: s.flags.auto,
       windowDetection: s.flags.swow,
+      ...assignment,
+      programDailyId: this.todaysDailyProgram(assignment),
     });
+  }
+
+  /** Today's daily program for a room, from its assignment and the cached weekly programs. */
+  private todaysDailyProgram(assignment: RoomProgramAssignment): number {
+    return resolveDailyProgramId(assignment, (id) => this.opts.store.getWeeklyProgram(id), new Date());
+  }
+
+  private resolveAllDailyPrograms(): void {
+    for (const room of this.opts.store.listRooms()) {
+      this.opts.store.patchRoom(room.id, { programDailyId: this.todaysDailyProgram(room) });
+    }
   }
 
   private async pollMessages(): Promise<void> {

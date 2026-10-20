@@ -359,8 +359,9 @@ export class Store {
       fanRunning: false,
       calibrationTemp: null,
       calibrationHumidity: null,
-      programDailyId: 1,
-      programWeeklyId: 1,
+      programDailyId: 0,
+      programWeeklyId: 0,
+      programDays: [0, 0, 0, 0, 0, 0, 0],
       // Pick up the persisted floor label so a SPA-edited assignment
       // applies the moment the room is created by the live poller —
       // not just on the next polling tick.
