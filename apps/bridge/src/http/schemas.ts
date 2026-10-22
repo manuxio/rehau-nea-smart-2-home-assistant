@@ -265,7 +265,6 @@ export const installerSettingsGroupSchema = z.enum([
 
 export const installerSettingFieldSchema = z.object({
   name: z.string(),
-  label: z.string(),
   kind: z.enum(["number", "boolean"]),
   unit: z.string().optional(),
   min: z.number().optional(),
