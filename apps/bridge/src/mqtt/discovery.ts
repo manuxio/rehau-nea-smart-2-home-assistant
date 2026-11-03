@@ -232,7 +232,9 @@ const roomFlagSwitch = (
     name: `${room.name} · ${label}`,
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_${slug}`,
     state_topic: ctx.topics.roomState(room.id),
-    value_template: `{{ 'ON' if value_json.${field} else 'OFF' }}`,
+    // A payload without the key renders "None" (HA: unknown) instead of a
+    // template warning + phantom OFF (#77).
+    value_template: `{% if value_json.${field} is defined %}{{ 'ON' if value_json.${field} else 'OFF' }}{% else %}None{% endif %}`,
     command_topic: commandTopic,
     payload_on: "true",
     payload_off: "false",
