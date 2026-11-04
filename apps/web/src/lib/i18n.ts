@@ -352,12 +352,13 @@ const it = {
     io: {
       master: "Master",
       refreshRate: "REFRESH 8s",
-      rz: "RZ 1–8",
-      relay: "RELAY 1–4",
-      di: "DI 1–4",
+      rz: "RZ 1–{{n}}",
+      relay: "RELAY 1–{{n}}",
+      di: "DI 1–{{n}}",
       ai: "AI 1–4 °C",
       ao: "AO",
       uModuleLabel: "Modulo-U {{n}}",
+      slaveLabel: "Slave {{n}}",
     },
     diag: {
       uptime: "Uptime",
@@ -751,12 +752,13 @@ const en: typeof it = {
     io: {
       master: "Master",
       refreshRate: "REFRESH 8s",
-      rz: "RZ 1–8",
-      relay: "RELAY 1–4",
-      di: "DI 1–4",
+      rz: "RZ 1–{{n}}",
+      relay: "RELAY 1–{{n}}",
+      di: "DI 1–{{n}}",
       ai: "AI 1–4 °C",
       ao: "AO",
       uModuleLabel: "U-module {{n}}",
+      slaveLabel: "Slave {{n}}",
     },
     diag: {
       uptime: "Uptime",

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type {
+  BaseIO,
   CalibrationState,
   InstallerSettingField,
   InstallerSettingsGroup,
@@ -515,7 +516,7 @@ function IOTab() {
   });
 
   if (!io.data) return <Loading />;
-  const { master, umodules } = io.data;
+  const { master, slaves, umodules } = io.data;
 
   const fmt = (v: number): string => (v === 0 ? "0" : String(v));
   const colorFor = (v: number): string => (v ? "var(--on)" : "var(--dim)");
@@ -530,21 +531,22 @@ function IOTab() {
           </span>
         }
       />
-      <Card style={{ margin: "0 16px" }}>
-        <IORow label={t("installer.io.rz")} values={master.rz} fmt={fmt} colorFor={colorFor} />
-        <Sep />
-        <IORow label={t("installer.io.relay")} values={master.relay} fmt={fmt} colorFor={colorFor} />
-        <Sep />
-        <IORow label={t("installer.io.di")} values={master.di} fmt={fmt} colorFor={colorFor} />
-      </Card>
+      <BaseIOCard base={master} fmt={fmt} colorFor={colorFor} />
+
+      {Object.entries(slaves ?? {}).map(([k, b]) => (
+        <div key={k}>
+          <SectionHead title={t("installer.io.slaveLabel", { n: k.replace("slave", "") })} />
+          <BaseIOCard base={b} fmt={fmt} colorFor={colorFor} />
+        </div>
+      ))}
 
       {Object.entries(umodules).map(([k, m]) => (
         <div key={k}>
           <SectionHead title={t("installer.io.uModuleLabel", { n: k.replace("umodule", "").trim() })} />
           <Card style={{ margin: "0 16px" }}>
-            <IORow label={t("installer.io.relay")} values={m.relay} fmt={fmt} colorFor={colorFor} />
+            <IORow label={t("installer.io.relay", { n: m.relay.length })} values={m.relay} fmt={fmt} colorFor={colorFor} />
             <Sep />
-            <IORow label={t("installer.io.di")} values={m.di} fmt={fmt} colorFor={colorFor} />
+            <IORow label={t("installer.io.di", { n: m.di.length })} values={m.di} fmt={fmt} colorFor={colorFor} />
             <Sep />
             <IORow
               label={t("installer.io.ai")}
@@ -558,6 +560,27 @@ function IOTab() {
         </div>
       ))}
     </>
+  );
+}
+
+function BaseIOCard({
+  base,
+  fmt,
+  colorFor,
+}: {
+  base: BaseIO;
+  fmt: (v: number) => string;
+  colorFor: (v: number) => string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Card style={{ margin: "0 16px" }}>
+      <IORow label={t("installer.io.rz", { n: base.rz.length })} values={base.rz} fmt={fmt} colorFor={colorFor} />
+      <Sep />
+      <IORow label={t("installer.io.relay", { n: base.relay.length })} values={base.relay} fmt={fmt} colorFor={colorFor} />
+      <Sep />
+      <IORow label={t("installer.io.di", { n: base.di.length })} values={base.di} fmt={fmt} colorFor={colorFor} />
+    </Card>
   );
 }
 

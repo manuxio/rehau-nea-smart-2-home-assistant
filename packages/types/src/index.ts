@@ -178,12 +178,17 @@ export interface Device {
   uptime: number;
 }
 
+export interface BaseIO {
+  /** Zone-active bits; 8 or 12 depending on the base model. */
+  rz: number[];
+  relay: number[];
+  di: number[];
+}
+
 export interface IOSnapshot {
-  master: {
-    rz: number[];
-    relay: number[];
-    di: number[];
-  };
+  master: BaseIO;
+  /** Slave bases keyed "slave1", "slave2", ... (multi-base installs). */
+  slaves?: Record<string, BaseIO>;
   umodules: Record<string, {
     relay: number[];
     di: number[];
