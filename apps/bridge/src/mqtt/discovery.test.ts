@@ -38,3 +38,20 @@ describe("remote temperature discovery", () => {
     });
   });
 });
+
+describe("room temperature discovery", () => {
+  it("publishes one temperature sensor per room on the room state topic", () => {
+    const msgs = buildAllDiscovery(ctx, seedRooms, seedSystem, null).filter((m) =>
+      /_r-[^/]*_temperature\/config$/.test(m.topic) && !m.topic.endsWith("_remote_temperature/config"),
+    );
+    expect(msgs).toHaveLength(seedRooms.length);
+    for (const [i, m] of msgs.entries()) {
+      expect(m.payload).toMatchObject({
+        device_class: "temperature",
+        state_class: "measurement",
+        unit_of_measurement: "°C",
+        state_topic: ctx.topics.roomState(seedRooms[i]!.id),
+      });
+    }
+  });
+});

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Standalone room temperature sensor (#67).** Each room now also gets a
+  `<room> temperatura` sensor (`device_class: temperature`,
+  `state_class: measurement`) next to the humidity one. The climate
+  entity already carried the reading as `current_temperature`, but a
+  plain sensor is what history graphs, long-term statistics and most
+  dashboard cards need. Same entity the Olimex firmware already publishes.
 - **Room unit remote sensor (floor temperature).** NEA SMART 2.0 room
   units can take an optional remote sensor, which the installer
   configures for floor temperature monitoring or as the room sensor.

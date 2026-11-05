@@ -134,6 +134,28 @@ export const buildRoomClimate = (
 });
 };
 
+// Standalone room temperature (#67). The climate entity already carries it
+// as current_temperature, but a plain sensor is what history graphs,
+// statistics and most dashboard cards want.
+export const buildRoomTemperatureSensor = (
+  ctx: DiscoveryContext,
+  room: Room,
+): DiscoveryMessage => ({
+  topic: `${ctx.prefix}/sensor/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_temperature/config`,
+  payload: {
+    name: `${room.name} temperatura`,
+    unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_temperature`,
+    state_topic: ctx.topics.roomState(room.id),
+    value_template:
+      "{% if value_json.temperature is none %}unknown{% else %}{{ value_json.temperature }}{% endif %}",
+    unit_of_measurement: "°C",
+    device_class: "temperature",
+    state_class: "measurement",
+    availability_topic: ctx.topics.availability,
+    device: deviceBlock(ctx),
+  },
+});
+
 export const buildRoomHumiditySensor = (
   ctx: DiscoveryContext,
   room: Room,
@@ -639,6 +661,7 @@ export const buildAllDiscovery = (
   ...rooms.flatMap((r) => {
     const msgs: DiscoveryMessage[] = [
       buildRoomClimate(ctx, r, system),
+      buildRoomTemperatureSensor(ctx, r),
       buildRoomHumiditySensor(ctx, r),
       buildRoomLockSwitch(ctx, r),
       buildRoomAutoStartSwitch(ctx, r),
