@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- **Room unit remote sensor (floor temperature).** NEA SMART 2.0 room
+  units can take an optional remote sensor, which the installer
+  configures for floor temperature monitoring or as the room sensor.
+  `room-set-up.html` shows its reading as "Remote temperature" only for
+  rooms that have one. The bridge already fetched that page, so no extra
+  device request is needed. The reading is now parsed (structurally, from
+  the page's only `label.Lblr`, so any UI language works), exposed as
+  `remoteTemperature` on the room in the REST API and MQTT room state,
+  and published to HA as a `<room> temperatura sonda remota` sensor
+  (`device_class: temperature`, `state_class: measurement`). Rooms
+  without a remote sensor get no entity. New fixtures from a real fw
+  6.15 / web 0.25 device: `room-set-up.html`, `room-set-up-remote.html`.
+
 ## 6.1.3 — 2026-10-20
 
 - **Dashboard program strip shows the room's real program.** The strip

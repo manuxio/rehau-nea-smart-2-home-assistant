@@ -184,3 +184,28 @@ describe("parseRoomSetup — program assignment", () => {
     expect(out.daysProgram).toEqual([3, 3, 3, 3, 3, 8, 9]);
   });
 });
+
+describe("parseRoomSetup — remote sensor", () => {
+  // Real fw 6.15 / web 0.25 pages. The device renders the
+  // "Remote temperature : <label class="Lblr">…" row only for room units
+  // that have a remote (e.g. floor) sensor configured.
+  it("reads the remote sensor temperature when the room unit has one", () => {
+    const out = parseRoomSetup(read("room-set-up-remote.html"));
+    expect(out.name).toBe("Studio");
+    expect(out.zone).toBe(17);
+    expect(out.remoteTemperature).toBe(23.8);
+  });
+
+  it("returns null when the room unit has no remote sensor", () => {
+    const out = parseRoomSetup(read("room-set-up.html"));
+    expect(out.name).toBe("Soggiorno");
+    expect(out.remoteTemperature).toBeNull();
+  });
+
+  it("still parses the other room-set-up fields from the real page", () => {
+    const out = parseRoomSetup(read("room-set-up-remote.html"));
+    expect(out.setpoints.normalH).toBe(22);
+    expect(out.setpoints.reducedH).toBe(18);
+    expect(out.setpoints.maxH).toBe(26);
+  });
+});

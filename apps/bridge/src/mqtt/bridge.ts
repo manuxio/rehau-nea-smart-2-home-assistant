@@ -117,7 +117,11 @@ export class MqttBridge {
   private currentCapabilitySignature(): string {
     const rooms = this.o.store
       .listRooms()
-      .map((r) => `${r.id}:${r.hasLight ? "L" : ""}${r.hasFan ? "F" : ""}${r.hasFlap ? "P" : ""}`)
+      .map(
+        (r) =>
+          `${r.id}:${r.hasLight ? "L" : ""}${r.hasFan ? "F" : ""}${r.hasFlap ? "P" : ""}` +
+          `${r.remoteTemperature !== null ? "R" : ""}`,
+      )
       .join("|");
     // Shape of the I/O snapshot also drives discovery (how many AI / relay channels per umodule).
     const io = this.o.store.getIO();

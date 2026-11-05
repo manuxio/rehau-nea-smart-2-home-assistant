@@ -389,6 +389,7 @@ export class Poller {
       lock: s.flags.lock,
       autoStart: s.flags.auto,
       windowDetection: s.flags.swow,
+      remoteTemperature: s.remoteTemperature,
       ...assignment,
       programDailyId: this.todaysDailyProgram(assignment),
     });
