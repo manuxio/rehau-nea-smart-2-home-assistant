@@ -110,6 +110,11 @@ export interface RoomSetupSnapshot {
   weekly: number;
   /** Per-room day overrides — 7 entries, each 1..10 (daily program slot). */
   daysProgram: [number, number, number, number, number, number, number];
+  /**
+   * Room unit remote sensor reading, °C, or `null` when the room unit has no
+   * remote sensor (the device then omits the whole row).
+   */
+  remoteTemperature: number | null;
 }
 
 export const parseRoomSetup = (html: string): RoomSetupSnapshot => {
@@ -141,6 +146,10 @@ export const parseRoomSetup = (html: string): RoomSetupSnapshot => {
     },
     weekly: Number($('select[name="PWeek"] option[selected]').first().attr("value") ?? "0"),
     daysProgram: [0, 1, 2, 3, 4, 5, 6].map((i) => dayProg(i)) as RoomSetupSnapshot["daysProgram"],
+    // The "Remote temperature : <label class="Lblr">23.8</label>" row is only
+    // rendered for room units with a remote sensor, and `.Lblr` is used
+    // nowhere else on the page. Matched structurally (no localised text).
+    remoteTemperature: num($("label.Lblr").first().text()),
   };
 };
 

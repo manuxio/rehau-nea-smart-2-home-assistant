@@ -509,6 +509,7 @@ export class MockDeviceSource implements DeviceSource {
       flags: { auto: true, swow: true, lock: false },
       weekly: 1,
       daysProgram: [1, 1, 1, 1, 1, 2, 2],
+      remoteTemperature: null,
     };
   }
 

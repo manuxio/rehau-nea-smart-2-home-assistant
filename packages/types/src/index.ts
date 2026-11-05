@@ -82,6 +82,13 @@ export interface Room {
   /** -25..+25 %, step 1. Installer-only write. `null` until first install fetch. */
   calibrationHumidity: number | null;
   /**
+   * Reading of the room unit's optional remote sensor, °C (room-set-up.html
+   * "Remote temperature"). The installer configures that probe for floor
+   * temperature monitoring or as the room sensor. `null` when the room unit
+   * has no remote sensor, or until room-set-up.html has been read.
+   */
+  remoteTemperature: number | null;
+  /**
    * Daily program slot 1..10 the room follows today, resolved by the bridge
    * from `programWeeklyId` / `programDays`. `0` until both are known.
    */

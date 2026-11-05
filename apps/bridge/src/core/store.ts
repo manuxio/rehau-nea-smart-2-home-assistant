@@ -359,6 +359,7 @@ export class Store {
       fanRunning: false,
       calibrationTemp: null,
       calibrationHumidity: null,
+      remoteTemperature: null,
       programDailyId: 0,
       programWeeklyId: 0,
       programDays: [0, 0, 0, 0, 0, 0, 0],

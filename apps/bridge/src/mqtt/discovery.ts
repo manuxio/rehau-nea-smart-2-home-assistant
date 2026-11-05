@@ -153,6 +153,25 @@ export const buildRoomHumiditySensor = (
   },
 });
 
+export const buildRoomRemoteTemperatureSensor = (
+  ctx: DiscoveryContext,
+  room: Room,
+): DiscoveryMessage => ({
+  topic: `${ctx.prefix}/sensor/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_remote_temperature/config`,
+  payload: {
+    name: `${room.name} temperatura sonda remota`,
+    unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_remote_temperature`,
+    state_topic: ctx.topics.roomState(room.id),
+    value_template:
+      "{% if value_json.remoteTemperature is none %}unknown{% else %}{{ value_json.remoteTemperature }}{% endif %}",
+    unit_of_measurement: "°C",
+    device_class: "temperature",
+    state_class: "measurement",
+    availability_topic: ctx.topics.availability,
+    device: deviceBlock(ctx),
+  },
+});
+
 export const buildOutdoorSensor = (ctx: DiscoveryContext): DiscoveryMessage => ({
   topic: `${ctx.prefix}/sensor/rehau_${ctx.installationSlug}_${ctx.deviceId}_outdoor/config`,
   payload: {
@@ -624,6 +643,8 @@ export const buildAllDiscovery = (
       buildRoomWindowDetectionSwitch(ctx, r),
     ];
     if (r.hasLight) msgs.push(buildRoomLightSwitch(ctx, r));
+    // Only rooms whose unit actually has a remote sensor get the entity.
+    if (r.remoteTemperature !== null) msgs.push(buildRoomRemoteTemperatureSensor(ctx, r));
     if (r.hasFan) {
       msgs.push(buildRoomFanRunningSensor(ctx, r));
       msgs.push(buildRoomFanSpeedSensor(ctx, r));

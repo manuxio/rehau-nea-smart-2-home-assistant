@@ -65,6 +65,7 @@ export const roomSchema = z.object({
   fanRunning: z.boolean(),
   calibrationTemp: z.number().nullable(),
   calibrationHumidity: z.number().nullable(),
+  remoteTemperature: z.number().nullable(),
   programDailyId: z.number().int(),
   programWeeklyId: z.number().int(),
   programDays: z.tuple([
