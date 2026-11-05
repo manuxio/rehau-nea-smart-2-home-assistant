@@ -835,12 +835,17 @@ function FieldCard({
   field: InstallerSettingField;
   onChange: (v: number | boolean) => void;
 }) {
+  const { t } = useTranslation();
+  // The bridge sends the stable field `name`; the human label is localised
+  // here so it follows the UI language (falls back to the raw name).
+  const label = t(`settings.fields.${field.name}`, field.name);
+  const unit = field.unit ? t(`settings.units.${field.unit}`, field.unit) : "";
   return (
     <Card padding={12}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: "var(--body)", fontSize: "0.8125rem", color: "var(--text)", lineHeight: 1.3 }}>
-            {field.label}
+            {label}
           </div>
           <div
             style={{
@@ -851,7 +856,7 @@ function FieldCard({
               marginTop: 2,
             }}
           >
-            {field.name}{field.unit ? ` · ${field.unit}` : ""}
+            {field.name}{unit ? ` · ${unit}` : ""}
             {field.kind === "number" && field.min !== undefined && field.max !== undefined &&
               ` · ${field.min}..${field.max}`}
           </div>
@@ -870,7 +875,7 @@ function FieldCard({
             <Toggle
               value={field.value as boolean}
               onChange={onChange}
-              ariaLabel={field.label}
+              ariaLabel={label}
             />
           )}
         </div>
