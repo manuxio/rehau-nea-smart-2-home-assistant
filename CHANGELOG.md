@@ -14,6 +14,14 @@
   (`device_class: temperature`, `state_class: measurement`). Rooms
   without a remote sensor get no entity. New fixtures from a real fw
   6.15 / web 0.25 device: `room-set-up.html`, `room-set-up-remote.html`.
+  (#79, by @PCatinean)
+- **Refresh rate of the remote sensor.** `room-set-up.html` is not part
+  of the regular room cycle: it is read at startup, after a write to the
+  room and on the safety resync, so the reading refreshes about every
+  30 minutes (`SAFETY_RESYNC_S`, default 1800 s). This was chosen on
+  purpose: reading the page on every cycle would add one request per
+  room and could overload the base station's small web server. Floor
+  temperature changes slowly, so this is enough for monitoring.
 
 ## 6.1.3 — 2026-10-20
 
