@@ -10,12 +10,6 @@ One ESP32. No cloud. No add-on. No account. No telemetry leaving your house.
 
 **➡️ [Download the latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)** (firmware releases are tagged `bridge-fw-v…`).
 
-> ⚠️ **Under active testing.** The plain Olimex ESP32-POE has limited RAM, and running the
-> full scrape + MQTT + SPA + API stack pushes it close to the edge — long-run heap
-> stability is still being validated. If the headroom proves too tight, the project may
-> move to an **Olimex ESP32-POE with PSRAM (WROVER)** for the production board. Treat this
-> release as a capable beta, not a final hardware verdict.
-
 > **Two board variants are supported.** The standard Olimex ESP32-POE ships with a WROOM
 > module; some boards (ESP32-POE-WROVER-EA) use a WROVER module with PSRAM. The WROVER
 > module occupies GPIO16/17 for PSRAM, so the RMII Ethernet clock moves from GPIO17 to
@@ -216,7 +210,7 @@ Full machine-readable contract: **`GET /openapi.json`** on any running board.
 |---|---|
 | **Board** | Olimex ESP32-POE / ESP32-POE-ISO — WROOM (standard) or WROVER (PSRAM) variant |
 | **Partition layout** | Dual-OTA, 1.5 MB app slots, 960 KB SPA SPIFFS — indefinite OTA |
-| **Footprint** | ~1.4 MB app image; free heap is tight on the base ESP32 — long-run stability under validation, PSRAM (WROVER) board on the table |
+| **Footprint** | ~1.4 MB app image; runs on the plain ESP32-POE, the WROVER variant adds PSRAM headroom |
 | **Front doors** | REST API · MQTT · resident SPA · admin GUI (all concurrent) |
 | **API** | OpenAPI 3.0, 83 operations, 12 groups |
 | **SPA** | Mobile-first PWA, English and Italian, dark and light theme, installable |
