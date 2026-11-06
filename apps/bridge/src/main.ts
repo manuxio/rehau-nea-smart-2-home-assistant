@@ -159,7 +159,9 @@ const main = async (): Promise<void> => {
     void poller.kickoffComplete().then(async () => {
       logger.info({ url: config.MQTT_URL }, "boot complete — connecting MQTT");
       await mqttBridge!.start();
-      ops.emit("mqtt.connect", `connected to ${config.MQTT_URL}`);
+      // start() only initiates the connection; the client logs "mqtt
+      // connected" once the broker actually accepts it.
+      ops.emit("mqtt.connect", `connecting to ${config.MQTT_URL}`);
     });
   } else {
     logger.info("MQTT_URL not set — MQTT bridge disabled");

@@ -6,6 +6,9 @@
 import mqtt, { type MqttClient } from "mqtt";
 import type { Logger } from "../observability/log.js";
 
+/** How long stop() waits for the offline marker's PUBACK before force-closing. */
+const STOP_GRACE_MS = 1500;
+
 export interface MqttClientOptions {
   url: string;
   username?: string | undefined;
@@ -79,11 +82,25 @@ export class TypedMqttClient {
   }
 
   async stop(): Promise<void> {
-    if (!this.client) return;
+    const client = this.client;
+    if (!client) return;
+    // A graceful end() waits for the PUBACK of every in-flight QoS 1 message.
+    // With the broker unreachable that never comes, the 3 s shutdown killer in
+    // main.ts fires and the process exits 1 (HA Supervisor then shows the
+    // add-on as "error"). So: force-close when offline, and give the offline
+    // marker at most STOP_GRACE_MS when online.
+    if (!this.connected) {
+      await new Promise<void>((resolve) => client.end(true, {}, () => resolve()));
+      return;
+    }
     // Best-effort offline marker before closing.
     this.publish(this.opts.availabilityTopic, "offline", { retain: true });
     await new Promise<void>((resolve) => {
-      this.client!.end(false, {}, () => resolve());
+      const force = setTimeout(() => client.end(true, {}, () => resolve()), STOP_GRACE_MS);
+      client.end(false, {}, () => {
+        clearTimeout(force);
+        resolve();
+      });
     });
   }
 }

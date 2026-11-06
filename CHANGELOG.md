@@ -13,6 +13,13 @@
   Raspberry Pi 3/4/5 running a 64-bit OS is `aarch64`.
 - `run.sh` reads the version with `bashio::app.version` (bashio 0.18),
   falling back to the deprecated `bashio::addon.version`.
+- **Clean add-on stop.** On shutdown the MQTT client waited for the
+  PUBACK of its "offline" message; with the broker unreachable (or
+  restarting) that never came, the 3 s safety timer forced `exit(1)` and
+  HA Supervisor showed the add-on in **error** state after a normal stop.
+  The client now force-closes when offline and waits at most 1.5 s for
+  the PUBACK when online. The ops log also says "connecting to" (not
+  "connected to") when the MQTT connection is only being started.
 - **Dependencies:** lockfile refreshed within the current ranges and
   higher floors for `fastify`, `undici`, `@fastify/swagger` and `mqtt`.
   Dev tooling moves to vite 6, vitest 4, tsup 9 and sharp 0.35.
