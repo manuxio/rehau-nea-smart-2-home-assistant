@@ -16,6 +16,13 @@
 - **Dependencies:** lockfile refreshed within the current ranges and
   higher floors for `fastify`, `undici`, `@fastify/swagger` and `mqtt`.
   Dev tooling moves to vite 6, vitest 4, tsup 9 and sharp 0.35.
+- **zod 4** (with `fastify-type-provider-zod` 7), which closes the last
+  runtime advisory (memory exhaustion on oversized constrained
+  collections). API responses and config parsing are unchanged; request
+  validation errors keep the same 400 status, only the wording of the
+  `message` follows zod 4 (e.g. "Too small: expected string to have >=1
+  characters"). The OpenAPI document at `/docs` gains explicit integer
+  bounds and uses `oneOf` for scene actions.
 
 ## 6.1.4 — 2026-11-06
 
