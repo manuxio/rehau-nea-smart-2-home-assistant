@@ -36,3 +36,9 @@ directly to the device on the LAN — no cloud, no e-mail, no 2FA.
 - The bridge does its own debounce/cool-down to avoid hammering REHAU's
   small TCP socket table — increasing `device_min_gap_ms` to 250-400 ms is
   safe if you observe `ConnectTimeout` errors.
+
+## More
+
+- Step-by-step setup: [INSTALL.md](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/blob/main/INSTALL.md)
+- All options, login & HA ingress, MQTT topics, API, common issues:
+  [docs/REFERENCE.md](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/blob/main/docs/REFERENCE.md)
