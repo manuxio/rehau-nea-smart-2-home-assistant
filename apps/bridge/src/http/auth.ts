@@ -93,10 +93,11 @@ export const registerAuthRoutes = (app: FastifyInstance, cfg: Config): void => {
    * that the user has already authenticated with HA, and mint a JWT for
    * the configured admin user without asking for a password.
    *
-   * Threat model: the addon is a LAN device, the user trusts everyone on
-   * their LAN. A LAN attacker could spoof `X-Ingress-Path` against the
-   * direct port, but they could also just brute-force the password — so
-   * this endpoint doesn't widen the attack surface materially.
+   * The header alone is spoofable by any LAN client on the direct port, so
+   * the TCP peer must also be one of INGRESS_PROXY_IPS (HA Supervisor's
+   * ingress proxy, 172.30.32.2). We read the socket address, not `req.ip`:
+   * with `trustProxy` on, `req.ip` follows a client-supplied
+   * X-Forwarded-For.
    */
   app.post("/api/v1/auth/ingress", {
     schema: {
@@ -108,7 +109,12 @@ export const registerAuthRoutes = (app: FastifyInstance, cfg: Config): void => {
     },
   }, async (req, reply) => {
     const ingressPath = req.headers["x-ingress-path"];
-    if (typeof ingressPath !== "string" || ingressPath.length === 0) {
+    const peer = (req.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
+    if (
+      typeof ingressPath !== "string" ||
+      ingressPath.length === 0 ||
+      !cfg.INGRESS_PROXY_IPS.includes(peer)
+    ) {
       return reply.code(401).send({ error: "not_via_ingress" });
     }
     const username =

@@ -37,6 +37,16 @@ const envSchema = z.object({
   API_USER: z.string().default("admin"),
   API_PASSWORD_HASH: z.string(),
   ADMIN_ROLE: z.enum(["user", "installer"]).default("installer"),
+  /**
+   * Peers allowed to use the password-less `POST /api/v1/auth/ingress`
+   * (comma-separated IPs). Default = HA Supervisor's ingress proxy, so a
+   * LAN client hitting port 8080 directly can't mint a token by spoofing
+   * `X-Ingress-Path`. Empty disables ingress auto-login.
+   */
+  INGRESS_PROXY_IPS: z
+    .string()
+    .default("172.30.32.2")
+    .transform((s) => s.split(",").map((ip) => ip.trim()).filter(Boolean)),
 
   // installation
   /**

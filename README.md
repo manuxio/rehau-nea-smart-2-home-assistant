@@ -50,7 +50,7 @@ phone frame.
   <tr>
     <td align="center" width="50%">
       <img src="docs/screenshots/phone/00-login.png" alt="Login" width="280"/><br/>
-      <sub><b>Login</b> — JWT-bearer, local-only. No e-mail, no cloud, no 2FA. Under HA ingress the form is skipped entirely: the bridge reads <code>X-Ingress-Path</code> and hands the SPA a token automatically.</sub>
+      <sub><b>Login</b> — JWT-bearer, local-only. No e-mail, no cloud, no 2FA. Under HA ingress the form is skipped entirely: requests proxied by the HA Supervisor (<code>172.30.32.2</code>) get a token automatically. Direct access on port 8080 always asks for the password.</sub>
     </td>
     <td align="center" width="50%">
       <img src="docs/screenshots/phone/01-home.png" alt="Dashboard" width="280"/><br/>
@@ -132,7 +132,9 @@ Supervisor runs on (Intel NUC, Raspberry Pi 4/5, ODROID, generic ARM SBC).
 - **Web UI** (React SPA, dark/light theme, EN/IT) under HA ingress, also
   exposed directly on `http://<ha-host>:8080/` for fullscreen / PWA use.
 - **Auto-login through HA ingress** — clicking the sidebar entry drops
-  you straight into the dashboard, no password prompt.
+  you straight into the dashboard, no password prompt. Only requests that
+  really come through HA's ingress proxy qualify; see
+  [Authentication & HA ingress](#authentication--ha-ingress).
 - **Mobile-first**: PWA manifest, status-bar safe areas, scrollbars
   hidden, pinch zoom disabled, font scales with the OS text-size
   preference. Add to home screen → fullscreen app.
@@ -282,6 +284,52 @@ All options live in the add-on's *Configuration* tab. Defaults shown.
 | `expose_calibration` | `true` | Publish calibration offsets as diagnostic sensors |
 | `room_floors` | *(empty)* | UI-only floor mapping, format `0:Floor 1,1:Floor 1,2:Ground floor` |
 | `log_level` / `log_format` | `info` / `json` | `fatal/error/warn/info/debug/trace`, `json` or `pretty` |
+
+### Authentication & HA ingress
+
+The Web UI and the REST API (`/api/v1/*`) require a JWT. There are two
+ways to get one:
+
+- **Password login** — `POST /api/v1/auth/login` with `api_user` and the
+  password behind `api_password_hash`. This is what you use on
+  `http://<ha-host>:8080/`, in the PWA and from scripts.
+- **HA ingress auto-login** — `POST /api/v1/auth/ingress`, called by the
+  SPA when it is opened from the HA sidebar. No password is asked,
+  because HA has already authenticated you.
+
+The ingress auto-login is accepted **only** when both are true:
+
+1. the request carries the `X-Ingress-Path` header that HA's ingress
+   proxy adds, **and**
+2. the TCP connection comes from the HA Supervisor's ingress proxy,
+   `172.30.32.2` (the fixed address of the proxy on the Supervisor's
+   internal network, as documented for HA add-ons).
+
+The bridge checks the real socket address, not `X-Forwarded-For`, so the
+check can't be faked with headers. Anything else (a browser or script on
+your LAN hitting port 8080 directly, with or without a forged
+`X-Ingress-Path`) gets `401` and has to log in with the password.
+
+> **Security note (fixed in 6.1.4).** Up to 6.1.3, `/api/v1/auth/ingress`
+> trusted the `X-Ingress-Path` header alone. Any device on your LAN that
+> could reach port 8080 could send that header and receive an admin
+> (installer) token without knowing the password. If you exposed port 8080
+> to untrusted devices, update to 6.1.4 and change `jwt_secret` (or
+> delete `/data/jwt_secret` and restart the add-on) to invalidate tokens
+> that may have been issued that way.
+
+Outside Home Assistant (plain Docker / `docker compose`) there is no
+ingress proxy, so the auto-login never triggers and the UI shows the
+login form. If you run the bridge behind your own trusted reverse proxy
+that sets `X-Ingress-Path`, list the proxy's IP(s) in the
+`INGRESS_PROXY_IPS` environment variable (comma-separated; empty disables
+the auto-login entirely). In the HA add-on you don't need to set
+anything: the default is `172.30.32.2`.
+
+Change the default password (`admin123`) before exposing port 8080 to
+anything you don't fully trust: generate a hash with
+`npm run hashpw -- <password>` from a checkout of this repo (or any bcrypt tool) and paste it
+into `api_password_hash`.
 
 ---
 
