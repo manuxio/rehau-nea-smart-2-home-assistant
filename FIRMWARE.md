@@ -8,7 +8,7 @@ behind a sluggish cloud app, e-mail 2FA, and a support forum where issues go to 
 
 One ESP32. No cloud. No add-on. No account. No telemetry leaving your house.
 
-**➡️ [Download the latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)** — currently [`bridge-fw-v0.14.9`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.14.9).
+**➡️ [Download the latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)** (firmware releases are tagged `bridge-fw-v…`).
 
 > ⚠️ **Under active testing.** The plain Olimex ESP32-POE has limited RAM, and running the
 > full scrape + MQTT + SPA + API stack pushes it close to the edge — long-run heap
@@ -60,9 +60,9 @@ doors** — use one, use all four, they all read and write the same live state:
 
 | Front door | What you get |
 |---|---|
-| 🌐 **REST API** | A clean, documented OpenAPI 3.0 surface — 69 endpoints — for rooms, system, programs, scenes, installer data, diagnostics and device management. |
+| 🌐 **REST API** | A clean, documented OpenAPI 3.0 surface — 83 operations — for rooms, system, programs, scenes, installer data, diagnostics and device management. |
 | 📡 **MQTT + HA Discovery** | Publishes every room and system entity to your broker. Home Assistant auto-creates the device and all its entities. No add-on, no YAML. |
-| 📱 **Resident SPA** | A full mobile-first climate app **hosted by the firmware itself** at `/spa/`. Installable PWA, 15 UI languages, dark theme, scenes, schedules. |
+| 📱 **Resident SPA** | A full mobile-first climate app **hosted by the firmware itself** at `/spa/`. Installable PWA, English and Italian, dark and light theme, scenes, schedules. |
 | 🛠️ **Admin GUI** | A second web app for the *bridge* itself: networking, MQTT, users, OTA, diagnostics, recovery. |
 
 It is, fundamentally, **a standalone API server with a heating system attached** — and it
@@ -74,7 +74,7 @@ keeps working whether or not Home Assistant, the internet, or REHAU's cloud are 
 
 ### 🏠 Full climate control
 - **Per-room climate**: current temperature, humidity, setpoint, mode
-  (**Standby / Normal / Reduced / Program**), heat/cool demand.
+  (**Standby / Normal / Reduced / Program / Party**), heat/cool demand.
 - **Fancoil aware**: native fan modes (`off/auto/low/medium/high`) for SILENT BREEZE
   units, `on/off` driven by *real motor state* for switched fancoils, plus flap control.
 - **Virtual fancoils**: every room exposes a firmware-created **virtual fan** entity that
@@ -101,7 +101,7 @@ keeps working whether or not Home Assistant, the internet, or REHAU's cloud are 
 - **Installation name = HA device name.** Rename once, it propagates.
 
 ### 🔬 Installer-grade insight
-- Master + U-module **I/O snapshot**, **heat curve**, **calibration** (read & write),
+- Master, Slave base and U-module **I/O snapshot**, **heat curve**, **calibration** (read & write),
   **bus topology**, controller **uptime** — the stuff REHAU hides behind an installer code,
   surfaced as clean JSON.
 
@@ -122,7 +122,7 @@ keeps working whether or not Home Assistant, the internet, or REHAU's cloud are 
 ## The API
 
 OpenAPI 3.0 spec embedded at **`/openapi.json`**. REST under **`/api/v1/...`**; device
-management under **`/api/...`**. 69 endpoints across 12 groups:
+management under **`/api/...`**. 83 operations on 72 paths, in 12 groups. The main ones:
 
 ### Rooms
 | Method | Path | Purpose |
@@ -160,7 +160,7 @@ management under **`/api/...`**. 69 endpoints across 12 groups:
 ### Installer
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/v1/installer/io` | Master + U-module I/O snapshot |
+| GET | `/api/v1/installer/io` | Master, Slave base and U-module I/O snapshot |
 | GET | `/api/v1/installer/curve` | Heat curve |
 | GET / PUT | `/api/v1/installer/calibration` | Calibration offsets (read / write) |
 | GET / PUT | `/api/v1/installer/settings/{group}` | Installer settings groups |
@@ -218,8 +218,8 @@ Full machine-readable contract: **`GET /openapi.json`** on any running board.
 | **Partition layout** | Dual-OTA, 1.5 MB app slots, 960 KB SPA SPIFFS — indefinite OTA |
 | **Footprint** | ~1.4 MB app image; free heap is tight on the base ESP32 — long-run stability under validation, PSRAM (WROVER) board on the table |
 | **Front doors** | REST API · MQTT · resident SPA · admin GUI (all concurrent) |
-| **API** | OpenAPI 3.0, 69 endpoints, 12 groups |
-| **SPA** | Mobile-first PWA, 15 UI languages, dark theme, installable |
+| **API** | OpenAPI 3.0, 83 operations, 12 groups |
+| **SPA** | Mobile-first PWA, English and Italian, dark and light theme, installable |
 | **Auth** | JWT bearer, 2-tier accounts (user/admin), boot-bound tokens |
 | **Networking** | PoE Ethernet + Wi-Fi, static/DHCP, transparent TCP proxy, WireGuard client |
 | **Updates** | OTA for firmware *and* SPA, config export/import, in-RAM log ring |
@@ -230,8 +230,7 @@ Full machine-readable contract: **`GET /openapi.json`** on any running board.
 ## Install
 
 Requires an **Olimex ESP32-POE** (or ESP32-POE-ISO) board. Grab the
-[latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest)
-([`bridge-fw-v0.14.9`](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/tag/bridge-fw-v0.14.9)).
+[latest release](https://github.com/manuxio/rehau-nea-smart-2-home-assistant/releases/latest).
 
 ### Which firmware do I need?
 
@@ -255,8 +254,11 @@ The SPIFFS image (`…-spiffs.bin`) is shared between both variants.
 pip install esptool
 
 esptool --chip esp32 -p COM5 -b 460800 erase_flash
-esptool --chip esp32 -p COM5 -b 460800 write_flash 0x0 betterehau-bridge-v0.14.9-full.bin
+esptool --chip esp32 -p COM5 -b 460800 write_flash 0x0 betterehau-bridge-v<version>-full.bin
 ```
+
+Replace `COM5` with your board's serial port and `<version>` with the release you
+downloaded (use the `-wrover-full.bin` file on a WROVER board).
 
 Then open `http://<board-ip>:81/`, create your `admin` account, point it at your REHAU
 base and your MQTT broker, and you're running.
@@ -271,6 +273,11 @@ Every future update is done from the admin GUI — no more cable:
 > **Firmware and SPIFFS are separate updates.** The firmware (OTA) updates the application
 > code; the SPIFFS updates the web interface (admin GUI + resident SPA). When upgrading,
 > always upload the firmware first, then the SPIFFS after reboot.
+
+> **Updating to 0.14.10 from an older version? Reboot twice.** 0.14.10 changed the
+> board's MQTT client id. After the update, reboot the board, wait about 30 seconds and
+> reboot it again; otherwise Home Assistant may keep the entities "unavailable" until the
+> next reconnect. This is needed only once, on the first update to 0.14.10.
 
 ---
 
