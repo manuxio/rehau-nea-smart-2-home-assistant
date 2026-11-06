@@ -2823,7 +2823,7 @@ var systemStateSchema = z3.object({
   fw: z3.object({
     master: z3.string(),
     web: z3.string(),
-    umodules: z3.record(z3.string())
+    umodules: z3.record(z3.string(), z3.string())
   }),
   uniqueCode: z3.string(),
   ssid: z3.string(),
@@ -2902,6 +2902,7 @@ var ioSchema = z3.object({
     di: z3.array(z3.number())
   }),
   umodules: z3.record(
+    z3.string(),
     z3.object({
       relay: z3.array(z3.number()),
       di: z3.array(z3.number()),
@@ -3715,6 +3716,7 @@ var buildServer = async ({
 
 // src/mqtt/client.ts
 import mqtt from "mqtt";
+var STOP_GRACE_MS = 1500;
 var TypedMqttClient = class {
   constructor(opts) {
     this.opts = opts;
@@ -3776,10 +3778,19 @@ var TypedMqttClient = class {
     this.handlers.push(handler);
   }
   async stop() {
-    if (!this.client) return;
+    const client = this.client;
+    if (!client) return;
+    if (!this.connected) {
+      await new Promise((resolve3) => client.end(true, {}, () => resolve3()));
+      return;
+    }
     this.publish(this.opts.availabilityTopic, "offline", { retain: true });
     await new Promise((resolve3) => {
-      this.client.end(false, {}, () => resolve3());
+      const force = setTimeout(() => client.end(true, {}, () => resolve3()), STOP_GRACE_MS);
+      client.end(false, {}, () => {
+        clearTimeout(force);
+        resolve3();
+      });
     });
   }
 };
@@ -4630,7 +4641,7 @@ var main = async () => {
     void poller.kickoffComplete().then(async () => {
       logger.info({ url: config.MQTT_URL }, "boot complete \u2014 connecting MQTT");
       await mqttBridge.start();
-      ops.emit("mqtt.connect", `connected to ${config.MQTT_URL}`);
+      ops.emit("mqtt.connect", `connecting to ${config.MQTT_URL}`);
     });
   } else {
     logger.info("MQTT_URL not set \u2014 MQTT bridge disabled");

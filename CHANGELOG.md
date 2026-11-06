@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 6.2.0 — 2026-11-06
 
 - **Node 24 LTS: add-on base image 17.1.4 → 21.0.10.** The old base was
   Alpine 3.21 (end of support, Node 22); 21.x is Alpine 3.24 with Node
