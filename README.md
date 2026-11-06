@@ -107,8 +107,10 @@ phone frame.
 |---|---|---|
 | [REHAU Nea Smart 2 Bridge (local)](./rehau-bridge) | `rehau_bridge_local` | Polls the base station, publishes HA MQTT discovery, serves a Web UI under ingress, exposes a REST API + Swagger. |
 
-The add-on supports `amd64`, `aarch64` and `armv7` — i.e. every host HA
-Supervisor runs on (Intel NUC, Raspberry Pi 4/5, ODROID, generic ARM SBC).
+The add-on supports `amd64` and `aarch64` (Intel/AMD hosts, Raspberry Pi
+3/4/5 with a 64-bit OS, ODROID, generic 64-bit ARM SBC). 32-bit `armv7` was
+dropped in 6.2.0, following Home Assistant's own deprecation of 32-bit
+systems; armv7 hosts can stay on 6.1.x.
 
 ---
 

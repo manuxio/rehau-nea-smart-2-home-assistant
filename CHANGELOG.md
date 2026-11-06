@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- **Node 24 LTS: add-on base image 17.1.4 → 21.0.10.** The old base was
+  Alpine 3.21 (end of support, Node 22); 21.x is Alpine 3.24 with Node
+  24 LTS. The Docker Compose image moves to `node:24-alpine` and the
+  bundle targets `node24`.
+- **armv7 is no longer supported.** The add-on base images dropped 32-bit
+  architectures (armv7 / armhf / i386) from v19, in line with Home
+  Assistant's own deprecation of 32-bit systems. The add-on now builds
+  for `amd64` and `aarch64` only; armv7 hosts can stay on 6.1.x. A
+  Raspberry Pi 3/4/5 running a 64-bit OS is `aarch64`.
+- `run.sh` reads the version with `bashio::app.version` (bashio 0.18),
+  falling back to the deprecated `bashio::addon.version`.
+- **Dependencies:** lockfile refreshed within the current ranges and
+  higher floors for `fastify`, `undici`, `@fastify/swagger` and `mqtt`.
+  Dev tooling moves to vite 6, vitest 4, tsup 9 and sharp 0.35.
+
 ## 6.1.4 — 2026-11-06
 
 - **Security: ingress auto-login only from the HA Supervisor proxy.**

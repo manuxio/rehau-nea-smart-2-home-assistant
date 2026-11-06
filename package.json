@@ -5,7 +5,7 @@
   "description": "REHAU Nea Smart 2 ↔ MQTT + REST API bridge with React control app",
   "type": "module",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "workspaces": [
     "packages/*",

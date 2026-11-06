@@ -90,7 +90,9 @@ export LOG_FORMAT="$(opt log_format)"
 # Surface the addon version to the bridge so the SPA can display it on the
 # System page. bashio reads it from the addon's config.yaml at install
 # time so we don't have to parse the file ourselves.
-export ADDON_VERSION="$(bashio::addon.version || echo "unknown")"
+# bashio 0.18 (base 21.x) renamed bashio::addon.* to bashio::app.*; keep the
+# old name as a fallback.
+export ADDON_VERSION="$(bashio::app.version 2>/dev/null || bashio::addon.version 2>/dev/null || echo "unknown")"
 
 bashio::log.info "Starting bridge on :${HTTP_PORT} (installation '${INSTALLATION_NAME}', version ${ADDON_VERSION})."
 

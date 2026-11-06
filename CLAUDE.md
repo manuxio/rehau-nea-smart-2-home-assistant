@@ -38,7 +38,7 @@ code <installer-code> unlocks "installer" pages)
        │  GET / POST plain HTML forms (cheerio scrape)
        ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  apps/bridge — Node 22+ Fastify server in HA addon container     │
+│  apps/bridge — Node 24 Fastify server in HA addon container      │
 │                                                                  │
 │  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐  │
 │  │ DeviceClient │ → │ LiveSource / │ → │ Store (in-memory)    │  │
@@ -136,7 +136,7 @@ code <installer-code> unlocks "installer" pages)
 ## 4. Tech stack
 
 **Bridge**:
-- Node 22+ ESM, TypeScript strict
+- Node 24 LTS ESM (add-on base 21.x = Alpine 3.24), TypeScript strict
 - Fastify 5 + @fastify/jwt + @fastify/cors + @fastify/static + @fastify/rate-limit + @fastify/swagger(+ui)
 - fastify-type-provider-zod (zod schemas → openapi)
 - undici (TCP pool; no keep-alive for REHAU)
@@ -144,7 +144,7 @@ code <installer-code> unlocks "installer" pages)
 - mqtt.js (LWT + retained + HA discovery)
 - pino + pino-pretty
 - bcrypt (only native dep; kept as external in tsup; addon container installs it)
-- tsup bundles to a single 120 KB `dist/main.js` (ESM, target: node22)
+- tsup bundles to a single 120 KB `dist/main.js` (ESM, target: node24)
   - **`noExternal: [/^@rehau\//]`** — workspace packages MUST be inlined,
     they don't exist in the addon's node_modules at runtime
 

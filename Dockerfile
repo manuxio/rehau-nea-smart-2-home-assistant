@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ─── deps ────────────────────────────────────────────────────────────
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 ENV CI=1
 RUN apk add --no-cache --virtual .build-deps python3 make g++
@@ -25,7 +25,7 @@ RUN npm run build -w @rehau/bridge \
 RUN node -e "const p=require('./apps/bridge/package.json');const d=Object.fromEntries(Object.entries(p.dependencies||{}).filter(([k])=>!k.startsWith('@rehau/')));d['pino-pretty']=d['pino-pretty']||'^13.0.0';require('fs').writeFileSync('/runtime-package.json',JSON.stringify({name:'rehau-bridge-runtime',version:'0.1.0',private:true,type:'module',dependencies:d},null,2))"
 
 # ─── runtime ─────────────────────────────────────────────────────────
-FROM node:22-alpine
+FROM node:24-alpine
 RUN apk add --no-cache wget \
  && addgroup -S app && adduser -S app -G app
 WORKDIR /app

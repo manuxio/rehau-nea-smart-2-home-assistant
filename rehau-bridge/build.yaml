@@ -1,7 +1,7 @@
 ---
-# Use the standard "base" images that already include bashio. Alpine 3.20+
-# ships Node 22, which matches our tsup target.
+# Use the standard "base" images that already include bashio. Base 21.x is
+# Alpine 3.24, whose `nodejs` package is Node 24 LTS (our tsup target).
+# Base 19+ no longer ships 32-bit images, so armv7 was dropped in 6.2.0.
 build_from:
-  aarch64: ghcr.io/hassio-addons/base:17.1.4
-  amd64: ghcr.io/hassio-addons/base:17.1.4
-  armv7: ghcr.io/hassio-addons/base:17.1.4
+  aarch64: ghcr.io/hassio-addons/base:21.0.10
+  amd64: ghcr.io/hassio-addons/base:21.0.10
