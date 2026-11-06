@@ -55,7 +55,7 @@ options:
   api_user: "admin"
   # bcrypt hash of the password the user wants. The default below is "admin123"
   # — change it before exposing the addon outside HA ingress.
-  api_password_hash: "$2a$12$6TYJt5u.0SRyx9yuqwcF.OP4TQcyma1cHwrVgNc/bEpp2o6C1MdH."
+  api_password_hash: "$2b$12$imphuwAPCipfDvly12A1hesGJtN40dKmTHufcUWXrqagARmtDuXGK"
   jwt_secret: ""
   jwt_ttl: "30d"
   admin_role: "installer"
