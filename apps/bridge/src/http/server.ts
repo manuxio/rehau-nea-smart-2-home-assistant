@@ -168,13 +168,13 @@ export const buildServer = async ({
     await app.register(fastifyStatic, {
       root: resolve(spaDir),
       prefix: "/",
-      setHeaders: (res, filePath) => {
+      setHeaders: (reply, filePath) => {
         if (filePath.endsWith(".html")) {
-          res.setHeader("Cache-Control", "no-cache, must-revalidate");
-        } else if (/\/assets\//.test(filePath)) {
+          reply.header("Cache-Control", "no-cache, must-revalidate");
+        } else if (/[\\/]assets[\\/]/.test(filePath)) {
           // Content-hashed — long-lived. immutable hints the client
           // it can skip even the conditional GET.
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          reply.header("Cache-Control", "public, max-age=31536000, immutable");
         }
       },
     });
