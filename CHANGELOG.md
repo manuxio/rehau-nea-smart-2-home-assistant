@@ -1,7 +1,31 @@
 # Changelog
 
-## Unreleased
+## 6.1.4 — 2026-11-06
 
+- **Security: ingress auto-login only from the HA Supervisor proxy.**
+  `POST /api/v1/auth/ingress` minted an admin token for any request that
+  carried an `X-Ingress-Path` header, so a LAN client hitting port 8080
+  directly could skip the password with one spoofed header. The TCP peer
+  must now also be in `INGRESS_PROXY_IPS` (default `172.30.32.2`, HA's
+  ingress proxy); the socket address is checked, not `X-Forwarded-For`.
+  The HA sidebar login is unchanged; direct access on port 8080 now
+  always asks for the password. If port 8080 was reachable by devices you
+  don't trust, also rotate `jwt_secret` (or delete `/data/jwt_secret`
+  and restart) to invalidate tokens issued that way. Documented in the
+  README, "Authentication & HA ingress".
+- **Default `api_password_hash` now really is `admin123`.** The shipped
+  default hash didn't match the documented password, so a fresh install
+  couldn't log in on port 8080 with `admin` / `admin123`. Only affects new
+  installs; existing add-on options are kept by HA.
+- **Dependency security updates:** `@fastify/jwt` 10 (fast-jwt 6),
+  `@fastify/static` 10, `@fastify/swagger-ui` 6, `bcrypt` 6 (prebuilt
+  musl binaries for amd64 / aarch64 / armv7, no more node-pre-gyp / tar
+  at install time), `ws` 8.22. Existing JWTs stay valid.
+- **Scene names capped at 64 characters** on create / update, and the
+  scene-id slug regex no longer backtracks (CodeQL `js/polynomial-redos`).
+- New tests: every `/api/v1` route rejects requests without a token
+  (including non-canonical URL spellings), ingress login rules, SPA static
+  serving and cache headers.
 - **Standalone room temperature sensor (#67).** Each room now also gets a
   `<room> temperatura` sensor (`device_class: temperature`,
   `state_class: measurement`) next to the humidity one. The climate

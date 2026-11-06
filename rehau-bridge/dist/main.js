@@ -35,6 +35,13 @@ var envSchema = z.object({
   API_USER: z.string().default("admin"),
   API_PASSWORD_HASH: z.string(),
   ADMIN_ROLE: z.enum(["user", "installer"]).default("installer"),
+  /**
+   * Peers allowed to use the password-less `POST /api/v1/auth/ingress`
+   * (comma-separated IPs). Default = HA Supervisor's ingress proxy, so a
+   * LAN client hitting port 8080 directly can't mint a token by spoofing
+   * `X-Ingress-Path`. Empty disables ingress auto-login.
+   */
+  INGRESS_PROXY_IPS: z.string().default("172.30.32.2").transform((s) => s.split(",").map((ip) => ip.trim()).filter(Boolean)),
   // installation
   /**
    * Human-readable name for this REHAU installation. Lets multiple instances
@@ -712,6 +719,7 @@ var Poller = class {
       lock: s.flags.lock,
       autoStart: s.flags.auto,
       windowDetection: s.flags.swow,
+      remoteTemperature: s.remoteTemperature,
       ...assignment,
       programDailyId: this.todaysDailyProgram(assignment)
     });
@@ -803,6 +811,7 @@ var seedRooms = [
     fanRunning: false,
     calibrationTemp: 0,
     calibrationHumidity: 0,
+    remoteTemperature: null,
     programDailyId: 1,
     programWeeklyId: 1,
     programDays: [1, 1, 1, 1, 1, 2, 2],
@@ -834,6 +843,7 @@ var seedRooms = [
     fanRunning: false,
     calibrationTemp: 0,
     calibrationHumidity: 0,
+    remoteTemperature: null,
     programDailyId: 1,
     programWeeklyId: 1,
     programDays: [1, 1, 1, 1, 1, 2, 2],
@@ -865,6 +875,7 @@ var seedRooms = [
     fanRunning: false,
     calibrationTemp: -0.2,
     calibrationHumidity: 0,
+    remoteTemperature: null,
     programDailyId: 1,
     programWeeklyId: 1,
     programDays: [1, 1, 1, 1, 1, 2, 2],
@@ -896,6 +907,7 @@ var seedRooms = [
     fanRunning: false,
     calibrationTemp: 0.1,
     calibrationHumidity: -1,
+    remoteTemperature: null,
     programDailyId: 1,
     programWeeklyId: 1,
     programDays: [1, 1, 1, 1, 1, 2, 2],
@@ -1322,6 +1334,7 @@ var Store = class {
       fanRunning: false,
       calibrationTemp: null,
       calibrationHumidity: null,
+      remoteTemperature: null,
       programDailyId: 0,
       programWeeklyId: 0,
       programDays: [0, 0, 0, 0, 0, 0, 0],
@@ -1715,7 +1728,11 @@ var parseRoomSetup = (html) => {
       lock: checked("Lock")
     },
     weekly: Number($('select[name="PWeek"] option[selected]').first().attr("value") ?? "0"),
-    daysProgram: [0, 1, 2, 3, 4, 5, 6].map((i) => dayProg(i))
+    daysProgram: [0, 1, 2, 3, 4, 5, 6].map((i) => dayProg(i)),
+    // The "Remote temperature : <label class="Lblr">23.8</label>" row is only
+    // rendered for room units with a remote sensor, and `.Lblr` is used
+    // nowhere else on the page. Matched structurally (no localised text).
+    remoteTemperature: num($("label.Lblr").first().text())
   };
 };
 var num = (s) => {
@@ -2005,75 +2022,75 @@ var parseSystemInfo = (html) => {
 // src/device/settings.ts
 import * as cheerio2 from "cheerio";
 var CURVE = [
-  { name: "HA00", label: "Punto di partenza normale", kind: "number", min: 10, max: 40, step: 1, unit: "\xB0C" },
-  { name: "HB00", label: "Punto di partenza assenza", kind: "number", min: 10, max: 40, step: 1, unit: "\xB0C" },
-  { name: "HC00", label: "Pendenza normale", kind: "number", min: 0, max: 5, step: 0.01 },
-  { name: "HD00", label: "Pendenza assenza", kind: "number", min: 0, max: 5, step: 0.01 },
-  { name: "HR0", label: "Riduzione mandata in modo ridotto", kind: "number", min: 0, max: 10, step: 1, unit: "K" },
-  { name: "HF00", label: "Min mandata normale", kind: "number", min: 15, max: 50, step: 1, unit: "\xB0C" },
-  { name: "HG00", label: "Min mandata assenza", kind: "number", min: 15, max: 50, step: 1, unit: "\xB0C" },
-  { name: "HI00", label: "Max mandata normale", kind: "number", min: 20, max: 70, step: 1, unit: "\xB0C" },
-  { name: "HK00", label: "Max mandata assenza", kind: "number", min: 20, max: 70, step: 1, unit: "\xB0C" },
-  { name: "HL00", label: "Filtro temp. esterna", kind: "number", min: 0, max: 99, step: 1 },
-  { name: "CA0", label: "Min mandata raffrescamento", kind: "number", min: 8, max: 25, step: 0.1, unit: "\xB0C" },
-  { name: "CB0", label: "Distanza dal punto di rugiada", kind: "number", min: -5, max: 10, step: 0.1, unit: "K" },
-  { name: "CD0", label: "Limite ritorno raffrescamento", kind: "number", min: 10, max: 25, step: 0.1, unit: "\xB0C" },
-  { name: "MIX10", label: "Banda proporzionale heating", kind: "number", min: 2, max: 80, step: 0.5, unit: "K" },
-  { name: "MIX20", label: "Banda proporzionale cooling", kind: "number", min: 2, max: 80, step: 0.5, unit: "K" },
-  { name: "MIX30", label: "Tempo integrale miscelatore", kind: "number", min: 0, max: 999, step: 1 },
-  { name: "MIX60", label: "Ritardo avviamento PI", kind: "number", min: 0, max: 999, step: 1 }
+  { name: "HA00", kind: "number", min: 10, max: 40, step: 1, unit: "\xB0C" },
+  { name: "HB00", kind: "number", min: 10, max: 40, step: 1, unit: "\xB0C" },
+  { name: "HC00", kind: "number", min: 0, max: 5, step: 0.01 },
+  { name: "HD00", kind: "number", min: 0, max: 5, step: 0.01 },
+  { name: "HR0", kind: "number", min: 0, max: 10, step: 1, unit: "K" },
+  { name: "HF00", kind: "number", min: 15, max: 50, step: 1, unit: "\xB0C" },
+  { name: "HG00", kind: "number", min: 15, max: 50, step: 1, unit: "\xB0C" },
+  { name: "HI00", kind: "number", min: 20, max: 70, step: 1, unit: "\xB0C" },
+  { name: "HK00", kind: "number", min: 20, max: 70, step: 1, unit: "\xB0C" },
+  { name: "HL00", kind: "number", min: 0, max: 99, step: 1 },
+  { name: "CA0", kind: "number", min: 8, max: 25, step: 0.1, unit: "\xB0C" },
+  { name: "CB0", kind: "number", min: -5, max: 10, step: 0.1, unit: "K" },
+  { name: "CD0", kind: "number", min: 10, max: 25, step: 0.1, unit: "\xB0C" },
+  { name: "MIX10", kind: "number", min: 2, max: 80, step: 0.5, unit: "K" },
+  { name: "MIX20", kind: "number", min: 2, max: 80, step: 0.5, unit: "K" },
+  { name: "MIX30", kind: "number", min: 0, max: 999, step: 1 },
+  { name: "MIX60", kind: "number", min: 0, max: 999, step: 1 }
 ];
 var HEATCOOL = [
-  { name: "Tout", label: "Filtro temp. esterna", kind: "number", min: 0, max: 99, step: 1 },
-  { name: "HG1", label: "Limite riscaldamento normale", kind: "number", min: 5, max: 25, step: 0.1, unit: "\xB0C" },
-  { name: "HG2", label: "Limite riscaldamento assenza", kind: "number", min: 5, max: 25, step: 0.1, unit: "\xB0C" },
-  { name: "C01", label: "Ritardo avvio raffrescamento", kind: "number", min: 0, max: 1440, step: 10, unit: "min" },
-  { name: "C02", label: "Tempo min raffrescamento", kind: "number", min: 0, max: 1440, step: 10, unit: "min" },
-  { name: "C03", label: "Blocco riscaldamento dopo raffrescamento", kind: "number", min: 0, max: 96, step: 1, unit: "h" },
-  { name: "C12", label: "Compensazione estiva", kind: "boolean" }
+  { name: "Tout", kind: "number", min: 0, max: 99, step: 1 },
+  { name: "HG1", kind: "number", min: 5, max: 25, step: 0.1, unit: "\xB0C" },
+  { name: "HG2", kind: "number", min: 5, max: 25, step: 0.1, unit: "\xB0C" },
+  { name: "C01", kind: "number", min: 0, max: 1440, step: 10, unit: "min" },
+  { name: "C02", kind: "number", min: 0, max: 1440, step: 10, unit: "min" },
+  { name: "C03", kind: "number", min: 0, max: 96, step: 1, unit: "h" },
+  { name: "C12", kind: "boolean" }
 ];
 var DEVICES = [
-  { name: "HE1", label: "Caldaia \xB7 tempo min funzionamento", kind: "number", min: 0, max: 20, step: 1, unit: "min" },
-  { name: "HE4", label: "Caldaia \xB7 ritardo richiesta", kind: "number", min: 0, max: 10, step: 1, unit: "min" },
-  { name: "HE5", label: "Caldaia \xB7 lockout prima del riavvio", kind: "number", min: 0, max: 15, step: 1, unit: "min" },
-  { name: "CH1", label: "Chiller \xB7 tempo min funzionamento", kind: "number", min: 0, max: 20, step: 1, unit: "min" },
-  { name: "CH4", label: "Chiller \xB7 ritardo richiesta", kind: "number", min: 0, max: 10, step: 1, unit: "min" },
-  { name: "CH5", label: "Chiller \xB7 lockout prima del riavvio", kind: "number", min: 0, max: 15, step: 1, unit: "min" },
-  { name: "PU6", label: "Antibloccaggio pompa \xB7 durata", kind: "number", min: 1, max: 30, step: 1, unit: "min" },
-  { name: "VA2", label: "Antibloccaggio valvola \xB7 periodo", kind: "number", min: 1, max: 200, step: 1, unit: "giorni" },
-  { name: "HE20", label: "Valvola misc. \xB7 posizione richiesta riscaldamento", kind: "number", min: 0, max: 100, step: 1, unit: "%" },
-  { name: "HE30", label: "Valvola misc. \xB7 isteresi richiesta riscaldamento", kind: "number", min: 0, max: 25, step: 1, unit: "%" },
-  { name: "CH20", label: "Valvola misc. \xB7 posizione richiesta raffrescamento", kind: "number", min: 0, max: 100, step: 1, unit: "%" },
-  { name: "CH30", label: "Valvola misc. \xB7 isteresi richiesta raffrescamento", kind: "number", min: 0, max: 25, step: 1, unit: "%" },
-  { name: "MI70", label: "Inverti segnale di controllo", kind: "boolean" },
-  { name: "PU75", label: "Pompa misc. \xB7 ritardo avviamento", kind: "number", min: 0, max: 15, step: 1, unit: "min" },
-  { name: "PU85", label: "Pompa misc. \xB7 post funzionamento", kind: "number", min: 0, max: 15, step: 1, unit: "min" }
+  { name: "HE1", kind: "number", min: 0, max: 20, step: 1, unit: "min" },
+  { name: "HE4", kind: "number", min: 0, max: 10, step: 1, unit: "min" },
+  { name: "HE5", kind: "number", min: 0, max: 15, step: 1, unit: "min" },
+  { name: "CH1", kind: "number", min: 0, max: 20, step: 1, unit: "min" },
+  { name: "CH4", kind: "number", min: 0, max: 10, step: 1, unit: "min" },
+  { name: "CH5", kind: "number", min: 0, max: 15, step: 1, unit: "min" },
+  { name: "PU6", kind: "number", min: 1, max: 30, step: 1, unit: "min" },
+  { name: "VA2", kind: "number", min: 1, max: 200, step: 1, unit: "days" },
+  { name: "HE20", kind: "number", min: 0, max: 100, step: 1, unit: "%" },
+  { name: "HE30", kind: "number", min: 0, max: 25, step: 1, unit: "%" },
+  { name: "CH20", kind: "number", min: 0, max: 100, step: 1, unit: "%" },
+  { name: "CH30", kind: "number", min: 0, max: 25, step: 1, unit: "%" },
+  { name: "MI70", kind: "boolean" },
+  { name: "PU75", kind: "number", min: 0, max: 15, step: 1, unit: "min" },
+  { name: "PU85", kind: "number", min: 0, max: 15, step: 1, unit: "min" }
 ];
 var FUNCTIONS = [
-  { name: "PU20", label: "Master \xB7 pompa alta efficienza", kind: "boolean" },
-  { name: "PU25", label: "Circuito misc. \xB7 pompa alta efficienza", kind: "boolean" },
-  { name: "PU3", label: "Antibloccaggio pompa abilitato", kind: "boolean" },
-  { name: "PU4", label: "Antibloccaggio pompa \xB7 periodo", kind: "number", min: 1, max: 200, step: 1, unit: "giorni" },
-  { name: "PU5", label: "Antibloccaggio pompa \xB7 orario", kind: "number", min: 0, max: 24, step: 1, unit: "h" },
-  { name: "VA1", label: "Antibloccaggio valvola abilitato", kind: "boolean" },
-  { name: "VA3", label: "Antibloccaggio valvola \xB7 orario", kind: "number", min: 0, max: 24, step: 1, unit: "h" },
-  { name: "VA4", label: "Antibloccaggio valvola \xB7 durata", kind: "number", min: 1, max: 30, step: 1, unit: "min" }
+  { name: "PU20", kind: "boolean" },
+  { name: "PU25", kind: "boolean" },
+  { name: "PU3", kind: "boolean" },
+  { name: "PU4", kind: "number", min: 1, max: 200, step: 1, unit: "days" },
+  { name: "PU5", kind: "number", min: 0, max: 24, step: 1, unit: "h" },
+  { name: "VA1", kind: "boolean" },
+  { name: "VA3", kind: "number", min: 0, max: 24, step: 1, unit: "h" },
+  { name: "VA4", kind: "number", min: 1, max: 30, step: 1, unit: "min" }
 ];
 var PID = [
-  { name: "a0", label: "Banda proporzionale heating", kind: "number", min: 0, max: 10, step: 0.1, unit: "K" },
-  { name: "b0", label: "Banda proporzionale cooling", kind: "number", min: 0, max: 10, step: 0.1, unit: "K" },
-  { name: "c0", label: "Tempo impulso ambiente", kind: "number", min: 10, max: 120, step: 10, unit: "min" },
-  { name: "d0", label: "Tempo impulso min ambiente", kind: "number", min: 0, max: 20, step: 1, unit: "min" },
-  { name: "e0", label: "Tempo integrale ambiente", kind: "number", min: 0, max: 600, step: 5 },
-  { name: "f0", label: "Limitazione parte integrale", kind: "number", min: 0, max: 100, step: 1, unit: "%" },
-  { name: "g0", label: "Fattore di ottimizzazione", kind: "number", min: 0, max: 10, step: 1 },
-  { name: "h0", label: "Limite durata impulso in continua", kind: "number", min: 50, max: 100, step: 1, unit: "%" },
-  { name: "i0", label: "Spostamento banda proporzionale", kind: "number", min: -50, max: 50, step: 1, unit: "%" }
+  { name: "a0", kind: "number", min: 0, max: 10, step: 0.1, unit: "K" },
+  { name: "b0", kind: "number", min: 0, max: 10, step: 0.1, unit: "K" },
+  { name: "c0", kind: "number", min: 10, max: 120, step: 10, unit: "min" },
+  { name: "d0", kind: "number", min: 0, max: 20, step: 1, unit: "min" },
+  { name: "e0", kind: "number", min: 0, max: 600, step: 5 },
+  { name: "f0", kind: "number", min: 0, max: 100, step: 1, unit: "%" },
+  { name: "g0", kind: "number", min: 0, max: 10, step: 1 },
+  { name: "h0", kind: "number", min: 50, max: 100, step: 1, unit: "%" },
+  { name: "i0", kind: "number", min: -50, max: 50, step: 1, unit: "%" }
 ];
 var FANCOIL = [
-  { name: "FCMT", label: "Tempo minimo funzionamento", kind: "number", min: 0, max: 20, step: 1, unit: "min" },
-  { name: "FCXT", label: "Tempo massimo funzionamento", kind: "number", min: 10, max: 241, step: 1, unit: "min" },
-  { name: "FCPT", label: "Tempo minimo di pausa", kind: "number", min: 0, max: 20, step: 1, unit: "min" }
+  { name: "FCMT", kind: "number", min: 0, max: 20, step: 1, unit: "min" },
+  { name: "FCXT", kind: "number", min: 10, max: 241, step: 1, unit: "min" },
+  { name: "FCPT", kind: "number", min: 0, max: 20, step: 1, unit: "min" }
 ];
 var GROUPS = {
   curve: { path: "/circSett.html", formKey: "MCSettings", fields: CURVE },
@@ -2418,7 +2435,8 @@ var MockDeviceSource = class {
       setpoints: { normalH: 20, reducedH: 18.5, standby: 23, normalC: 26, reducedC: 24.5, maxH: 31, minC: 15 },
       flags: { auto: true, swow: true, lock: false },
       weekly: 1,
-      daysProgram: [1, 1, 1, 1, 1, 2, 2]
+      daysProgram: [1, 1, 1, 1, 1, 2, 2],
+      remoteTemperature: null
     };
   }
   async fetchRoomSetup(zone) {
@@ -2644,7 +2662,8 @@ var registerAuthRoutes = (app, cfg) => {
     }
   }, async (req, reply) => {
     const ingressPath = req.headers["x-ingress-path"];
-    if (typeof ingressPath !== "string" || ingressPath.length === 0) {
+    const peer = (req.socket.remoteAddress ?? "").replace(/^::ffff:/, "");
+    if (typeof ingressPath !== "string" || ingressPath.length === 0 || !cfg.INGRESS_PROXY_IPS.includes(peer)) {
       return reply.code(401).send({ error: "not_via_ingress" });
     }
     const username = typeof req.headers["x-hass-display-name"] === "string" && req.headers["x-hass-display-name"] || cfg.API_USER;
@@ -2751,6 +2770,7 @@ var roomSchema = z3.object({
   fanRunning: z3.boolean(),
   calibrationTemp: z3.number().nullable(),
   calibrationHumidity: z3.number().nullable(),
+  remoteTemperature: z3.number().nullable(),
   programDailyId: z3.number().int(),
   programWeeklyId: z3.number().int(),
   programDays: z3.tuple([
@@ -2925,7 +2945,6 @@ var installerSettingsGroupSchema = z3.enum([
 ]);
 var installerSettingFieldSchema = z3.object({
   name: z3.string(),
-  label: z3.string(),
   kind: z3.enum(["number", "boolean"]),
   unit: z3.string().optional(),
   min: z3.number().optional(),
@@ -2991,7 +3010,7 @@ var sceneSchema = z3.object({
   icon: sceneIconSchema,
   action: sceneActionSchema
 });
-var sceneCreateSchema = sceneSchema.omit({ id: true });
+var sceneCreateSchema = sceneSchema.omit({ id: true }).extend({ name: z3.string().min(1).max(64) });
 
 // src/http/routes/floors.ts
 var registerFloorsRoutes = (app, { store }) => {
@@ -3466,7 +3485,7 @@ var registerRoomsRoutes = (app, { store, commander }) => {
 // src/http/routes/scenes.ts
 import { z as z9 } from "zod";
 var newId = (name) => {
-  const slug = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 20);
+  const slug = name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 20);
   return `${slug || "scene"}-${Math.random().toString(36).slice(2, 8)}`;
 };
 var registerScenesRoutes = (app, { store, commander }) => {
@@ -3675,11 +3694,11 @@ var buildServer = async ({
     await app.register(fastifyStatic, {
       root: resolve(spaDir),
       prefix: "/",
-      setHeaders: (res, filePath) => {
+      setHeaders: (reply, filePath) => {
         if (filePath.endsWith(".html")) {
-          res.setHeader("Cache-Control", "no-cache, must-revalidate");
-        } else if (/\/assets\//.test(filePath)) {
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          reply.header("Cache-Control", "no-cache, must-revalidate");
+        } else if (/[\\/]assets[\\/]/.test(filePath)) {
+          reply.header("Cache-Control", "public, max-age=31536000, immutable");
         }
       }
     });
@@ -3835,6 +3854,20 @@ var buildRoomClimate = (ctx, room, system) => {
     }
   };
 };
+var buildRoomTemperatureSensor = (ctx, room) => ({
+  topic: `${ctx.prefix}/sensor/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_temperature/config`,
+  payload: {
+    name: `${room.name} temperatura`,
+    unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_temperature`,
+    state_topic: ctx.topics.roomState(room.id),
+    value_template: "{% if value_json.temperature is none %}unknown{% else %}{{ value_json.temperature }}{% endif %}",
+    unit_of_measurement: "\xB0C",
+    device_class: "temperature",
+    state_class: "measurement",
+    availability_topic: ctx.topics.availability,
+    device: deviceBlock(ctx)
+  }
+});
 var buildRoomHumiditySensor = (ctx, room) => ({
   topic: `${ctx.prefix}/sensor/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_humidity/config`,
   payload: {
@@ -3844,6 +3877,20 @@ var buildRoomHumiditySensor = (ctx, room) => ({
     value_template: "{% if value_json.humidity is none %}unknown{% else %}{{ value_json.humidity }}{% endif %}",
     unit_of_measurement: "%",
     device_class: "humidity",
+    state_class: "measurement",
+    availability_topic: ctx.topics.availability,
+    device: deviceBlock(ctx)
+  }
+});
+var buildRoomRemoteTemperatureSensor = (ctx, room) => ({
+  topic: `${ctx.prefix}/sensor/rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_remote_temperature/config`,
+  payload: {
+    name: `${room.name} temperatura sonda remota`,
+    unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_remote_temperature`,
+    state_topic: ctx.topics.roomState(room.id),
+    value_template: "{% if value_json.remoteTemperature is none %}unknown{% else %}{{ value_json.remoteTemperature }}{% endif %}",
+    unit_of_measurement: "\xB0C",
+    device_class: "temperature",
     state_class: "measurement",
     availability_topic: ctx.topics.availability,
     device: deviceBlock(ctx)
@@ -3912,7 +3959,9 @@ var roomFlagSwitch = (ctx, room, slug, label, field, commandTopic, icon) => ({
     name: `${room.name} \xB7 ${label}`,
     unique_id: `rehau_${ctx.installationSlug}_${ctx.deviceId}_${room.id}_${slug}`,
     state_topic: ctx.topics.roomState(room.id),
-    value_template: `{{ 'ON' if value_json.${field} else 'OFF' }}`,
+    // A payload without the key renders "None" (HA: unknown) instead of a
+    // template warning + phantom OFF (#77).
+    value_template: `{% if value_json.${field} is defined %}{{ 'ON' if value_json.${field} else 'OFF' }}{% else %}None{% endif %}`,
     command_topic: commandTopic,
     payload_on: "true",
     payload_off: "false",
@@ -4191,12 +4240,14 @@ var buildAllDiscovery = (ctx, rooms, system, io) => [
   ...rooms.flatMap((r) => {
     const msgs = [
       buildRoomClimate(ctx, r, system),
+      buildRoomTemperatureSensor(ctx, r),
       buildRoomHumiditySensor(ctx, r),
       buildRoomLockSwitch(ctx, r),
       buildRoomAutoStartSwitch(ctx, r),
       buildRoomWindowDetectionSwitch(ctx, r)
     ];
     if (r.hasLight) msgs.push(buildRoomLightSwitch(ctx, r));
+    if (r.remoteTemperature !== null) msgs.push(buildRoomRemoteTemperatureSensor(ctx, r));
     if (r.hasFan) {
       msgs.push(buildRoomFanRunningSensor(ctx, r));
       msgs.push(buildRoomFanSpeedSensor(ctx, r));
@@ -4340,7 +4391,9 @@ var MqttBridge = class {
     }, 500);
   }
   currentCapabilitySignature() {
-    const rooms = this.o.store.listRooms().map((r) => `${r.id}:${r.hasLight ? "L" : ""}${r.hasFan ? "F" : ""}${r.hasFlap ? "P" : ""}`).join("|");
+    const rooms = this.o.store.listRooms().map(
+      (r) => `${r.id}:${r.hasLight ? "L" : ""}${r.hasFan ? "F" : ""}${r.hasFlap ? "P" : ""}${r.remoteTemperature !== null ? "R" : ""}`
+    ).join("|");
     const io = this.o.store.getIO();
     const ioSig = io ? `m:${io.master.rz.length}/${io.master.relay.length}/${io.master.di.length}|` + Object.entries(io.umodules).map(([k, v]) => `${k}:${v.relay.length}/${v.di.length}/${v.aiC.length}`).join(",") : "noio";
     const opMode = this.o.store.getSystem().operatingMode;
