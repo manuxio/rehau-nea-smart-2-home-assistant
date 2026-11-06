@@ -2,11 +2,6 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { btnStyle, Field } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
-import {
-  currentNativeInstallation,
-  isInNativeShell,
-  requestSwitchInstallation,
-} from "../../lib/runtime";
 
 export function Login() {
   const { login } = useAuth();
@@ -121,27 +116,6 @@ export function Login() {
       <button type="submit" disabled={busy} style={btnStyle("primary", "lg")}>
         {busy ? t("auth.submitBusy") : t("auth.submit")}
       </button>
-
-      {isInNativeShell() && (
-        <button
-          type="button"
-          onClick={requestSwitchInstallation}
-          style={{
-            background: "transparent",
-            border: "none",
-            padding: "10px 0 0",
-            cursor: "pointer",
-            color: "var(--accent)",
-            fontFamily: "var(--body)",
-            fontSize: "0.8125rem",
-            fontWeight: 500,
-            textAlign: "center",
-          }}
-        >
-          {t("system.installationSwitch")}
-          {currentNativeInstallation()?.name ? ` — ${currentNativeInstallation()?.name}` : ""}
-        </button>
-      )}
 
       <div
         style={{

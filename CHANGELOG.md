@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **Removed the unused Expo / React Native app (`apps/mobile`).** It was
+  a WebView shell around the web app that never shipped. The web app's
+  native-shell hooks ("Switch installation" on the login and System
+  pages, only shown inside that shell) go with it. The lockfile is
+  regenerated without it: ~60 fewer packages, the Expo-only Dependabot
+  alerts disappear, and React 18 is the only React in the tree again
+  (Expo's React 19 had been hoisted to the root, which a clean
+  `npm ci` build, e.g. the Docker Compose image, could have bundled next
+  to the web app's React 18). The published add-on bundles were not
+  affected: they contain React 18.3.1 only.
+
 ## 6.2.0 — 2026-11-06
 
 - **Node 24 LTS: add-on base image 17.1.4 → 21.0.10.** The old base was

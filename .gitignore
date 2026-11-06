@@ -53,8 +53,8 @@ PLAN.md
 STATUS.md
 
 # ── stray screenshots / images at repo root ────────────────────────
-# Scoped to the root with leading "/" so legitimate icons inside e.g.
-# apps/mobile/assets/ are still tracked.
+# Scoped to the root with leading "/" so legitimate icons inside the
+# workspaces are still tracked.
 /IMG_*.PNG
 /IMG_*.png
 /image.png
