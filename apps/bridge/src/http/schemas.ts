@@ -331,4 +331,8 @@ export const sceneSchema = z.object({
   action: sceneActionSchema,
 });
 
-export const sceneCreateSchema = sceneSchema.omit({ id: true });
+// Writes cap the name; reads keep the loose schema so scenes saved before
+// the cap still list fine.
+export const sceneCreateSchema = sceneSchema
+  .omit({ id: true })
+  .extend({ name: z.string().min(1).max(64) });

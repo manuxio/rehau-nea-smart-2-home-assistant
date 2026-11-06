@@ -16,7 +16,9 @@ const newId = (name: string): string => {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
+    // Runs are already collapsed to a single "-" above, so one per end is
+    // enough (and avoids the polynomial `-+$` backtracking CodeQL flags).
+    .replace(/^-|-$/g, "")
     .slice(0, 20);
   return `${slug || "scene"}-${Math.random().toString(36).slice(2, 8)}`;
 };
